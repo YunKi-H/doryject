@@ -11,7 +11,7 @@ import SwiftUI
 struct BloodyDayApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            CalendarMainView()
         }
     }
 }
