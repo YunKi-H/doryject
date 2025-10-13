@@ -10,19 +10,21 @@ import SwiftUI
 struct CalendarView: View {
     let days: [DayInfo]
     
-    private let columns = Array(repeating: GridItem(.flexible()), count: 7)
-    
     var body: some View {
-        VStack(spacing: 6) {
-            HStack {
+        Grid(horizontalSpacing: 0, verticalSpacing: 0) {
+            GridRow {
                 ForEach(["일", "월", "화", "수", "목", "금", "토"], id: \.self) {
                     Text($0)
+                        .frame(maxWidth: .infinity)
                 }
             }
             
-            LazyVGrid(columns: columns, spacing: 0) {
-                ForEach(days) { day in
-                    DayCellView(day: day)
+            ForEach(0..<6, id: \.self) { row in
+                GridRow {
+                    ForEach(0..<7, id: \.self) { col in
+                        let index = row * 7 + col
+                        DayCellView(day: days[index])
+                    }
                 }
             }
         }

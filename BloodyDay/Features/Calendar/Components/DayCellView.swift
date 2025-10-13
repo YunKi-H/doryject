@@ -14,10 +14,13 @@ struct DayCellView: View {
         VStack(spacing: 4) {
             Text("\(Calendar.current.component(.day, from: day.date))")
             
+            Spacer()
+            
             HStack(spacing: 2) {
                 
             }
         }
+        .frame(maxWidth: .infinity)
     }
 }
 
