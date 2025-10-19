@@ -7,11 +7,10 @@
 
 import Foundation
 
-struct DayInfo: Identifiable {
+struct DayInfo: Identifiable, Equatable, Hashable {
+    static func == (lhs: DayInfo, rhs: DayInfo) -> Bool { lhs.id == rhs.id }
+    
     let id: UUID = .init()
     let date: Date
-    var rangeEvents: [DayEvent] = []
-    var singleEvents: [DayEvent] = []
-    var isToday: Bool = false
-    var isCurrentMonth: Bool = false
+    var events: [DayEvent] = []
 }

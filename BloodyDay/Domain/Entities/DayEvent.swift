@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct DayEvent: Identifiable {
+struct DayEvent: Identifiable, Hashable {
     let id: UUID = .init()
     let type: EventType
     let isStart: Bool

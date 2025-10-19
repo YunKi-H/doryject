@@ -8,15 +8,13 @@
 import SwiftUI
 
 struct CalendarMainView: View {
-    let days: [DayInfo] = (0..<42).map { offset in
-        DayInfo(date: Calendar.current.date(byAdding: .day, value: offset, to: .now.startOfCalendarGrid())!)
-    }
+    @State private var viewModel: CalendarViewModel = .init()
     
     var body: some View {
         VStack {
             CalendarHeaderView()
             
-            CalendarView(days: days)
+            CalendarView(days: viewModel.days)
             
             DayInfoCardView()
         }
