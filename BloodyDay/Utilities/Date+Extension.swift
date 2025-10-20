@@ -50,7 +50,7 @@ extension Date {
     }
 
     // MARK: - Calendar grid range (for month view)
-    func startOfCalendarGrid(weekStartsOn firstWeekday: Weekday = .sunday) -> Date {
+    func startOfCalendarGrid(weekStartsOn firstWeekday: Weekday = .monday) -> Date {
         var cal = calendar
         cal.firstWeekday = firstWeekday.rawValue
         let firstOfMonth = startOfMonth

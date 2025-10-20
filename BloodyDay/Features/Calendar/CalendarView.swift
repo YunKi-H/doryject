@@ -15,12 +15,13 @@ struct CalendarView: View {
     
     var body: some View {
         VStack {
-            HStack {
-                ForEach(["일", "월", "화", "수", "목", "금", "토"], id: \.self) {
+            HStack(spacing: 0) {
+                ForEach(["월", "화", "수", "목", "금", "토", "일"], id: \.self) {
                     Text($0)
                         .frame(maxWidth: .infinity)
                 }
             }
+            
             GeometryReader { geo in
                 ZStack {
                     ForEach(periodRanges(), id: \.start.id) { range in

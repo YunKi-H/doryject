@@ -14,7 +14,7 @@ struct DayCellView: View {
     var love: DayEvent? { day.events.first(where: { $0.type == .love }) }
     
     var body: some View {
-        VStack(spacing: 4) {
+        VStack {
             Text("\(Calendar.current.component(.day, from: day.date))")
                 .font(.system(size: 16))
                 .padding(.vertical, 4)
