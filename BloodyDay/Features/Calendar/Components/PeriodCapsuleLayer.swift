@@ -14,7 +14,7 @@ struct PeriodCapsuleLayer: View {
     
     var body: some View {
         ForEach(ranges, id: \.self) { range in
-            CapsuleSegment(range: range, color: .red, height: 30, horizontalPadding: 1, days: days, geo: geo)
+            GlassCapsuleSegment(range: range, color: .red, height: 30, horizontalPadding: 1, days: days, geo: geo)
         }
     }
 }
