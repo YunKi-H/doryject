@@ -44,8 +44,8 @@ struct DayCellView: View {
     DayCellView(day: .init(
         date: .now,
         events: [
-            .init(type: .love, isStart: false, isEnd: false),
-            .init(type: .pill(4), isStart: false, isEnd: false)
+            .init(type: .love),
+            .init(type: .pill(3))
         ]
     ))
 }

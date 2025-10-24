@@ -13,8 +13,11 @@ final class CalendarViewModel {
     var selectedDate: Date = .now {
         didSet { reloadDays(for: selectedDate) }
     }
-    
     var days: [DayInfo] = []
+    var periodRanges: [DateInterval] = []
+    var predictedRanges: [DateInterval] = []
+    var ovulationRanges: [DateInterval] = []
+    var fertileRanges: [DateInterval] = []
     
     private let eventRepository: EventRepository
     private let cycleAnalyzer: CycleAnalyzer
