@@ -8,13 +8,19 @@
 import SwiftUI
 
 struct CalendarMainView: View {
-    @State private var viewModel: CalendarViewModel = .init()
+    @State private var viewModel: CalendarViewModel = .init(eventRepository: MockEventRepository(), cycleAnalyzer: .init(), cyclePredictor: .init())
     
     var body: some View {
         VStack {
             CalendarHeaderView()
             
-            CalendarView(days: viewModel.days)
+            CalendarView(
+                days: viewModel.days,
+                periodRanges: viewModel.periodRanges,
+                predictedRanges: viewModel.predictedRanges,
+                fertileRanges: viewModel.fertileRanges,
+                ovulationRanges: viewModel.ovulationRanges
+            )
             
             DayInfoCardView()
         }

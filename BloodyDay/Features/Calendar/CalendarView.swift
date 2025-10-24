@@ -9,6 +9,10 @@ import SwiftUI
 
 struct CalendarView: View {
     let days: [DayInfo]
+    let periodRanges: [DateInterval]
+    let predictedRanges: [DateInterval]
+    let fertileRanges: [DateInterval]
+    let ovulationRanges: [DateInterval]
     
     private let columns = 7
     private let rows = 6
@@ -22,28 +26,12 @@ struct CalendarView: View {
                 }
             }
             
-            GeometryReader { geo in
-                ZStack {
-                    ForEach(periodRanges(), id: \.start.id) { range in
-                        let startIndex = days.firstIndex(of: range.start)!
-                        let endIndex = days.firstIndex(of: range.end)!
-                        let startRow = startIndex / columns
-                        let startCol = startIndex % columns
-                        let endCol = endIndex % columns
-                        
-                        let cellWidth = geo.size.width / CGFloat(columns)
-                        let cellHeight = geo.size.height / CGFloat(rows)
-                        
-                        // 좌표 계산
-                        let startX = CGFloat(startCol) * cellWidth + 1
-                        let endX = CGFloat(endCol) * cellWidth + cellWidth - 1
-                        let y = CGFloat(startRow) * cellHeight + 14
-                        
-                        Capsule()
-                            .fill(Color.red.opacity(0.3))
-                            .frame(width: endX - startX, height: 16)
-                            .position(x: (startX + endX) / 2, y: y)
-                    }
+            ZStack {
+                GeometryReader { geo in
+                    PeriodCapsuleLayer(ranges: periodRanges, days: days, geo: geo)
+                    PredictedCapsuleLayer(ranges: predictedRanges, days: days, geo: geo)
+                    FertileCapsuleLayer(ranges: fertileRanges, days: days, geo: geo)
+                    OvulationCapsuleLayer(ranges: ovulationRanges, days: days, geo: geo)
                     
                     Grid(horizontalSpacing: 0, verticalSpacing: 0) {
                         ForEach(0..<6, id: \.self) { row in
@@ -59,43 +47,20 @@ struct CalendarView: View {
             }
         }
     }
-    
-    private func periodRanges() -> [(start: DayInfo, end: DayInfo)] {
-        var result: [(DayInfo, DayInfo)] = []
-        var currentStart: DayInfo?
-        
-        for (i, day) in days.enumerated() {
-            let isPeriod = day.events.contains { $0.type == .period }
-            if isPeriod {
-                if currentStart == nil { currentStart = day }
-                if i < days.count - 1 { // 마지막 날짜
-                    let nextRow = (i + 1) / 7
-                    let currentRow = i / 7
-                    if nextRow != currentRow {
-                        result.append((currentStart!, day))
-                        currentStart = nil
-                    }
-                }
-            } else {
-                if let start = currentStart {
-                    result.append((start, days[i - 1]))
-                    currentStart = nil
-                }
-            }
-        }
-        return result
-    }
 }
 
 #Preview {
     let baseDate = Date().startOfCalendarGrid()
     let days = (0..<42).map { offset in
         let date = Calendar.current.date(byAdding: .day, value: offset, to: baseDate)!
-        let isPeriod = (10...14).contains(offset)
-        return DayInfo(
-            date: date,
-            events: isPeriod ? [DayEvent(type: .period, isStart: offset == 10, isEnd: offset == 14)] : []
-        )
+        return DayInfo(date: date, events: [])
     }
-    CalendarView(days: days)
+    
+    CalendarView(
+        days: days,
+        periodRanges: [DateInterval(start: Calendar.current.date(byAdding: .day, value: 3, to: baseDate)!, end: Calendar.current.date(byAdding: .day, value: 5, to: baseDate)!)],
+        predictedRanges: [DateInterval(start: Calendar.current.date(byAdding: .day, value: 9, to: baseDate)!, end: Calendar.current.date(byAdding: .day, value: 12, to: baseDate)!)],
+        fertileRanges: [DateInterval(start: Calendar.current.date(byAdding: .day, value: 14, to: baseDate)!, end: Calendar.current.date(byAdding: .day, value: 19, to: baseDate)!)],
+        ovulationRanges: [DateInterval(start: Calendar.current.date(byAdding: .day, value: 15, to: baseDate)!, end: Calendar.current.date(byAdding: .day, value: 18, to: baseDate)!)]
+    )
 }
