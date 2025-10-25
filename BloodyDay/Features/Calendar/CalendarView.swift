@@ -22,6 +22,8 @@ struct CalendarView: View {
             HStack(spacing: 0) {
                 ForEach(["월", "화", "수", "목", "금", "토", "일"], id: \.self) {
                     Text($0)
+                        .font(.medium_11)
+                        .foregroundStyle(.textPrimary)
                         .frame(maxWidth: .infinity)
                 }
             }
@@ -53,7 +55,8 @@ struct CalendarView: View {
     let baseDate = Date().startOfCalendarGrid()
     let days = (0..<42).map { offset in
         let date = Calendar.current.date(byAdding: .day, value: offset, to: baseDate)!
-        return DayInfo(date: date, events: [])
+        let event: [DayEvent] = offset == 10 ? [.init(type: .pill(3)), .init(type: .love)] : []
+        return DayInfo(date: date, events: event)
     }
     
     CalendarView(

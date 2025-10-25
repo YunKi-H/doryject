@@ -16,25 +16,33 @@ struct DayCellView: View {
     var body: some View {
         VStack {
             Text("\(Calendar.current.component(.day, from: day.date))")
-                .font(.system(size: 16))
-                .padding(.vertical, 4)
+                .font(.medium_16)
+                .foregroundStyle(.textPrimary)
+                .padding(.top, 12)
             
             Spacer()
             
             HStack(spacing: 0) {
                 if love != nil {
                     Image(systemName: "heart.fill")
+                        .foregroundStyle(.subPink40)
+                        .font(.system(size: 11))
                 }
                 
                 if case let .pill(count) = pill?.type {
                     HStack(spacing: 4) {
-                        Image(systemName: "pill.fill")
+                        Image(.pillHalf)
+                            .resizable()
+                            .foregroundStyle(.subBlue30)
+                            .frame(width: 10, height: 10)
                         
                         Text("\(count)")
-                            .font(.system(size: 11))
+                            .font(.regular_11)
+                            .foregroundStyle(.textTertiary)
                     }
                 }
             }
+            .padding(.init(top: 0, leading: 6, bottom: 10, trailing: 6))
         }
         .frame(maxWidth: .infinity)
     }

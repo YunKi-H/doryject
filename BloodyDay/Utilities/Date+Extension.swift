@@ -13,6 +13,10 @@ enum Weekday: Int {
 
 extension Date {
     private var calendar: Calendar { Calendar.current }
+    
+    func component(_ component: Calendar.Component) -> Int {
+        calendar.component(component, from: self)
+    }
 
     // MARK: - Day normalization & comparison
     var startOfDay: Date { calendar.startOfDay(for: self) }

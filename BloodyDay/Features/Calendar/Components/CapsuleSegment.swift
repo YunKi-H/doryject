@@ -31,7 +31,7 @@ struct CapsuleSegment: View {
             
             let startX = CGFloat(startCol) * cellWidth + horizontalPadding
             let endX = CGFloat(endCol) * cellWidth + cellWidth - horizontalPadding
-            let y = CGFloat(startRow) * cellHeight + 14
+            let y = CGFloat(startRow) * cellHeight + 22
             
             Capsule()
                 .fill(color)
@@ -65,7 +65,7 @@ struct GlassCapsuleSegment: View {
             
             let startX = CGFloat(startCol) * cellWidth + horizontalPadding
             let endX = CGFloat(endCol) * cellWidth + cellWidth - horizontalPadding
-            let y = CGFloat(startRow) * cellHeight + 14
+            let y = CGFloat(startRow) * cellHeight + 22
             
             Capsule()
                 .fill(color)

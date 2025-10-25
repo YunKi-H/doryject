@@ -12,9 +12,9 @@ struct DayInfoCardView: View {
         HStack {
             VStack(alignment: .leading, spacing: 14) {
                 Text("B-Day 지연")
-                    .font(.system(size: 16))
+                    .font(.regular_16)
                 Text("임신 확률 낮음")
-                    .font(.system(size: 16))
+                    .font(.regular_16)
             }
             Spacer()
         }
