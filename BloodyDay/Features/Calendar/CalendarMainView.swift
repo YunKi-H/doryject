@@ -12,7 +12,7 @@ struct CalendarMainView: View {
     
     var body: some View {
         VStack {
-            CalendarHeaderView()
+            CalendarHeaderView(month: viewModel.selectedDate)
             
             CalendarView(
                 days: viewModel.days,
