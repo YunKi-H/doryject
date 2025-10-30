@@ -24,6 +24,10 @@ struct CalendarMainView: View {
             
             DayInfoCardView()
         }
+        .background {
+            Color.bgPrimary
+                .ignoresSafeArea()
+        }
     }
 }
 

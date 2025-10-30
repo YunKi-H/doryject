@@ -19,7 +19,11 @@ struct DayInfoCardView: View {
             Spacer()
         }
         .padding(EdgeInsets(top: 16, leading: 20, bottom: 16, trailing: 20))
-        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 16))
+        .background {
+            RoundedRectangle(cornerRadius: 16)
+                .foregroundStyle(.bgSecondary)
+        }
+        .padding(EdgeInsets(top: 11, leading: 16, bottom: 11, trailing: 16))
     }
 }
 
