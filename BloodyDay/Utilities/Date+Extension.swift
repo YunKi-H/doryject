@@ -106,4 +106,9 @@ extension Date {
         }
         return result
     }
+    
+    // MARK: - Controls
+    func addingMonths(_ month: Int) -> Date {
+        Calendar.current.date(byAdding: .month, value: month, to: self)!
+    }
 }

@@ -11,16 +11,10 @@ struct CalendarMainView: View {
     @State private var viewModel: CalendarViewModel = .init(eventRepository: MockEventRepository(), cycleAnalyzer: .init(), cyclePredictor: .init())
     
     var body: some View {
-        VStack {
+        VStack(spacing: 0) {
             CalendarHeaderView(month: viewModel.selectedDate)
             
-            CalendarView(
-                days: viewModel.days,
-                periodRanges: viewModel.periodRanges,
-                predictedRanges: viewModel.predictedRanges,
-                fertileRanges: viewModel.fertileRanges,
-                ovulationRanges: viewModel.ovulationRanges
-            )
+            CalendarView(month: viewModel.months[viewModel.currentIndex])
             
             DayInfoCardView()
         }
