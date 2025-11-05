@@ -12,18 +12,18 @@ struct CalendarHeaderView: View {
     
     var body: some View {
         HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 1) {
                 Text("\(month.component(.year))년")
                     .font(.medium_16)
                 
-                HStack(spacing: 6) {
+                HStack(spacing: 9) {
                     Text("\(month.component(.month))월")
                         .font(.semibold_32)
                     
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 13, weight: .bold))
-                        .frame(width: 30, height: 30)
-                        .glassEffect(.regular, in: .circle)
+                        .bold()
+                        .foregroundStyle(.icon)
+                        .frame(width: 13, height: 16)
                 }
             }
             .padding(21)
@@ -34,12 +34,11 @@ struct CalendarHeaderView: View {
                 
             } label: {
                 Image(systemName: "ellipsis")
-                    .font(.system(size: 17, weight: .medium))
-                    .frame(width: 44, height: 44)
+                    .frame(width: 36, height: 36)
                     .foregroundStyle(.icon)
-                
             }
-            .glassEffect(.regular, in: .circle)
+            .glassEffect(.regular.interactive(), in: .circle)
+            .frame(width: 44, height: 44)
             .padding(.trailing, 16)
 
         }
