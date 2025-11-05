@@ -15,13 +15,29 @@ struct BloodyDayRootView: View {
             Tab.init(value: .calendar) {
                 CalendarMainView()
                     .toolbarVisibility(.hidden, for: .tabBar)
-                    .safeAreaPadding(.bottom, 55)
+                    .safeAreaBar(edge: .bottom, spacing: 0) {
+                        Text(".")
+                            .blendMode(.destinationOver)
+                            .frame(height: 55)
+                    }
             }
             
             Tab.init(value: .period) {
-                CalendarMainView()
-                    .toolbarVisibility(.hidden, for: .tabBar)
-                    .safeAreaPadding(.bottom, 55)
+                ScrollView {
+                    VStack {
+                        ForEach(1...50, id: \.self) { _ in
+                            RoundedRectangle(cornerRadius: 15)
+                                .fill(.red.gradient)
+                                .frame(height: 50)
+                        }
+                    }
+                }
+                .toolbarVisibility(.hidden, for: .tabBar)
+                .safeAreaBar(edge: .bottom, spacing: 0) {
+                    Text(".")
+                        .blendMode(.destinationOver)
+                        .frame(height: 55)
+                }
             }
         }
         
