@@ -15,15 +15,6 @@ struct CalendarView: View {
     
     var body: some View {
         VStack {
-            HStack(spacing: 0) {
-                ForEach(["월", "화", "수", "목", "금", "토", "일"], id: \.self) {
-                    Text($0)
-                        .font(.medium_11)
-                        .foregroundStyle(.textPrimary)
-                        .frame(maxWidth: .infinity)
-                }
-            }
-            
             ZStack {
                 GeometryReader { geo in
                     PeriodCapsuleLayer(ranges: month.periodRanges, days: month.days, geo: geo)

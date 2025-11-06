@@ -11,36 +11,46 @@ struct CalendarHeaderView: View {
     let month: Date
     
     var body: some View {
-        HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 1) {
-                Text("\(month.component(.year))년")
-                    .font(.medium_16)
-                
-                HStack(spacing: 9) {
-                    Text("\(month.component(.month))월")
-                        .font(.semibold_32)
+        VStack {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("\(month.component(.year))년")
+                        .font(.medium_16)
                     
-                    Image(systemName: "chevron.right")
-                        .bold()
+                    HStack(spacing: 9) {
+                        Text("\(month.component(.month))월")
+                            .font(.semibold_32)
+                        
+                        Image(systemName: "chevron.right")
+                            .bold()
+                            .foregroundStyle(.icon)
+                            .frame(width: 13, height: 16)
+                    }
+                }
+                .padding(21)
+                
+                Spacer()
+                
+                Menu {
+                    
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .frame(width: 36, height: 36)
                         .foregroundStyle(.icon)
-                        .frame(width: 13, height: 16)
+                }
+                .glassEffect(.regular.interactive(), in: .circle)
+                .frame(width: 44, height: 44)
+                .padding(.trailing, 16)
+            }
+            
+            HStack(spacing: 0) {
+                ForEach(["월", "화", "수", "목", "금", "토", "일"], id: \.self) {
+                    Text($0)
+                        .font(.medium_11)
+                        .foregroundStyle(.textPrimary)
+                        .frame(maxWidth: .infinity)
                 }
             }
-            .padding(21)
-            
-            Spacer()
-            
-            Menu {
-                
-            } label: {
-                Image(systemName: "ellipsis")
-                    .frame(width: 36, height: 36)
-                    .foregroundStyle(.icon)
-            }
-            .glassEffect(.regular.interactive(), in: .circle)
-            .frame(width: 44, height: 44)
-            .padding(.trailing, 16)
-
         }
     }
 }
