@@ -13,7 +13,7 @@ struct CalendarMainView: View {
         cycleAnalyzer: .init(),
         cyclePredictor: .init()
     )
-    @State private var selectionID: UUID?
+    @State private var selectionMonth: Date?
     
     var body: some View {
         VStack(spacing: 0) {
@@ -31,25 +31,24 @@ struct CalendarMainView: View {
             }
             .scrollTargetBehavior(.paging)
             .scrollIndicators(.hidden)
-            .scrollPosition(id: $selectionID, anchor: .top)
+            .scrollPosition(id: $selectionMonth, anchor: .top)
             .onAppear {
                 if viewModel.months.indices.contains(viewModel.currentIndex) {
-                    selectionID = viewModel.months[viewModel.currentIndex].id
+                    selectionMonth = viewModel.months[viewModel.currentIndex].monthDate
                 }
             }
             .onScrollPhaseChange { _, newPhase in
                 switch newPhase {
                 case .idle:
                     // 스크롤이 완전히 멈춘 시점에서만 동기화
-                    guard let id = selectionID,
-                          let index = viewModel.months.firstIndex(where: { $0.id == id }) else { return }
+                    guard let month = selectionMonth,
+                          let index = viewModel.months.firstIndex(where: { $0.monthDate == month }) else { return }
                     
                     // 같은 페이지면 불필요한 업데이트 방지
                     guard index != viewModel.currentIndex ||
                             viewModel.months[index].monthDate.startOfMonth != viewModel.selectedDate.startOfMonth else { return }
                     
-                    viewModel.currentIndex = index
-                    viewModel.selectedDate = viewModel.months[index].monthDate
+                    viewModel.setCurrentMonth(to: viewModel.months[index].monthDate)
                     
                 case .animating, .decelerating, .interacting, .tracking:
                     break

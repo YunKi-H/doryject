@@ -10,12 +10,7 @@ import Observation
 
 @Observable
 final class CalendarViewModel {
-    var selectedDate: Date = .now {
-        didSet {
-            loadPreviousIfNeeded(viewingIndex: currentIndex)
-            loadNextIfNeeded(viewingIndex: currentIndex)
-        }
-    }
+    var selectedDate: Date = .now
     
     var months: [MonthInfo] = []
     var currentIndex: Int = 0
@@ -36,12 +31,14 @@ final class CalendarViewModel {
 extension CalendarViewModel {
     func setCurrentMonth(to month: Date) {
         let start = month.startOfMonth
+        selectedDate = start
         if let idx = months.firstIndex(where: { $0.monthDate == start }) {
             currentIndex = idx
+            loadPreviousIfNeeded(viewingIndex: idx)
+            loadNextIfNeeded(viewingIndex: idx)
         } else {
             bootstrapMonths(anchor: start)
         }
-        selectedDate = start
     }
     
     private func bootstrapMonths(anchor: Date) {
@@ -80,7 +77,7 @@ extension CalendarViewModel {
         )
     }
     
-    func loadPreviousIfNeeded(viewingIndex index: Int) {
+    private func loadPreviousIfNeeded(viewingIndex index: Int) {
         guard index <= 1, let first = months.first?.monthDate else { return }
         let prev = makeMonthInfo(for: first.addingMonths(-1))
         months.insert(prev, at: 0)
@@ -88,7 +85,7 @@ extension CalendarViewModel {
         trimIfNeeded()
     }
 
-    func loadNextIfNeeded(viewingIndex index: Int) {
+    private func loadNextIfNeeded(viewingIndex index: Int) {
         guard index >= months.count - 2, let last = months.last?.monthDate else { return }
         let next = makeMonthInfo(for: last.addingMonths(+1))
         months.append(next)
@@ -100,8 +97,8 @@ extension CalendarViewModel {
         // 양 끝에서 제거하되 currentIndex 보정
         while months.count > maxMonths {
             if currentIndex > maxMonths / 2 {
-                months.removeFirst()
                 currentIndex -= 1
+                months.removeFirst()
             } else {
                 months.removeLast()
             }
