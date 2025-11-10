@@ -51,6 +51,7 @@ struct CalendarHeaderView: View {
                         .frame(maxWidth: .infinity)
                 }
             }
+            .padding(.bottom, 6)
         }
     }
 }

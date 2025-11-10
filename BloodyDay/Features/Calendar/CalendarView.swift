@@ -32,6 +32,17 @@ struct CalendarView: View {
                             }
                         }
                     }
+                    .overlay {
+                        ForEach(0...rows, id: \.self) { r in
+                            let cellHeight = geo.size.height / CGFloat(rows)
+                            let y = CGFloat(r) * cellHeight
+                            
+                            Rectangle()
+                                .fill(.mainNeutralSecondary.opacity(0.12))
+                                .frame(height: 1)
+                                .position(x: geo.size.width / 2, y: y) // 경계선
+                        }
+                    }
                 }
             }
         }
