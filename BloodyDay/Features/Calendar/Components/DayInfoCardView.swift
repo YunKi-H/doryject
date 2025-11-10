@@ -16,6 +16,8 @@ struct DayInfoCardView: View {
                 Text("임신 확률 낮음")
                     .font(.regular_16)
             }
+            .foregroundStyle(.textPrimary)
+            
             Spacer()
         }
         .padding(EdgeInsets(top: 16, leading: 20, bottom: 16, trailing: 20))

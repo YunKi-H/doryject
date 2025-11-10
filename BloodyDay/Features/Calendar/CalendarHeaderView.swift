@@ -28,6 +28,7 @@ struct CalendarHeaderView: View {
                     }
                 }
                 .padding(21)
+                .foregroundStyle(.textPrimary)
                 
                 Spacer()
                 

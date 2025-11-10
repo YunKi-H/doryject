@@ -130,5 +130,5 @@ struct BloodyDayTabBar<TabItemView: View>: UIViewRepresentable {
 }
 
 #Preview {
-    TestTabBar()
+    BloodyDayRootView()
 }
