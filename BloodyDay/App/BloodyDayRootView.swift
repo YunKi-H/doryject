@@ -18,7 +18,7 @@ struct BloodyDayRootView: View {
                     .safeAreaBar(edge: .bottom, spacing: 0) {
                         Text(".")
                             .blendMode(.destinationOver)
-                            .frame(height: 55)
+                            .frame(height: 62)
                     }
             }
             
@@ -36,11 +36,10 @@ struct BloodyDayRootView: View {
                 .safeAreaBar(edge: .bottom, spacing: 0) {
                     Text(".")
                         .blendMode(.destinationOver)
-                        .frame(height: 55)
+                        .frame(height: 62)
                 }
             }
         }
-        
         .safeAreaInset(edge: .bottom) {
             BloodyDayTabBarView()
                 .padding(.horizontal, 20)
@@ -65,18 +64,21 @@ struct BloodyDayRootView: View {
                     .glassEffect(.regular.interactive(), in: .capsule)
                 }
                 
-                Button {
-                    
-                } label: {
-                    Image(systemName: "plus")
-                        .font(.system(size: 22, weight: .medium))
-                }
-                .buttonStyle(.plain)
-                .frame(width: 55, height: 55)
-                .glassEffect(.regular.interactive(), in: Circle())
+                Circle()
+                    .fill(.mainRed)
+                    .overlay {
+                        Image(systemName: "plus")
+                            .font(.system(size: 22, weight: .medium))
+                            .foregroundStyle(.textPoint)
+                    }
+                    .frame(width: 62, height: 62)
+                    .glassEffect(.clear.interactive())
+                    .onTapGesture {
+                        
+                    }
             }
+            .frame(height: 62)
         }
-        .frame(height: 55)
     }
 }
 
