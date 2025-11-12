@@ -9,16 +9,38 @@ import SwiftUI
 
 struct DayCellView: View {
     let day: DayInfo
+    let isSelected: Bool
+    var onTap: (Date) -> Void
     
-    var pill: DayEvent? { day.events.first(where: { if case .pill(_) = $0.type { return true } else { return false } }) }
-    var love: DayEvent? { day.events.first(where: { $0.type == .love }) }
+    private var isToday: Bool { day.date.isSameDay(as: .now) }
+    private var pill: DayEvent? { day.events.first(where: { if case .pill(_) = $0.type { return true } else { return false } }) }
+    private var love: DayEvent? { day.events.first(where: { $0.type == .love }) }
+    private var dateFontColor: Color {
+        isToday || day.events.contains { $0.type == .period } ? .textPoint : .textPrimary
+    }
     
     var body: some View {
         VStack {
             Text("\(Calendar.current.component(.day, from: day.date))")
                 .font(.medium_16)
-                .foregroundStyle(.textPrimary)
+                .foregroundStyle(dateFontColor)
+                .background {
+                    if isToday || isSelected {
+                        if day.events.contains(where: { $0.type.isCycleRelated }) {
+                            Capsule(style: .continuous)
+                                .foregroundStyle(isToday ? .textPrimary : .bgSecondary)
+                                .frame(width: 38, height: 20)
+                                .glassEffect(.clear)
+                        } else {
+                            Circle()
+                                .foregroundStyle(isToday ? .textPrimary : .bgSecondary)
+                                .frame(width: 30, height: 30)
+                                .glassEffect(.clear, in: .circle)
+                        }
+                    }
+                }
                 .padding(.top, 12)
+                
             
             Spacer()
             
@@ -45,15 +67,20 @@ struct DayCellView: View {
             .padding(.init(top: 0, leading: 6, bottom: 10, trailing: 6))
         }
         .frame(maxWidth: .infinity)
+        .onTapGesture { onTap(day.date) }
     }
 }
 
 #Preview {
-    DayCellView(day: .init(
-        date: .now,
-        events: [
-            .init(type: .love),
-            .init(type: .pill(3))
-        ]
-    ))
+    DayCellView(
+        day: .init(
+            date: .now,
+            events: [
+                .init(type: .fertile),
+                .init(type: .love),
+                .init(type: .pill(3))
+            ]
+        ),
+        isSelected: true
+    ) { _ in }
 }

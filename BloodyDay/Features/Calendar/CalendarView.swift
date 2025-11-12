@@ -9,6 +9,7 @@ import SwiftUI
 
 struct CalendarView: View {
     let month: MonthInfo
+    @Binding var selectedDate: Date
     
     private let columns = 7
     private let rows = 6
@@ -27,7 +28,13 @@ struct CalendarView: View {
                             GridRow {
                                 ForEach(0..<7, id: \.self) { col in
                                     let index = row * 7 + col
-                                    DayCellView(day: month.days[index])
+                                    let day = month.days[index]
+                                    DayCellView(
+                                        day: day,
+                                        isSelected: selectedDate.isSameDay(as: day.date)
+                                    ) { date in
+                                        selectedDate = date
+                                    }
                                 }
                             }
                         }
@@ -65,6 +72,7 @@ struct CalendarView: View {
             predictedRanges: [DateInterval(start: Calendar.current.date(byAdding: .day, value: 9, to: baseDate)!, end: Calendar.current.date(byAdding: .day, value: 12, to: baseDate)!)],
             fertileRanges: [DateInterval(start: Calendar.current.date(byAdding: .day, value: 14, to: baseDate)!, end: Calendar.current.date(byAdding: .day, value: 19, to: baseDate)!)],
             ovulationRanges: [DateInterval(start: Calendar.current.date(byAdding: .day, value: 15, to: baseDate)!, end: Calendar.current.date(byAdding: .day, value: 18, to: baseDate)!)]
-        )
+        ),
+        selectedDate: .constant(.now)
     )
 }

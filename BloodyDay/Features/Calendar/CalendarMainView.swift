@@ -16,13 +16,15 @@ struct CalendarMainView: View {
     @State private var selectionMonth: Date?
     
     var body: some View {
+        @Bindable var viewModel = viewModel
+        
         VStack(spacing: 0) {
             CalendarHeaderView(month: viewModel.selectedDate)
             
             ScrollView(.vertical) {
                 LazyVStack(spacing: 0) {
                     ForEach(viewModel.months) { month in
-                        CalendarView(month: month)
+                        CalendarView(month: month, selectedDate: $viewModel.selectedDate)
                             .containerRelativeFrame(.vertical)
                             .id(month.monthDate)
                     }
