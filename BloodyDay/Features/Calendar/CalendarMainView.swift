@@ -24,9 +24,13 @@ struct CalendarMainView: View {
             ScrollView(.vertical) {
                 LazyVStack(spacing: 0) {
                     ForEach(viewModel.months) { month in
-                        CalendarView(month: month, selectedDate: $viewModel.selectedDate)
-                            .containerRelativeFrame(.vertical)
-                            .id(month.monthDate)
+                        CalendarView(
+                            month: month,
+                            selectedDate: viewModel.selectedDate,
+                            onSelectDate: viewModel.selectDate(_:)
+                        )
+                        .containerRelativeFrame(.vertical)
+                        .id(month.monthDate)
                     }
                 }
                 .scrollTargetLayout()
@@ -39,6 +43,15 @@ struct CalendarMainView: View {
                     selectionMonth = viewModel.months[viewModel.currentIndex].monthDate
                 }
             }
+            .onChange(of: viewModel.selectedDate, { oldValue, newValue in
+                if !oldValue.isInSameMonth(as: newValue) {
+                    DispatchQueue.main.async {
+                        withAnimation {
+                            selectionMonth = newValue.startOfMonth
+                        }
+                    }
+                }
+            })
             .onScrollPhaseChange { _, newPhase in
                 switch newPhase {
                 case .idle:

@@ -10,13 +10,16 @@ import SwiftUI
 struct DayCellView: View {
     let day: DayInfo
     let isSelected: Bool
+    let monthDate: Date
     var onTap: (Date) -> Void
     
     private var isToday: Bool { day.date.isSameDay(as: .now) }
     private var pill: DayEvent? { day.events.first(where: { if case .pill(_) = $0.type { return true } else { return false } }) }
     private var love: DayEvent? { day.events.first(where: { $0.type == .love }) }
     private var dateFontColor: Color {
-        isToday || day.events.contains { $0.type == .period } ? .textPoint : .textPrimary
+        if !day.date.isInSameMonth(as: monthDate) { return .textTertiary }
+        if isToday || day.events.contains(where: { $0.type == .period }) { return .textPoint }
+        return .textPrimary
     }
     
     var body: some View {
@@ -81,6 +84,7 @@ struct DayCellView: View {
                 .init(type: .pill(3))
             ]
         ),
-        isSelected: true
+        isSelected: true,
+        monthDate: .now
     ) { _ in }
 }

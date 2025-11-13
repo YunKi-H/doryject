@@ -29,9 +29,22 @@ final class CalendarViewModel {
 }
 
 extension CalendarViewModel {
+    func selectDate(_ date: Date) {
+        if !selectedDate.isInSameMonth(as: date) {
+            setCurrentMonth(to: date)
+        }
+        selectedDate = date
+    }
+    
     func setCurrentMonth(to month: Date) {
         let start = month.startOfMonth
-        selectedDate = start
+        let newDate: DateComponents = .init(
+            year: month.component(.year),
+            month: month.component(.month),
+            day: selectedDate.component(.day)
+        )
+        selectedDate = Calendar.current.date(from: newDate) ?? start
+        
         if let idx = months.firstIndex(where: { $0.monthDate == start }) {
             currentIndex = idx
             loadPreviousIfNeeded(viewingIndex: idx)
