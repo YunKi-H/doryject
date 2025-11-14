@@ -38,12 +38,7 @@ extension CalendarViewModel {
     
     func setCurrentMonth(to month: Date) {
         let start = month.startOfMonth
-        let newDate: DateComponents = .init(
-            year: month.component(.year),
-            month: month.component(.month),
-            day: selectedDate.component(.day)
-        )
-        selectedDate = Calendar.current.date(from: newDate) ?? start
+        selectedDate = start
         
         if let idx = months.firstIndex(where: { $0.monthDate == start }) {
             currentIndex = idx
@@ -95,14 +90,14 @@ extension CalendarViewModel {
         let prev = makeMonthInfo(for: first.addingMonths(-1))
         months.insert(prev, at: 0)
         currentIndex += 1
-        trimIfNeeded()
+//        trimIfNeeded()
     }
 
     private func loadNextIfNeeded(viewingIndex index: Int) {
         guard index >= months.count - 2, let last = months.last?.monthDate else { return }
         let next = makeMonthInfo(for: last.addingMonths(+1))
         months.append(next)
-        trimIfNeeded()
+//        trimIfNeeded()
     }
 
     private func trimIfNeeded(maxMonths: Int = 7) {
