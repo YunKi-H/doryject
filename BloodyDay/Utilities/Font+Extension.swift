@@ -40,50 +40,50 @@ extension Font {
     }
     
     static var regular_11: Font {
-        return pretendard(.regular, size: 11)
+        return pretendard(.regular, fixedSize: 11)
     }
     
     static var regular_14: Font {
-        return pretendard(.regular, size: 14)
+        return pretendard(.regular, fixedSize: 14)
     }
     
     static var regular_16: Font {
-        return pretendard(.regular, size: 16)
+        return pretendard(.regular, fixedSize: 16)
     }
     
     static var regular_18: Font {
-        return pretendard(.regular, size: 18)
+        return pretendard(.regular, fixedSize: 18)
     }
     
     static var regular_20: Font {
-        return pretendard(.regular, size: 20)
+        return pretendard(.regular, fixedSize: 20)
     }
     
     static var medium_11: Font {
-        return pretendard(.medium, size: 11)
+        return pretendard(.medium, fixedSize: 11)
     }
     
     static var medium_14: Font {
-        return pretendard(.medium, size: 14)
+        return pretendard(.medium, fixedSize: 14)
     }
     
     static var medium_16: Font {
-        return pretendard(.medium, size: 16)
+        return pretendard(.medium, fixedSize: 16)
     }
     
     static var medium_18: Font {
-        return pretendard(.medium, size: 18)
+        return pretendard(.medium, fixedSize: 18)
     }
     
     static var semibold_14: Font {
-        return pretendard(.semibold, size: 14)
+        return pretendard(.semibold, fixedSize: 14)
     }
     
     static var semibold_18: Font {
-        return pretendard(.semibold, size: 18)
+        return pretendard(.semibold, fixedSize: 18)
     }
     
     static var semibold_32: Font {
-        return pretendard(.semibold, size: 32)
+        return pretendard(.semibold, fixedSize: 32)
     }
 }

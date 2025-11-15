@@ -13,4 +13,12 @@ enum EventType: Equatable, Hashable, Codable {
     case fertile // 가임기
     case pill(Int)
     case love
+    
+    var isCycleRelated: Bool {
+        switch self {
+        case .period, .ovulation, .fertile: return true
+        case .pill, .love: return false
+        @unknown default : return false
+        }
+    }
 }

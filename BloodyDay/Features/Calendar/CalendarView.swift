@@ -8,41 +8,49 @@
 import SwiftUI
 
 struct CalendarView: View {
-    let days: [DayInfo]
-    let periodRanges: [DateInterval]
-    let predictedRanges: [DateInterval]
-    let fertileRanges: [DateInterval]
-    let ovulationRanges: [DateInterval]
+    let month: MonthInfo
+    let selectedDate: Date
+    let onSelectDate: (Date) -> Void
     
     private let columns = 7
     private let rows = 6
     
     var body: some View {
         VStack {
-            HStack(spacing: 0) {
-                ForEach(["월", "화", "수", "목", "금", "토", "일"], id: \.self) {
-                    Text($0)
-                        .font(.medium_11)
-                        .foregroundStyle(.textPrimary)
-                        .frame(maxWidth: .infinity)
-                }
-            }
-            
             ZStack {
                 GeometryReader { geo in
-                    PeriodCapsuleLayer(ranges: periodRanges, days: days, geo: geo)
-                    PredictedCapsuleLayer(ranges: predictedRanges, days: days, geo: geo)
-                    FertileCapsuleLayer(ranges: fertileRanges, days: days, geo: geo)
-                    OvulationCapsuleLayer(ranges: ovulationRanges, days: days, geo: geo)
+                    PeriodCapsuleLayer(ranges: month.periodRanges, days: month.days, geo: geo)
+                    PredictedCapsuleLayer(ranges: month.predictedRanges, days: month.days, geo: geo)
+                    FertileCapsuleLayer(ranges: month.fertileRanges, days: month.days, geo: geo)
+                    OvulationCapsuleLayer(ranges: month.ovulationRanges, days: month.days, geo: geo)
                     
                     Grid(horizontalSpacing: 0, verticalSpacing: 0) {
                         ForEach(0..<6, id: \.self) { row in
                             GridRow {
                                 ForEach(0..<7, id: \.self) { col in
                                     let index = row * 7 + col
-                                    DayCellView(day: days[index])
+                                    let day = month.days[index]
+                                    DayCellView(
+                                        day: day,
+                                        isSelected: selectedDate.isSameDay(as: day.date),
+                                        monthDate: month.monthDate
+                                    ) { date in
+//                                        selectedDate = date
+                                        onSelectDate(date)
+                                    }
                                 }
                             }
+                        }
+                    }
+                    .overlay {
+                        ForEach(0...rows, id: \.self) { r in
+                            let cellHeight = geo.size.height / CGFloat(rows)
+                            let y = CGFloat(r) * cellHeight
+                            
+                            Rectangle()
+                                .fill(.mainNeutral8)
+                                .frame(height: 1)
+                                .position(x: geo.size.width / 2, y: y) // 경계선
                         }
                     }
                 }
@@ -60,10 +68,15 @@ struct CalendarView: View {
     }
     
     CalendarView(
-        days: days,
-        periodRanges: [DateInterval(start: Calendar.current.date(byAdding: .day, value: 3, to: baseDate)!, end: Calendar.current.date(byAdding: .day, value: 5, to: baseDate)!)],
-        predictedRanges: [DateInterval(start: Calendar.current.date(byAdding: .day, value: 9, to: baseDate)!, end: Calendar.current.date(byAdding: .day, value: 12, to: baseDate)!)],
-        fertileRanges: [DateInterval(start: Calendar.current.date(byAdding: .day, value: 14, to: baseDate)!, end: Calendar.current.date(byAdding: .day, value: 19, to: baseDate)!)],
-        ovulationRanges: [DateInterval(start: Calendar.current.date(byAdding: .day, value: 15, to: baseDate)!, end: Calendar.current.date(byAdding: .day, value: 18, to: baseDate)!)]
+        month: .init(
+            monthDate: .now,
+            days: days,
+            periodRanges: [DateInterval(start: Calendar.current.date(byAdding: .day, value: 3, to: baseDate)!, end: Calendar.current.date(byAdding: .day, value: 5, to: baseDate)!)],
+            predictedRanges: [DateInterval(start: Calendar.current.date(byAdding: .day, value: 9, to: baseDate)!, end: Calendar.current.date(byAdding: .day, value: 12, to: baseDate)!)],
+            fertileRanges: [DateInterval(start: Calendar.current.date(byAdding: .day, value: 14, to: baseDate)!, end: Calendar.current.date(byAdding: .day, value: 19, to: baseDate)!)],
+            ovulationRanges: [DateInterval(start: Calendar.current.date(byAdding: .day, value: 15, to: baseDate)!, end: Calendar.current.date(byAdding: .day, value: 18, to: baseDate)!)]
+        ),
+        selectedDate: .now,
+        onSelectDate: { _ in }
     )
 }
