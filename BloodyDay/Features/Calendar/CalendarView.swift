@@ -48,7 +48,7 @@ struct CalendarView: View {
                             let y = CGFloat(r) * cellHeight
                             
                             Rectangle()
-                                .fill(.mainNeutralSecondary.opacity(0.12))
+                                .fill(.mainNeutral8)
                                 .frame(height: 1)
                                 .position(x: geo.size.width / 2, y: y) // 경계선
                         }

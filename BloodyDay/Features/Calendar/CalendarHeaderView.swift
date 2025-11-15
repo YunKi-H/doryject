@@ -11,7 +11,7 @@ struct CalendarHeaderView: View {
     let month: Date
     
     var body: some View {
-        VStack {
+        VStack(spacing: 0) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 1) {
                     Text("\(month.component(.year))년")
@@ -52,7 +52,11 @@ struct CalendarHeaderView: View {
                         .frame(maxWidth: .infinity)
                 }
             }
-            .padding(.bottom, 6)
+            .padding(.bottom, 5)
+            
+            Rectangle()
+                .fill(.mainNeutralSecondary.opacity(0.12))
+                .frame(height: 1)
         }
     }
 }
