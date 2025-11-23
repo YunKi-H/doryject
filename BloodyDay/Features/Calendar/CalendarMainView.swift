@@ -19,7 +19,10 @@ struct CalendarMainView: View {
         @Bindable var viewModel = viewModel
         
         VStack(spacing: 0) {
-            CalendarHeaderView(month: viewModel.selectedDate)
+            CalendarHeaderView(
+                month: viewModel.selectedDate,
+                onSelectDate: viewModel.selectDate(_:)
+            )
             
             ScrollView(.vertical) {
                 LazyVStack(spacing: 0) {
