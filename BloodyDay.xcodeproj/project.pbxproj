@@ -210,11 +210,12 @@
 				};
 			};
 			buildConfigurationList = 2BF4544F2E97DB6900C1190F /* Build configuration list for PBXProject "BloodyDay" */;
-			developmentRegion = en;
+			developmentRegion = ko;
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
 				Base,
+				ko,
 			);
 			mainGroup = 2BF4544B2E97DB6900C1190F;
 			minimizedProjectReferenceProxies = 1;
