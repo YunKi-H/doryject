@@ -15,6 +15,12 @@ struct CalendarMainView: View {
     )
     @State private var selectionMonth: Date?
     
+    @Binding var isPresentedEventSheet: Bool
+    
+    @State private var period: Bool = false
+    @State private var pill: Bool = false
+    @State private var love: Bool = false
+    
     var body: some View {
         @Bindable var viewModel = viewModel
         
@@ -81,9 +87,83 @@ struct CalendarMainView: View {
             Color.bgPrimary
                 .ignoresSafeArea()
         }
+        .sheet(isPresented: $isPresentedEventSheet) {
+            NavigationStack {
+                Form {
+                    Section(header: EmptyView()) {
+                        Toggle(isOn: $period) {
+                            Label {
+                                Text("생리")
+                            } icon: {
+                                Image(systemName: "drop.fill")
+                                    .foregroundStyle(.mainRed)
+                            }
+                        }
+                        .tint(.mainRed)
+                        
+                        Toggle(isOn: $pill) {
+                            Label {
+                                Text("피임약 복용")
+                            } icon: {
+                                Image(.pillHalf)
+                                    .foregroundStyle(.subBlue)
+                            }
+                        }
+                        .tint(.subBlue)
+                        
+                        Toggle(isOn: $love) {
+                            Label {
+                                Text("사랑한 날")
+                            } icon: {
+                                Image(systemName: "heart.fill")
+                                    .foregroundStyle(.subPink)
+                            }
+                        }
+                        .tint(.subPink)
+                    }
+                    .listRowBackground(Color.bgSecondary)
+                }
+                .padding(.top, 14)
+                .contentMargins(.top, 0)
+                .toolbar {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button {
+                            isPresentedEventSheet = false
+                        } label: {
+                            Image(systemName: "xmark")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    
+                    ToolbarItem(placement: .title) {
+                        let selectedDate = viewModel.selectedDate
+                        let month = selectedDate.component(.month)
+                        let day = selectedDate.component(.day)
+                        let weekDay = Date.FormatStyle()
+                            .weekday(.wide)
+                            .format(selectedDate)
+                        Text("\(month)월 \(day)일 \(weekDay)")
+                    }
+                    
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button(role: .confirm) {
+                            isPresentedEventSheet = false
+                        } label: {
+                            Image(systemName: "checkmark")
+                                .foregroundStyle(.bgSecondary)
+                        }
+                        .tint(.mainRed)
+                        .buttonStyle(.glassProminent)
+                    }
+                }
+                .navigationBarTitleDisplayMode(.inline)
+            }
+            .presentationDetents([.height(240)])
+            .presentationDragIndicator(.visible)
+        }
     }
 }
 
 #Preview {
-    CalendarMainView()
+    CalendarMainView(isPresentedEventSheet: .constant(false))
 }
