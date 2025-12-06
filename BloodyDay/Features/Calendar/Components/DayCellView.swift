@@ -14,7 +14,7 @@ struct DayCellView: View {
     var onTap: (Date) -> Void
     
     private var isToday: Bool { day.date.isSameDay(as: .now) }
-    private var pill: DayEvent? { day.events.first(where: { if case .pill(_) = $0.type { return true } else { return false } }) }
+    private var pill: DayEvent? { day.events.first(where: { $0.type == .pill }) }
     private var love: DayEvent? { day.events.first(where: { $0.type == .love }) }
     private var dateFontColor: Color {
         if !day.date.isInSameMonth(as: monthDate) { return .textTertiary }
@@ -54,14 +54,14 @@ struct DayCellView: View {
                         .font(.system(size: 11))
                 }
                 
-                if case let .pill(count) = pill?.type {
+                if pill != nil {
                     HStack(spacing: 4) {
                         Image(.pillHalf)
                             .resizable()
                             .foregroundStyle(.subBlue30)
                             .frame(width: 10, height: 10)
                         
-                        Text("\(count)")
+                        Text("\(1)")
                             .font(.regular_11)
                             .foregroundStyle(.textTertiary)
                     }
@@ -81,7 +81,7 @@ struct DayCellView: View {
             events: [
                 .init(type: .fertile),
                 .init(type: .love),
-                .init(type: .pill(3))
+                .init(type: .pill)
             ]
         ),
         isSelected: true,

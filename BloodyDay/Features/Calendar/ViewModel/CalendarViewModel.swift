@@ -28,6 +28,34 @@ final class CalendarViewModel {
     }
 }
 
+// Repository
+extension CalendarViewModel {
+    func isEventOnSelectedDate(_ type: EventType) -> Bool {
+        let thisMonth = months[currentIndex]
+        guard let todayInfo = thisMonth.days.first(where: { $0.date.isSameDay(as: selectedDate) })
+        else { return false }
+        return todayInfo.events.contains {
+            $0.type == type
+        }
+    }
+    
+    func commitEventsForSelectedDate(from initial: Set<EventType>, to final: Set<EventType>) {
+        let date = selectedDate.startOfDay
+
+        let toAdd = final.subtracting(initial)
+        let toRemove = initial.subtracting(final)
+
+        for type in toAdd {
+            let new = UserEvent(id: .init(), date: date, type: type)
+            eventRepository.save(new)
+        }
+        for type in toRemove {
+            eventRepository.delete(type: type, on: date)
+        }
+    }
+}
+
+// UI
 extension CalendarViewModel {
     func selectDate(_ date: Date) {
         if !selectedDate.isInSameMonth(as: date) {

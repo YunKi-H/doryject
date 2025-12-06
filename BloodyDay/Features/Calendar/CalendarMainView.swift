@@ -17,6 +17,10 @@ struct CalendarMainView: View {
     
     @Binding var isPresentedEventSheet: Bool
     
+    @State private var initialPeriod: Bool = false
+    @State private var initialPill: Bool = false
+    @State private var initialLove: Bool = false
+    
     @State private var period: Bool = false
     @State private var pill: Bool = false
     @State private var love: Bool = false
@@ -147,6 +151,19 @@ struct CalendarMainView: View {
                     
                     ToolbarItem(placement: .confirmationAction) {
                         Button(role: .confirm) {
+                            let initial: Set<EventType> = Set([
+                                initialPeriod ? .period : nil,
+                                initialPill ? .pill : nil,
+                                initialLove ? .love : nil
+                            ].compactMap{ $0 })
+                            
+                            let final: Set<EventType> = Set([
+                                period ? .period : nil,
+                                pill ? .pill : nil,
+                                love ? .love : nil
+                            ].compactMap { $0 })
+
+                            viewModel.commitEventsForSelectedDate(from: initial, to: final)
                             isPresentedEventSheet = false
                         } label: {
                             Image(systemName: "checkmark")
@@ -160,6 +177,19 @@ struct CalendarMainView: View {
             }
             .presentationDetents([.height(240)])
             .presentationDragIndicator(.visible)
+            .onAppear {
+                let hasPeriod = viewModel.isEventOnSelectedDate(.period)
+                let hasPill = viewModel.isEventOnSelectedDate(.pill)
+                let hasLove = viewModel.isEventOnSelectedDate(.love)
+                
+                self.period = hasPeriod
+                self.pill = hasPill
+                self.love = hasLove
+                
+                self.initialPeriod = hasPeriod
+                self.initialPill = hasPill
+                self.initialLove = hasLove
+            }
         }
     }
 }

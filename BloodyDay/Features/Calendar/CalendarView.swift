@@ -35,7 +35,6 @@ struct CalendarView: View {
                                         isSelected: selectedDate.isSameDay(as: day.date),
                                         monthDate: month.monthDate
                                     ) { date in
-//                                        selectedDate = date
                                         onSelectDate(date)
                                     }
                                 }
@@ -63,7 +62,7 @@ struct CalendarView: View {
     let baseDate = Date().startOfCalendarGrid()
     let days = (0..<42).map { offset in
         let date = Calendar.current.date(byAdding: .day, value: offset, to: baseDate)!
-        let event: [DayEvent] = offset == 10 ? [.init(type: .pill(3)), .init(type: .love)] : []
+        let event: [DayEvent] = offset == 10 ? [.init(type: .pill), .init(type: .love)] : []
         return DayInfo(date: date, events: event)
     }
     

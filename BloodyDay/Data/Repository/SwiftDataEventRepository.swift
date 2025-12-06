@@ -22,8 +22,9 @@ final class SwiftDataEventRepository: EventRepository {
     func save(_ event: UserEvent) {
         // If the object is already in the context, just try saving. Otherwise, insert then save.
         do {
+            let eventID = event.id
             let existing = try context.fetch(
-                FetchDescriptor<UserEvent>(predicate: #Predicate { $0.id == event.id })
+                FetchDescriptor<UserEvent>(predicate: #Predicate { $0.id == eventID })
             )
             if existing.isEmpty {
                 context.insert(event)
@@ -49,12 +50,12 @@ final class SwiftDataEventRepository: EventRepository {
         }
     }
     
-    func delete(date: Date, type: EventType) {
-        let startOfDay = date.startOfDay
-        let endOfDay = date.endOfDay
+    func delete(type: EventType, on: Date) {
+        let startOfDay = on.startOfDay
+        let endOfDay = on.endOfDay
         // Fetch the event by id and delete
         let descriptor = FetchDescriptor<UserEvent>(
-            predicate: #Predicate { date >= startOfDay && date <= endOfDay && $0.type == type }
+            predicate: #Predicate { $0.date >= startOfDay && $0.date <= endOfDay && $0.type == type }
         )
         do {
             let results = try context.fetch(descriptor)
