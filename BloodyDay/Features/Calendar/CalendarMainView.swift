@@ -8,11 +8,7 @@
 import SwiftUI
 
 struct CalendarMainView: View {
-    @State private var viewModel: CalendarViewModel = .init(
-        eventRepository: MockEventRepository(),
-        cycleAnalyzer: .init(),
-        cyclePredictor: .init()
-    )
+    @Bindable var viewModel: CalendarViewModel
     @State private var selectionMonth: Date?
     
     @Binding var isPresentedEventSheet: Bool
@@ -26,8 +22,6 @@ struct CalendarMainView: View {
     @State private var love: Bool = false
     
     var body: some View {
-        @Bindable var viewModel = viewModel
-        
         VStack(spacing: 0) {
             CalendarHeaderView(
                 month: viewModel.selectedDate,
@@ -162,7 +156,7 @@ struct CalendarMainView: View {
                                 pill ? .pill : nil,
                                 love ? .love : nil
                             ].compactMap { $0 })
-
+                            
                             viewModel.commitEventsForSelectedDate(from: initial, to: final)
                             isPresentedEventSheet = false
                         } label: {
@@ -195,5 +189,8 @@ struct CalendarMainView: View {
 }
 
 #Preview {
-    CalendarMainView(isPresentedEventSheet: .constant(false))
+    CalendarMainView(
+        viewModel: .init(eventRepository: MockEventRepository(), cycleAnalyzer: .init(), cyclePredictor: .init()),
+        isPresentedEventSheet: .constant(false)
+    )
 }

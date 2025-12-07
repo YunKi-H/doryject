@@ -8,20 +8,27 @@
 import SwiftUI
 
 struct BloodyDayRootView: View {
+    @Environment(\.modelContext) private var modelContext
+    
+    @State private var calendarViewModel: CalendarViewModel?
+    
     @State private var activeTab: BloodyDayTab = .calendar
     @State private var isPresentedCalendarSheet: Bool = false
     
     var body: some View {
         TabView(selection: $activeTab) {
             Tab.init(value: .calendar) {
-                CalendarMainView(
-                    isPresentedEventSheet: $isPresentedCalendarSheet
-                )
-                .toolbarVisibility(.hidden, for: .tabBar)
-                .safeAreaBar(edge: .bottom, spacing: 0) {
-                    Text(".")
-                        .blendMode(.destinationOver)
-                        .frame(height: 62)
+                if let viewModel = calendarViewModel {
+                    CalendarMainView(
+                        viewModel: viewModel,
+                        isPresentedEventSheet: $isPresentedCalendarSheet
+                    )
+                    .toolbarVisibility(.hidden, for: .tabBar)
+                    .safeAreaBar(edge: .bottom, spacing: 0) {
+                        Text(".")
+                            .blendMode(.destinationOver)
+                            .frame(height: 62)
+                    }
                 }
             }
             
@@ -47,6 +54,15 @@ struct BloodyDayRootView: View {
         .safeAreaInset(edge: .bottom) {
             BloodyDayTabBarView()
                 .padding(.horizontal, 20)
+        }
+        .onAppear {
+            if calendarViewModel == nil {
+                calendarViewModel = CalendarViewModel(
+                    eventRepository: SwiftDataEventRepository(context: modelContext),
+                    cycleAnalyzer: .init(),
+                    cyclePredictor: .init()
+                )
+            }
         }
     }
     
