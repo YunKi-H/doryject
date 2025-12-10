@@ -67,13 +67,8 @@ extension Date {
     func endOfCalendarGridExclusiveStart(weekStartsOn firstWeekday: Weekday = .sunday) -> Date {
         var cal = calendar
         cal.firstWeekday = firstWeekday.rawValue
-        let lastOfMonth = endOfMonth
-        let weekday = cal.component(.weekday, from: lastOfMonth)
-        // days to add to reach the start of next day after the grid's last date
-        let tail = (cal.firstWeekday - weekday + 6 + 7) % 7
-        let lastGridDate = cal.date(byAdding: .day, value: tail, to: lastOfMonth)!.startOfDay
-        // exclusive start is the next day's startOfDay
-        return cal.date(byAdding: .day, value: 1, to: lastGridDate)!.startOfDay
+        let startOfCalendarGrid = self.startOfCalendarGrid(weekStartsOn: firstWeekday)
+        return cal.date(byAdding: .day, value: 42, to: startOfCalendarGrid)!.startOfDay
     }
 
     func endOfCalendarGrid(weekStartsOn firstWeekday: Weekday = .sunday) -> Date {

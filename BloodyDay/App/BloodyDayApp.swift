@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import SwiftData
 
 @main
 struct BloodyDayApp: App {
@@ -13,5 +14,6 @@ struct BloodyDayApp: App {
         WindowGroup {
             BloodyDayRootView()
         }
+        .modelContainer(for: [UserEvent.self], inMemory: true)
     }
 }
