@@ -28,15 +28,15 @@ struct NotificationSettingView: View {
                                 .foregroundStyle(periodDueDateNotify ? .mainRed : .textTertiary)
                         }
                     }
-                    .tint(.mainRed)
                     
                     Toggle(isOn: $periodDelayedNotify) {
                         Text("생리 지연")
                             .font(.regular_18)
                             .foregroundStyle(.textPrimary)
                     }
-                    .tint(.mainRed)
                 }
+                .listRowBackground(Color.bgSecondary)
+                .tint(.mainRed)
                 
                 Section {
                     Toggle(isOn: $pillTakingNotify) {
@@ -49,7 +49,6 @@ struct NotificationSettingView: View {
                                 .foregroundStyle(pillTakingNotify ? .subBlue : .textTertiary)
                         }
                     }
-                    .tint(.subBlue)
                     
                     Toggle(isOn: $pillBuyingNotify) {
                         VStack(alignment: .leading) {
@@ -61,12 +60,15 @@ struct NotificationSettingView: View {
                                 .foregroundStyle(pillBuyingNotify ? .subBlue : .textTertiary)
                         }
                     }
-                    .tint(.subBlue)
                 }
+                .listRowBackground(Color.bgSecondary)
+                .tint(.subBlue)
             }
             .listSectionSpacing(14)
             .contentMargins(.top, 14)
+            .scrollContentBackground(.hidden)
         }
+        .background(Color.bgPrimary)
         .toolbar {
             ToolbarItem(placement: .title) {
                 Text("알림")
