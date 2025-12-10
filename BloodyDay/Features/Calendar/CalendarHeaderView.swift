@@ -41,7 +41,11 @@ struct CalendarHeaderView: View {
                 Spacer()
                 
                 Menu {
-                    
+                    NavigationLink {
+                        NotificationSettingView()
+                    } label: {
+                        Label("알림 설정", systemImage: "bell")
+                    }
                 } label: {
                     Image(systemName: "ellipsis")
                         .frame(width: 36, height: 36)

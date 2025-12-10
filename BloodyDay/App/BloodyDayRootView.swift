@@ -19,15 +19,17 @@ struct BloodyDayRootView: View {
         TabView(selection: $activeTab) {
             Tab.init(value: .calendar) {
                 if let viewModel = calendarViewModel {
-                    CalendarMainView(
-                        viewModel: viewModel,
-                        isPresentedEventSheet: $isPresentedCalendarSheet
-                    )
-                    .toolbarVisibility(.hidden, for: .tabBar)
-                    .safeAreaBar(edge: .bottom, spacing: 0) {
-                        Text(".")
-                            .blendMode(.destinationOver)
-                            .frame(height: 62)
+                    NavigationStack {
+                        CalendarMainView(
+                            viewModel: viewModel,
+                            isPresentedEventSheet: $isPresentedCalendarSheet
+                        )
+                        .toolbarVisibility(.hidden, for: .tabBar)
+                        .safeAreaBar(edge: .bottom, spacing: 0) {
+                            Text(".")
+                                .blendMode(.destinationOver)
+                                .frame(height: 62)
+                        }
                     }
                 }
             }
