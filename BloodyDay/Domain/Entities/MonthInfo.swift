@@ -8,7 +8,7 @@
 import Foundation
 
 struct MonthInfo: Identifiable, Equatable {
-    let id: UUID = .init()
+    var id: Date { monthDate }
     let monthDate: Date
     let days: [DayInfo]
     let periodRanges: [DateInterval]

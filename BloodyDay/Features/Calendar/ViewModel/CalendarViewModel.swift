@@ -52,6 +52,7 @@ extension CalendarViewModel {
         for type in toRemove {
             eventRepository.delete(type: type, on: date)
         }
+        months[currentIndex] = makeMonthInfo(for: date)
     }
 }
 
@@ -87,18 +88,66 @@ extension CalendarViewModel {
     
     private func makeMonthInfo(for month: Date) -> MonthInfo {
         let monthStart = month.startOfMonth
-        let events = eventRepository.allEvents()
-        let cycles = cycleAnalyzer.analyze(from: events.map { $0.date })
-
-        let rule = cyclePredictor.makeRule(from: cycles)
-        let visibleRange = DateInterval(start: monthStart.startOfCalendarGrid(),
-                                        end: monthStart.endOfCalendarGridExclusiveStart())
-        let predictedCycles = rule == nil ? [] : cyclePredictor.predictPeriods(using: rule!, in: visibleRange)
-
-        let days = buildDayInfos(for: monthStart, cycles: cycles, predictedPeriods: predictedCycles, userEvents: events)
-
-        // 필요하다면 ranges도 month 경계로 클리핑/매핑
-        let periodRanges: [DateInterval] = []      // TODO: cycles -> DateInterval 변환
+        
+        let gridStart = monthStart.startOfCalendarGrid()
+        let gridEndExclusive = monthStart.endOfCalendarGridExclusiveStart()
+        
+        let gridDates = Date.dates(from: gridStart, to: gridEndExclusive)
+        var days: [DayInfo] = gridDates.map { DayInfo(date: $0) }
+        
+        let allEvents = eventRepository.allEvents()
+        let periodEvents: [UserEvent] = allEvents.filter {
+            $0.type == .period && gridStart..<gridEndExclusive ~= $0.date
+        }
+        
+        let eventsByDay = Dictionary(grouping: periodEvents) { $0.date.startOfDay }
+        for i in days.indices {
+            let key = days[i].date.startOfDay
+            let dayEvents: [DayEvent] = eventsByDay[key]?.map { DayEvent(type: $0.type) } ?? []
+            days[i].events = dayEvents
+        }
+        
+        // Build period ranges from days, merging contiguous period days but splitting at week boundaries
+        let columns = 7
+        var ranges: [DateInterval] = []
+        var currentStart: Date? = nil
+        var lastIndex: Int? = nil
+        for idx in days.indices {
+            let day = days[idx]
+            let hasPeriod = day.events.contains { $0.type == .period }
+            if hasPeriod {
+                if currentStart == nil {
+                    currentStart = day.date
+                    lastIndex = idx
+                } else {
+                    // If the previous index was Sunday (col 6) and now moved to next index, split at week boundary
+                    if let li = lastIndex, li % columns == columns - 1 {
+                        // close previous range at previous day
+                        let endDate = days[li].date
+                        ranges.append(DateInterval(start: currentStart!, end: endDate))
+                        // start new range at this day
+                        currentStart = day.date
+                    }
+                    lastIndex = idx
+                }
+            } else if let li = lastIndex, let start = currentStart {
+                // close ongoing range when period streak ends
+                let endDate = days[li].date
+                ranges.append(DateInterval(start: start, end: endDate))
+                currentStart = nil
+                lastIndex = nil
+            } else {
+                // no active range and no period; continue
+            }
+        }
+        // close tail range if still open
+        if let li = lastIndex, let start = currentStart {
+            let endDate = days[li].date
+            ranges.append(DateInterval(start: start, end: endDate))
+        }
+        print(ranges)
+        let periodRanges: [DateInterval] = ranges      // TODO: cycles -> DateInterval 변환
+        
         let predictedRanges: [DateInterval] = []   // TODO: predictedCycles -> DateInterval 변환
         let fertileRanges: [DateInterval] = []     // TODO
         let ovulationRanges: [DateInterval] = []   // TODO

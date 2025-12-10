@@ -21,6 +21,7 @@ final class SwiftDataEventRepository: EventRepository {
     // MARK: - CRUD
     func save(_ event: UserEvent) {
         // If the object is already in the context, just try saving. Otherwise, insert then save.
+        
         do {
             let eventID = event.id
             let existing = try context.fetch(
@@ -29,6 +30,7 @@ final class SwiftDataEventRepository: EventRepository {
             if existing.isEmpty {
                 context.insert(event)
             }
+            print(event.date, event.type)
         } catch {
             assertionFailure("SwiftData save failed: \(error)")
         }
