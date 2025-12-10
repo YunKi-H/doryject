@@ -36,7 +36,6 @@ struct CalendarView: View {
                                         monthDate: month.monthDate
                                     ) { date in
                                         onSelectDate(date)
-                                        print("day: \(day.date)")
                                     }
                                 }
                             }

@@ -30,7 +30,6 @@ final class SwiftDataEventRepository: EventRepository {
             if existing.isEmpty {
                 context.insert(event)
             }
-            print(event.date, event.type)
         } catch {
             assertionFailure("SwiftData save failed: \(error)")
         }

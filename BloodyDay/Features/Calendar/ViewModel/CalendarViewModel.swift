@@ -145,7 +145,6 @@ extension CalendarViewModel {
             let endDate = days[li].date
             ranges.append(DateInterval(start: start, end: endDate))
         }
-        print(ranges)
         let periodRanges: [DateInterval] = ranges      // TODO: cycles -> DateInterval 변환
         
         let predictedRanges: [DateInterval] = []   // TODO: predictedCycles -> DateInterval 변환
