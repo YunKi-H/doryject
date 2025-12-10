@@ -16,10 +16,11 @@ struct BloodyDayRootView: View {
     @State private var isPresentedCalendarSheet: Bool = false
     
     var body: some View {
-        TabView(selection: $activeTab) {
-            Tab.init(value: .calendar) {
-                if let viewModel = calendarViewModel {
-                    NavigationStack {
+        NavigationStack {
+            TabView(selection: $activeTab) {
+                Tab.init(value: .calendar) {
+                    if let viewModel = calendarViewModel {
+                        
                         CalendarMainView(
                             viewModel: viewModel,
                             isPresentedEventSheet: $isPresentedCalendarSheet
@@ -30,40 +31,41 @@ struct BloodyDayRootView: View {
                                 .blendMode(.destinationOver)
                                 .frame(height: 62)
                         }
+                        
                     }
                 }
-            }
-            
-            Tab.init(value: .period) {
-                ScrollView {
-                    VStack {
-                        ForEach(1...50, id: \.self) { _ in
-                            RoundedRectangle(cornerRadius: 15)
-                                .fill(.red.gradient)
-                                .frame(height: 50)
+                
+                Tab.init(value: .period) {
+                    ScrollView {
+                        VStack {
+                            ForEach(1...50, id: \.self) { _ in
+                                RoundedRectangle(cornerRadius: 15)
+                                    .fill(.red.gradient)
+                                    .frame(height: 50)
+                            }
                         }
                     }
-                }
-                .toolbarVisibility(.hidden, for: .tabBar)
-                .safeAreaBar(edge: .bottom, spacing: 0) {
-                    Text(".")
-                        .blendMode(.destinationOver)
-                        .frame(height: 62)
-                        .opacity(0)
+                    .toolbarVisibility(.hidden, for: .tabBar)
+                    .safeAreaBar(edge: .bottom, spacing: 0) {
+                        Text(".")
+                            .blendMode(.destinationOver)
+                            .frame(height: 62)
+                            .opacity(0)
+                    }
                 }
             }
-        }
-        .safeAreaInset(edge: .bottom) {
-            BloodyDayTabBarView()
-                .padding(.horizontal, 20)
-        }
-        .onAppear {
-            if calendarViewModel == nil {
-                calendarViewModel = CalendarViewModel(
-                    eventRepository: SwiftDataEventRepository(context: modelContext),
-                    cycleAnalyzer: .init(),
-                    cyclePredictor: .init()
-                )
+            .safeAreaInset(edge: .bottom) {
+                BloodyDayTabBarView()
+                    .padding(.horizontal, 20)
+            }
+            .onAppear {
+                if calendarViewModel == nil {
+                    calendarViewModel = CalendarViewModel(
+                        eventRepository: SwiftDataEventRepository(context: modelContext),
+                        cycleAnalyzer: .init(),
+                        cyclePredictor: .init()
+                    )
+                }
             }
         }
     }
