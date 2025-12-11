@@ -68,7 +68,10 @@ struct NotificationSettingView: View {
             .contentMargins(.top, 14)
             .scrollContentBackground(.hidden)
         }
-        .background(Color.bgPrimary)
+        .background {
+            Color.bgPrimary
+                .ignoresSafeArea()
+        }
         .toolbar {
             ToolbarItem(placement: .title) {
                 Text("알림")
