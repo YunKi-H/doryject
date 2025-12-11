@@ -46,6 +46,12 @@ struct CalendarHeaderView: View {
                     } label: {
                         Label("알림 설정", systemImage: "bell")
                     }
+                    
+                    NavigationLink {
+                        PillSettingView()
+                    } label: {
+                        Label("피임약 설정", image: .pillHalf)
+                    }
                 } label: {
                     Image(systemName: "ellipsis")
                         .frame(width: 36, height: 36)
