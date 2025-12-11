@@ -41,7 +41,23 @@ struct CalendarHeaderView: View {
                 Spacer()
                 
                 Menu {
+                    NavigationLink {
+                        NotificationSettingView()
+                    } label: {
+                        Label("알림 설정", systemImage: "bell")
+                    }
                     
+                    NavigationLink {
+                        PillSettingView()
+                    } label: {
+                        Label("피임약 설정", image: .pillHalf)
+                    }
+                    
+                    NavigationLink {
+                        AppleCalendarSettingView()
+                    } label: {
+                        Label("Apple Calendar", systemImage: "apple.logo")
+                    }
                 } label: {
                     Image(systemName: "ellipsis")
                         .frame(width: 36, height: 36)
