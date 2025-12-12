@@ -1,0 +1,169 @@
+//
+//  PeriodListView.swift
+//  BloodyDay
+//
+//  Created by Yunki on 12/13/25.
+//
+
+import SwiftUI
+
+struct PeriodListView: View {
+    @State private var periodList: [DateInterval] = [
+        .init(start: .now, end: .now),
+        .init(start: .now, end: .now),
+        .init(start: .now, end: .now),
+        .init(start: .now, end: .now),
+        .init(start: .now, end: .now)
+    ]
+    
+    var body: some View {
+        VStack(alignment: .trailing, spacing: 20) {
+            HStack(spacing: 0) {
+                    Button {
+                        
+                    } label: {
+                        Image(systemName: "calendar.badge.plus")
+                            .font(.system(size: 22, weight: .medium))
+                            .frame(width: 36, height: 36)
+                    }
+                    .padding(6)
+                    
+                    Button {
+                        
+                    } label: {
+                        Image(systemName: "gearshape")
+                            .font(.system(size: 22, weight: .medium))
+                            .frame(width: 36, height: 36)
+                    }
+                    .padding(6)
+                }
+                .foregroundStyle(.icon)
+                .glassEffect()
+                .padding(.horizontal, 16)
+            
+            List {
+                Section {
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Text("마지막 생리일")
+                                .font(.regular_18)
+                            Spacer()
+                            Text("-")
+                                .font(.semibold_18)
+                        }
+                        .foregroundStyle(.textPrimary)
+                        
+                        Text("기록 없음")
+                            .font(.regular_14)
+                            .foregroundStyle(.textSecondary40)
+                    }
+                }
+                .listRowBackground(Color.bgSecondary)
+                
+                Section {
+                    HStack {
+                        Text("평균 기간")
+                            .font(.regular_18)
+                        Spacer()
+                        Text("-")
+                            .font(.semibold_18)
+                    }
+                    .foregroundStyle(.textPrimary)
+                    
+                    HStack {
+                        Text("평균 주기")
+                            .font(.regular_18)
+                        Spacer()
+                        Text("-")
+                            .font(.semibold_18)
+                    }
+                    .foregroundStyle(.textPrimary)
+                }
+                .listRowBackground(Color.bgSecondary)
+                
+                Section {
+                    ForEach(periodList.indices, id: \.self) { index in
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("2025년 8월 25일 - 27일")
+                                .font(.semibold_18)
+                                .foregroundStyle(.textPrimary)
+                                .padding(.leading, 5)
+                            
+                            HStack(spacing: 6) {
+                                HStack(spacing: 4) {
+                                    Text("생리 기간")
+                                        .font(.medium_14)
+                                        .foregroundStyle(.textSecondary40)
+                                    Text("5일")
+                                        .font(.semibold_14)
+                                        .foregroundStyle(.textSecondary50)
+                                }
+                                .padding(.init(top: 4.5, leading: 8, bottom: 4.5, trailing: 8))
+                                .background {
+                                    RoundedRectangle(cornerRadius: 26)
+                                        .fill(Color.component)
+                                }
+                                
+                                HStack(spacing: 4) {
+                                    Text("생리 주기")
+                                        .font(.medium_14)
+                                        .foregroundStyle(.textSecondary40)
+                                    Text("28일")
+                                        .font(.semibold_14)
+                                        .foregroundStyle(.textSecondary50)
+                                }
+                                .padding(.init(top: 4.5, leading: 8, bottom: 4.5, trailing: 8))
+                                .background {
+                                    RoundedRectangle(cornerRadius: 26)
+                                        .fill(Color.component)
+                                }
+                            }
+                        }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            Button(role: .destructive) {
+                                // delete
+                            } label: {
+                                VStack {
+                                    Image(systemName: "trash")
+                                        .symbolRenderingMode(.palette)
+                                        .foregroundStyle(.textPoint)
+                                        .tint(.mainRed)
+                                    Text("삭제")
+                                        .foregroundStyle(.textSecondary50)
+                                }
+                            }
+                            
+                            Button {
+                                // edit
+                            } label: {
+                                VStack {
+                                    Image(systemName: "pencil")
+                                        .symbolRenderingMode(.palette)
+                                        .foregroundStyle(.textPoint)
+                                        .tint(.mainNeutral)
+                                    Text("수정")
+                                        .foregroundStyle(.textSecondary50)
+                                }
+                            }
+                        }
+                    }
+                }
+                .listRowBackground(Color.bgSecondary)
+            }
+            .listSectionSpacing(14)
+            .contentMargins(.top, 14)
+            .scrollContentBackground(.hidden)
+            
+        }
+        .background {
+            Color.bgPrimary
+                .ignoresSafeArea()
+        }
+    }
+}
+
+#Preview {
+    NavigationStack {
+        PeriodListView()
+    }
+}
