@@ -10,8 +10,10 @@ import SwiftUI
 struct PeriodSettingSheet: View {
     @Environment(\.dismiss) private var dismiss
     
-    @State private var autoCalculate: Bool = false
+    @State private var autoCalculate: Bool = true
     
+    @State private var togglePeriodPicker: Bool = false
+    @State private var toggleGapPicker: Bool = false
     @State private var averagePeriod: Int = 5
     @State private var averageGap: Int = 28
     
@@ -30,43 +32,65 @@ struct PeriodSettingSheet: View {
                 
                 if !autoCalculate {
                     Section {
-                        HStack(spacing: 1) {
-                            Text("평균 기간")
-                            Spacer()
-                            Group {
-                                Text("\(averagePeriod)")
-                                Text("일")
+                        Button {
+                            withAnimation {
+                                toggleGapPicker = false
+                                togglePeriodPicker.toggle()
                             }
-                            .foregroundStyle(.mainRed)
+                        } label: {
+                            HStack(spacing: 1) {
+                                Text("평균 기간")
+                                Spacer()
+                                Group {
+                                    Text("\(averagePeriod)")
+                                    Text("일")
+                                }
+                                .foregroundStyle(.mainRed)
+                            }
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        
+                        if togglePeriodPicker {
+                            Picker("", selection: $averagePeriod) {
+                                ForEach(1...31, id: \.self) { day in
+                                    Text("\(day)일")
+                                        .tag(day)
+                                }
+                            }
+                            .pickerStyle(.wheel)
+                            .frame(height: 140)
                         }
                         
-                        Picker("", selection: $averagePeriod) {
-                            ForEach(1...31, id: \.self) { day in
-                                Text("\(day)일")
-                                    .tag(day)
+                        Button {
+                            withAnimation {
+                                togglePeriodPicker = false
+                                toggleGapPicker.toggle()
                             }
+                        } label: {
+                            HStack(spacing: 1) {
+                                Text("평균 주기")
+                                Spacer()
+                                Group {
+                                    Text("\(averageGap)")
+                                    Text("일")
+                                }
+                                .foregroundStyle(.mainRed)
+                            }
+                            .contentShape(Rectangle())
                         }
-                        .pickerStyle(.wheel)
-                        .frame(height: 140)
+                        .buttonStyle(.plain)
                         
-                        HStack(spacing: 1) {
-                            Text("평균 주기")
-                            Spacer()
-                            Group {
-                                Text("\(averageGap)")
-                                Text("일")
+                        if toggleGapPicker {
+                            Picker("", selection: $averageGap) {
+                                ForEach(1...31, id: \.self) { day in
+                                    Text("\(day)일")
+                                        .tag(day)
+                                }
                             }
-                            .foregroundStyle(.mainRed)
+                            .pickerStyle(.wheel)
+                            .frame(height: 140)
                         }
-                        
-                        Picker("", selection: $averageGap) {
-                            ForEach(1...31, id: \.self) { day in
-                                Text("\(day)일")
-                                    .tag(day)
-                            }
-                        }
-                        .pickerStyle(.wheel)
-                        .frame(height: 140)
                     }
                     .listRowBackground(Color.bgSecondary)
                     .tint(.mainRed)
@@ -74,6 +98,11 @@ struct PeriodSettingSheet: View {
             }
             .listSectionSpacing(14)
             .contentMargins(.top, 14)
+            .scrollContentBackground(.hidden)
+            .background {
+                Color.bgPrimary
+                    .ignoresSafeArea()
+            }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
@@ -91,7 +120,7 @@ struct PeriodSettingSheet: View {
                 
                 ToolbarItem(placement: .confirmationAction) {
                     Button(role: .confirm) {
-                        
+                        // TODO: - 세팅값 커밋
                     } label: {
                         Image(systemName: "checkmark")
                             .foregroundStyle(.bgSecondary)
