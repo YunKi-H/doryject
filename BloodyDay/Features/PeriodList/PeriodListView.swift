@@ -16,11 +16,14 @@ struct PeriodListView: View {
         .init(start: .now, end: .now)
     ]
     
+    @State private var editSheetIsPresented: Bool = false
+    @State private var settingSheetIsPresented: Bool = true
+    
     var body: some View {
         VStack(alignment: .trailing, spacing: 20) {
             HStack(spacing: 0) {
                     Button {
-                        
+                        editSheetIsPresented = true
                     } label: {
                         Image(systemName: "calendar.badge.plus")
                             .font(.system(size: 22, weight: .medium))
@@ -29,7 +32,7 @@ struct PeriodListView: View {
                     .padding(6)
                     
                     Button {
-                        
+                        settingSheetIsPresented = true
                     } label: {
                         Image(systemName: "gearshape")
                             .font(.system(size: 22, weight: .medium))
@@ -158,6 +161,12 @@ struct PeriodListView: View {
         .background {
             Color.bgPrimary
                 .ignoresSafeArea()
+        }
+        .sheet(isPresented: $editSheetIsPresented) {
+            PeriodEditSheet()
+        }
+        .sheet(isPresented: $settingSheetIsPresented) {
+            PeriodSettingSheet()
         }
     }
 }
