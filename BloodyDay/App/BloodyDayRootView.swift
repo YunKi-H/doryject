@@ -20,7 +20,6 @@ struct BloodyDayRootView: View {
             TabView(selection: $activeTab) {
                 Tab.init(value: .calendar) {
                     if let viewModel = calendarViewModel {
-                        
                         CalendarMainView(
                             viewModel: viewModel,
                             isPresentedEventSheet: $isPresentedCalendarSheet
@@ -30,28 +29,20 @@ struct BloodyDayRootView: View {
                             Text(".")
                                 .blendMode(.destinationOver)
                                 .frame(height: 62)
+                                .opacity(0)
                         }
-                        
                     }
                 }
                 
                 Tab.init(value: .period) {
-                    ScrollView {
-                        VStack {
-                            ForEach(1...50, id: \.self) { _ in
-                                RoundedRectangle(cornerRadius: 15)
-                                    .fill(.red.gradient)
-                                    .frame(height: 50)
-                            }
+                    PeriodListView()
+                        .toolbarVisibility(.hidden, for: .tabBar)
+                        .safeAreaBar(edge: .bottom, spacing: 0) {
+                            Text(".")
+                                .blendMode(.destinationOver)
+                                .frame(height: 62)
+                                .opacity(0)
                         }
-                    }
-                    .toolbarVisibility(.hidden, for: .tabBar)
-                    .safeAreaBar(edge: .bottom, spacing: 0) {
-                        Text(".")
-                            .blendMode(.destinationOver)
-                            .frame(height: 62)
-                            .opacity(0)
-                    }
                 }
             }
             .safeAreaInset(edge: .bottom) {
@@ -59,9 +50,10 @@ struct BloodyDayRootView: View {
                     .padding(.horizontal, 20)
             }
             .onAppear {
+                let eventRepository = SwiftDataEventRepository(context: modelContext)
                 if calendarViewModel == nil {
                     calendarViewModel = CalendarViewModel(
-                        eventRepository: SwiftDataEventRepository(context: modelContext),
+                        eventRepository: eventRepository,
                         cycleAnalyzer: .init(),
                         cyclePredictor: .init()
                     )
