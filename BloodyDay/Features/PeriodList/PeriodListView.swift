@@ -17,7 +17,7 @@ struct PeriodListView: View {
     ]
     
     @State private var editSheetIsPresented: Bool = false
-    @State private var settingSheetIsPresented: Bool = true
+    @State private var settingSheetIsPresented: Bool = false
     
     var body: some View {
         VStack(alignment: .trailing, spacing: 20) {
