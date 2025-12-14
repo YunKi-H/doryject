@@ -163,10 +163,10 @@ struct PeriodListView: View {
                 .ignoresSafeArea()
         }
         .sheet(isPresented: $editSheetIsPresented) {
-            PeriodEditSheet()
+            PeriodEditSheetView()
         }
         .sheet(isPresented: $settingSheetIsPresented) {
-            PeriodSettingSheet()
+            PeriodSettingSheetView()
         }
     }
 }

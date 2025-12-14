@@ -1,5 +1,5 @@
 //
-//  PeriodEditSheet.swift
+//  PeriodEditSheetView.swift
 //  BloodyDay
 //
 //  Created by Yunki on 12/14/25.
@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-struct PeriodEditSheet: View {
+struct PeriodEditSheetView: View {
     @Environment(\.dismiss) private var dismiss
     
     @State private var months: [MonthInfo] = [
@@ -104,5 +104,5 @@ struct PeriodEditSheet: View {
 }
 
 #Preview {
-    PeriodEditSheet()
+    PeriodEditSheetView()
 }

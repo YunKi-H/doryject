@@ -1,5 +1,5 @@
 //
-//  PeriodSettingSheet.swift
+//  PeriodSettingSheetView.swift
 //  BloodyDay
 //
 //  Created by Yunki on 12/14/25.
@@ -7,14 +7,15 @@
 
 import SwiftUI
 
-struct PeriodSettingSheet: View {
+struct PeriodSettingSheetView: View {
     @Environment(\.dismiss) private var dismiss
     
     @State private var autoCalculate: Bool = true
     
     @State private var togglePeriodPicker: Bool = false
-    @State private var toggleGapPicker: Bool = false
     @State private var averagePeriod: Int = 5
+    
+    @State private var toggleGapPicker: Bool = false
     @State private var averageGap: Int = 28
     
     var body: some View {
@@ -135,5 +136,5 @@ struct PeriodSettingSheet: View {
 }
 
 #Preview {
-    PeriodSettingSheet()
+    PeriodSettingSheetView()
 }
