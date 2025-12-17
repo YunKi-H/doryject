@@ -113,10 +113,3 @@ final class SwiftDataEventRepository: EventRepository {
         }
     }
 }
-
-//// MARK: - Small Calendar helpers
-//private extension DateComponents {
-//    func date(byAddingTo base: Date, using calendar: Calendar) -> Date? {
-//        calendar.date(byAdding: self, to: base)
-//    }
-//}

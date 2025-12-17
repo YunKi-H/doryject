@@ -96,11 +96,9 @@ extension CalendarViewModel {
         var days: [DayInfo] = gridDates.map { DayInfo(date: $0) }
         
         let allEvents = eventRepository.allEvents()
-        let periodEvents: [UserEvent] = allEvents.filter {
-            $0.type == .period && gridStart..<gridEndExclusive ~= $0.date
-        }
+        let monthlyEvents: [UserEvent] = allEvents.filter { gridStart..<gridEndExclusive ~= $0.date }
         
-        let eventsByDay = Dictionary(grouping: periodEvents) { $0.date.startOfDay }
+        let eventsByDay = Dictionary(grouping: monthlyEvents) { $0.date.startOfDay }
         for i in days.indices {
             let key = days[i].date.startOfDay
             let dayEvents: [DayEvent] = eventsByDay[key]?.map { DayEvent(type: $0.type) } ?? []
