@@ -16,13 +16,9 @@ final class CalendarViewModel {
     var currentIndex: Int = 0
     
     private let eventRepository: EventRepository
-    private let cycleAnalyzer: CycleAnalyzer
-    private let cyclePredictor: CyclePredictor
     
-    init(eventRepository: EventRepository, cycleAnalyzer: CycleAnalyzer, cyclePredictor: CyclePredictor) {
+    init(eventRepository: EventRepository) {
         self.eventRepository = eventRepository
-        self.cycleAnalyzer = cycleAnalyzer
-        self.cyclePredictor = cyclePredictor
         
         bootstrapMonths(anchor: selectedDate)
     }
@@ -108,7 +104,7 @@ extension CalendarViewModel {
         let allEvents = eventRepository.allEvents()
         let monthlyEvents: [UserEvent] = allEvents.filter { gridStart..<gridEndExclusive ~= $0.date }
         
-        let days: [DayInfo] = buildDayInfos(for: month, cycles: [], predictedPeriods: [], userEvents: monthlyEvents)
+        let days: [DayInfo] = buildDayInfos(for: month, predictedPeriods: [], userEvents: monthlyEvents)
         
         let periodRanges: [DateInterval] = buildRangesSplittingByWeeks(days: days) { day in
             day.events.contains { $0.type == .period }
@@ -124,7 +120,6 @@ extension CalendarViewModel {
             monthDate: monthStart,
             days: days,
             periodRanges: periodRanges,
-            predictedRanges: [],
             fertileRanges: fertileRanges,
             ovulationRanges: ovulationRanges
         )
@@ -132,7 +127,6 @@ extension CalendarViewModel {
     
     private func buildDayInfos(
         for month: Date,
-        cycles: [CycleRecord],
         predictedPeriods: [PredictedPeriod],
         userEvents: [UserEvent]
     ) -> [DayInfo] {

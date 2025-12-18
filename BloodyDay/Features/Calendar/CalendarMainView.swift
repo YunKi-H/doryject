@@ -190,7 +190,7 @@ struct CalendarMainView: View {
 
 #Preview {
     CalendarMainView(
-        viewModel: .init(eventRepository: MockEventRepository(), cycleAnalyzer: .init(), cyclePredictor: .init()),
+        viewModel: .init(eventRepository: MockEventRepository()),
         isPresentedEventSheet: .constant(false)
     )
 }
