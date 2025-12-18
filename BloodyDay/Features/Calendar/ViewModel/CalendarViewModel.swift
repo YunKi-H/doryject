@@ -104,7 +104,7 @@ extension CalendarViewModel {
         let allEvents = eventRepository.allEvents()
         let monthlyEvents: [UserEvent] = allEvents.filter { gridStart..<gridEndExclusive ~= $0.date }
         
-        let days: [DayInfo] = buildDayInfos(for: month, predictedPeriods: [], userEvents: monthlyEvents)
+        let days: [DayInfo] = buildDayInfos(for: month, userEvents: monthlyEvents)
         
         let periodRanges: [DateInterval] = buildRangesSplittingByWeeks(days: days) { day in
             day.events.contains { $0.type == .period }
@@ -127,7 +127,6 @@ extension CalendarViewModel {
     
     private func buildDayInfos(
         for month: Date,
-        predictedPeriods: [PredictedPeriod],
         userEvents: [UserEvent]
     ) -> [DayInfo] {
         // TODO: - Logic
