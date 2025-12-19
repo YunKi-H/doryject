@@ -20,15 +20,18 @@ final class SwiftDataEventRepository: EventRepository {
 
     // MARK: - CRUD
     func save(_ event: UserEvent) {
-        // If the object is already in the context, just try saving. Otherwise, insert then save.
-        
         do {
-            let eventID = event.id
-            let existing = try context.fetch(
-                FetchDescriptor<UserEvent>(predicate: #Predicate { $0.id == eventID })
+            let eventKey = UserEvent.makeUniqueKey(date: event.date, type: event.type, calendar: calendar)
+            
+            let descriptor = FetchDescriptor<UserEvent>(
+                predicate: #Predicate { $0.uniqueKey == eventKey }
             )
+                
+            let existing = try context.fetch(descriptor)
             if existing.isEmpty {
+                event.uniqueKey = eventKey
                 context.insert(event)
+                try context.save()
             }
         } catch {
             assertionFailure("SwiftData save failed: \(error)")
@@ -36,7 +39,6 @@ final class SwiftDataEventRepository: EventRepository {
     }
 
     func delete(id: UUID) {
-        // Fetch the event by id and delete
         let descriptor = FetchDescriptor<UserEvent>(
             predicate: #Predicate { $0.id == id }
         )
@@ -52,11 +54,9 @@ final class SwiftDataEventRepository: EventRepository {
     }
     
     func delete(type: EventType, on: Date) {
-        let startOfDay = on.startOfDay
-        let endOfDay = on.endOfDay
-        // Fetch the event by id and delete
+        let eventKey = UserEvent.makeUniqueKey(date: on, type: type, calendar: calendar)
         let descriptor = FetchDescriptor<UserEvent>(
-            predicate: #Predicate { $0.date >= startOfDay && $0.date <= endOfDay && $0.type == type }
+            predicate: #Predicate { $0.uniqueKey == eventKey }
         )
         do {
             let results = try context.fetch(descriptor)
