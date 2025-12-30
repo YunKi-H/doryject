@@ -38,13 +38,15 @@ enum CyclePrediction {
         }
         
         var predicted: [Date: [EventType]] = [:]
+        let today = Date().startOfDay
         var nextStart = calendar.date(byAdding: .day, value: cycleDays, to: lastStart.startOfDay)!
         
         while nextStart < normalizedRangeEnd {
             let periodEndExclusive = calendar.date(byAdding: .day, value: periodDays, to: nextStart)!
             for day in Date.dates(from: nextStart, toExclusive: periodEndExclusive) {
                 if day >= normalizedRangeStart && day < normalizedRangeEnd {
-                    predicted[day, default: []].append(.period)
+                    let periodType: EventType = day < today ? .delayed : .period
+                    predicted[day, default: []].append(periodType)
                 }
             }
             

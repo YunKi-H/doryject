@@ -17,7 +17,7 @@ struct OvulationCapsuleLayer: View {
     
     var body: some View {
         ForEach(ranges, id: \.self) { range in
-            CapsuleSegment(range: range, color: .green.opacity(0.25), height: 20, horizontalPadding: 6, days: days, geo: geo)
+            CapsuleSegment(range: range, color: .mainNeutral8, height: 20, horizontalPadding: 6, days: days, geo: geo)
         }
     }
 }

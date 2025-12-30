@@ -17,6 +17,7 @@ struct PeriodEditSheetView: View {
             DayInfo(date: date)
         }),
             periodRanges: [],
+            delayedRanges: [],
             fertileRanges: [],
             ovulationRanges: []
         ),
@@ -29,6 +30,7 @@ struct PeriodEditSheetView: View {
                 DayInfo(date: date)
             }),
             periodRanges: [],
+            delayedRanges: [],
             fertileRanges: [],
             ovulationRanges: []
         )

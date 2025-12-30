@@ -20,6 +20,7 @@ struct CalendarView: View {
             ZStack {
                 GeometryReader { geo in
                     PeriodCapsuleLayer(ranges: month.periodRanges, days: month.days, geo: geo)
+                    DelayedCapsuleLayer(ranges: month.delayedRanges, days: month.days, geo: geo)
                     FertileCapsuleLayer(ranges: month.fertileRanges, days: month.days, geo: geo)
                     OvulationCapsuleLayer(ranges: month.ovulationRanges, days: month.days, geo: geo)
                     
@@ -70,6 +71,7 @@ struct CalendarView: View {
             monthDate: .now,
             days: days,
             periodRanges: [DateInterval(start: Calendar.current.date(byAdding: .day, value: 3, to: baseDate)!, end: Calendar.current.date(byAdding: .day, value: 5, to: baseDate)!)],
+            delayedRanges: [DateInterval(start: Calendar.current.date(byAdding: .day, value: 3, to: baseDate)!, end: Calendar.current.date(byAdding: .day, value: 5, to: baseDate)!)],
             fertileRanges: [DateInterval(start: Calendar.current.date(byAdding: .day, value: 14, to: baseDate)!, end: Calendar.current.date(byAdding: .day, value: 19, to: baseDate)!)],
             ovulationRanges: [DateInterval(start: Calendar.current.date(byAdding: .day, value: 15, to: baseDate)!, end: Calendar.current.date(byAdding: .day, value: 18, to: baseDate)!)]
         ),

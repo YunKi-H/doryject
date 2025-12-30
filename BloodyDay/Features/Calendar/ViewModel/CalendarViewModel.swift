@@ -103,6 +103,9 @@ extension CalendarViewModel {
         let periodRanges: [DateInterval] = buildRangesSplittingByWeeks(days: days) { day in
             day.events.contains { $0.type == .period }
         }
+        let delayedRanges: [DateInterval] = buildRangesSplittingByWeeks(days: days) { day in
+            day.events.contains { $0.type == .delayed }
+        }
         let fertileRanges: [DateInterval] = buildRangesSplittingByWeeks(days: days) { day in
             day.events.contains { $0.type == .fertile }
         }
@@ -114,6 +117,7 @@ extension CalendarViewModel {
             monthDate: monthStart,
             days: days,
             periodRanges: periodRanges,
+            delayedRanges: delayedRanges,
             fertileRanges: fertileRanges,
             ovulationRanges: ovulationRanges
         )
