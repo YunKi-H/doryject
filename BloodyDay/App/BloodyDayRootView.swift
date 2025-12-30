@@ -52,11 +52,7 @@ struct BloodyDayRootView: View {
             .onAppear {
                 let eventRepository = SwiftDataEventRepository(context: modelContext)
                 if calendarViewModel == nil {
-                    calendarViewModel = CalendarViewModel(
-                        eventRepository: eventRepository,
-                        cycleAnalyzer: .init(),
-                        cyclePredictor: .init()
-                    )
+                    calendarViewModel = CalendarViewModel(eventRepository: eventRepository)
                 }
             }
         }

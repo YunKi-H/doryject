@@ -16,13 +16,9 @@ final class CalendarViewModel {
     var currentIndex: Int = 0
     
     private let eventRepository: EventRepository
-    private let cycleAnalyzer: CycleAnalyzer
-    private let cyclePredictor: CyclePredictor
     
-    init(eventRepository: EventRepository, cycleAnalyzer: CycleAnalyzer, cyclePredictor: CyclePredictor) {
+    init(eventRepository: EventRepository) {
         self.eventRepository = eventRepository
-        self.cycleAnalyzer = cycleAnalyzer
-        self.cyclePredictor = cyclePredictor
         
         bootstrapMonths(anchor: selectedDate)
     }
@@ -41,18 +37,21 @@ extension CalendarViewModel {
     
     func commitEventsForSelectedDate(from initial: Set<EventType>, to final: Set<EventType>) {
         let date = selectedDate.startOfDay
-
+        
         let toAdd = final.subtracting(initial)
         let toRemove = initial.subtracting(final)
-
-        for type in toAdd {
+        
+        if toAdd.contains(.period) {
+            addPeriodEvents(startingAt: date)
+        }
+        for type in toAdd where type != .period {
             let new = UserEvent(id: .init(), date: date, type: type)
             eventRepository.save(new)
         }
         for type in toRemove {
             eventRepository.delete(type: type, on: date)
         }
-        months[currentIndex] = makeMonthInfo(for: date)
+        bootstrapMonths(anchor: date)
     }
 }
 
@@ -78,6 +77,19 @@ extension CalendarViewModel {
         }
     }
     
+    private func loadPreviousIfNeeded(viewingIndex index: Int) {
+        guard index <= 1, let first = months.first?.monthDate else { return }
+        let prev = makeMonthInfo(for: first.addingMonths(-1))
+        months.insert(prev, at: 0)
+        currentIndex += 1
+    }
+    
+    private func loadNextIfNeeded(viewingIndex index: Int) {
+        guard index >= months.count - 2, let last = months.last?.monthDate else { return }
+        let next = makeMonthInfo(for: last.addingMonths(+1))
+        months.append(next)
+    }
+    
     private func bootstrapMonths(anchor: Date) {
         let prev = makeMonthInfo(for: anchor.addingMonths(-1))
         let current = makeMonthInfo(for: anchor)
@@ -88,120 +100,131 @@ extension CalendarViewModel {
     
     private func makeMonthInfo(for month: Date) -> MonthInfo {
         let monthStart = month.startOfMonth
-        
-        let gridStart = monthStart.startOfCalendarGrid()
-        let gridEndExclusive = monthStart.endOfCalendarGridExclusiveStart()
-        
-        let gridDates = Date.dates(from: gridStart, to: gridEndExclusive)
-        var days: [DayInfo] = gridDates.map { DayInfo(date: $0) }
-        
         let allEvents = eventRepository.allEvents()
-        let periodEvents: [UserEvent] = allEvents.filter {
-            $0.type == .period && gridStart..<gridEndExclusive ~= $0.date
+        let days: [DayInfo] = buildDayInfos(for: month, userEvents: allEvents)
+        
+        let periodRanges: [DateInterval] = buildRangesSplittingByWeeks(days: days) { day in
+            day.events.contains { $0.type == .period }
+        }
+        let delayedRanges: [DateInterval] = buildRangesSplittingByWeeks(days: days) { day in
+            day.events.contains { $0.type == .delayed }
+        }
+        let fertileRanges: [DateInterval] = buildRangesSplittingByWeeks(days: days) { day in
+            day.events.contains { $0.type == .fertile }
+        }
+        let ovulationRanges: [DateInterval] = buildRangesSplittingByWeeks(days: days) { day in
+            day.events.contains { $0.type == .ovulation }
         }
         
-        let eventsByDay = Dictionary(grouping: periodEvents) { $0.date.startOfDay }
+        return MonthInfo(
+            monthDate: monthStart,
+            days: days,
+            periodRanges: periodRanges,
+            delayedRanges: delayedRanges,
+            fertileRanges: fertileRanges,
+            ovulationRanges: ovulationRanges
+        )
+    }
+    
+    private func buildDayInfos(
+        for month: Date,
+        userEvents: [UserEvent]
+    ) -> [DayInfo] {
+        let gridStart = month.startOfCalendarGrid()
+        let gridEndExclusive = month.endOfCalendarGridExclusiveStart()
+        
+        var days: [DayInfo] = Date.dates(from: gridStart, to: gridEndExclusive).map { DayInfo(date: $0) }
+        
+        let eventsByDay = Dictionary(grouping: userEvents) { $0.date.startOfDay }
         for i in days.indices {
             let key = days[i].date.startOfDay
             let dayEvents: [DayEvent] = eventsByDay[key]?.map { DayEvent(type: $0.type) } ?? []
             days[i].events = dayEvents
         }
         
-        // Build period ranges from days, merging contiguous period days but splitting at week boundaries
-        let columns = 7
+        let periodEvents = userEvents.filter { $0.type == .period }
+        let prediction = CyclePrediction.predictEvents(
+            periodEvents: periodEvents,
+            rangeStart: gridStart,
+            rangeEndExclusive: gridEndExclusive
+        )
+        
+        if !prediction.predictedEventsByDay.isEmpty {
+            for i in days.indices {
+                let key = days[i].date.startOfDay
+                guard let predicted = prediction.predictedEventsByDay[key] else { continue }
+                for type in predicted where !days[i].events.contains(where: { $0.type == type }) {
+                    days[i].events.append(DayEvent(type: type))
+                }
+            }
+        }
+        
+        return days
+    }
+    
+    private func buildRangesSplittingByWeeks(
+        days: [DayInfo],
+        hasEvent: (DayInfo) -> Bool,
+        columns: Int = 7
+    ) -> [DateInterval] {
         var ranges: [DateInterval] = []
         var currentStart: Date? = nil
         var lastIndex: Int? = nil
+        
         for idx in days.indices {
             let day = days[idx]
-            let hasPeriod = day.events.contains { $0.type == .period }
-            if hasPeriod {
+            let isOn = hasEvent(day)
+            
+            if isOn {
                 if currentStart == nil {
                     currentStart = day.date
                     lastIndex = idx
                 } else {
-                    // If the previous index was Sunday (col 6) and now moved to next index, split at week boundary
                     if let li = lastIndex, li % columns == columns - 1 {
-                        // close previous range at previous day
+                        // 주 경계에서 끊기
                         let endDate = days[li].date
                         ranges.append(DateInterval(start: currentStart!, end: endDate))
-                        // start new range at this day
                         currentStart = day.date
                     }
                     lastIndex = idx
                 }
             } else if let li = lastIndex, let start = currentStart {
-                // close ongoing range when period streak ends
+                // 연속 구간 종료
                 let endDate = days[li].date
                 ranges.append(DateInterval(start: start, end: endDate))
                 currentStart = nil
                 lastIndex = nil
-            } else {
-                // no active range and no period; continue
             }
         }
-        // close tail range if still open
+        
         if let li = lastIndex, let start = currentStart {
             let endDate = days[li].date
             ranges.append(DateInterval(start: start, end: endDate))
         }
-        let periodRanges: [DateInterval] = ranges      // TODO: cycles -> DateInterval 변환
         
-        let predictedRanges: [DateInterval] = []   // TODO: predictedCycles -> DateInterval 변환
-        let fertileRanges: [DateInterval] = []     // TODO
-        let ovulationRanges: [DateInterval] = []   // TODO
-
-        return MonthInfo(
-            monthDate: monthStart,
-            days: days,
-            periodRanges: periodRanges,
-            predictedRanges: predictedRanges,
-            fertileRanges: fertileRanges,
-            ovulationRanges: ovulationRanges
-        )
+        return ranges
     }
     
-    private func loadPreviousIfNeeded(viewingIndex index: Int) {
-        guard index <= 1, let first = months.first?.monthDate else { return }
-        let prev = makeMonthInfo(for: first.addingMonths(-1))
-        months.insert(prev, at: 0)
-        currentIndex += 1
-//        trimIfNeeded()
-    }
-
-    private func loadNextIfNeeded(viewingIndex index: Int) {
-        guard index >= months.count - 2, let last = months.last?.monthDate else { return }
-        let next = makeMonthInfo(for: last.addingMonths(+1))
-        months.append(next)
-//        trimIfNeeded()
-    }
-
-    private func trimIfNeeded(maxMonths: Int = 7) {
-        guard months.count > maxMonths else { return }
-        // 양 끝에서 제거하되 currentIndex 보정
-        while months.count > maxMonths {
-            if currentIndex > maxMonths / 2 {
-                currentIndex -= 1
-                months.removeFirst()
-            } else {
-                months.removeLast()
-            }
+    private func addPeriodEvents(startingAt date: Date) {
+        let normalizedDate = date.startOfDay
+        let periodEvents = eventRepository.events(of: .period).map { $0.date.startOfDay }
+        let calendar = Calendar.current
+        let previousDay = calendar.date(byAdding: .day, value: -1, to: normalizedDate)!
+        let nextDay = calendar.date(byAdding: .day, value: 1, to: normalizedDate)!
+        let isAdjacent = periodEvents.contains(where: { $0.isSameDay(as: previousDay) }) ||
+        periodEvents.contains(where: { $0.isSameDay(as: nextDay) })
+        
+        let datesToAdd: [Date]
+        if isAdjacent {
+            datesToAdd = [normalizedDate]
+        } else {
+            let endExclusive = calendar.date(byAdding: .day, value: 5, to: normalizedDate)!
+            datesToAdd = Date.dates(from: normalizedDate, toExclusive: endExclusive)
         }
-    }
-    
-    private func buildDayInfos(
-        for month: Date,
-        cycles: [CycleRecord],
-        predictedPeriods: [PredictedPeriod],
-        userEvents: [UserEvent]
-    ) -> [DayInfo] {
-        let start = month.startOfCalendarGrid()
         
-        // TODO: - Logic
-        
-        return (0..<42).compactMap { offset in
-            guard let date = Calendar.current.date(byAdding: .day, value: offset, to: start) else { return nil }
-            return DayInfo(date: date)
+        for day in datesToAdd {
+            let new = UserEvent(id: .init(), date: day, type: .period)
+            eventRepository.save(new)
         }
     }
 }

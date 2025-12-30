@@ -17,7 +17,7 @@ struct FertileCapsuleLayer: View {
     
     var body: some View {
         ForEach(ranges, id: \.self) { range in
-            CapsuleSegment(range: range, color: .green.opacity(0.25), height: 30, horizontalPadding: 1, days: days, geo: geo)
+            CapsuleSegment(range: range, color: .mainNeutral8, height: 30, horizontalPadding: 1, days: days, geo: geo)
         }
     }
 }

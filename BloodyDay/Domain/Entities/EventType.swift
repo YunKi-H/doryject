@@ -7,16 +7,17 @@
 
 import Foundation
 
-enum EventType: Equatable, Hashable, Codable {
+enum EventType: String, Equatable, Hashable, Codable {
     case period // 생리기간
     case ovulation // 배란일
     case fertile // 가임기
+    case delayed
     case pill
     case love
     
     var isCycleRelated: Bool {
         switch self {
-        case .period, .ovulation, .fertile: return true
+        case .period, .ovulation, .fertile, .delayed: return true
         case .pill, .love: return false
         @unknown default : return false
         }
