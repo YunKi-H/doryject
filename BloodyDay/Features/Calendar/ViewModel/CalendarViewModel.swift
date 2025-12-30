@@ -37,11 +37,14 @@ extension CalendarViewModel {
     
     func commitEventsForSelectedDate(from initial: Set<EventType>, to final: Set<EventType>) {
         let date = selectedDate.startOfDay
-
+        
         let toAdd = final.subtracting(initial)
         let toRemove = initial.subtracting(final)
-
-        for type in toAdd {
+        
+        if toAdd.contains(.period) {
+            addPeriodEvents(startingAt: date)
+        }
+        for type in toAdd where type != .period {
             let new = UserEvent(id: .init(), date: date, type: type)
             eventRepository.save(new)
         }
@@ -80,7 +83,7 @@ extension CalendarViewModel {
         months.insert(prev, at: 0)
         currentIndex += 1
     }
-
+    
     private func loadNextIfNeeded(viewingIndex index: Int) {
         guard index >= months.count - 2, let last = months.last?.monthDate else { return }
         let next = makeMonthInfo(for: last.addingMonths(+1))
@@ -112,7 +115,7 @@ extension CalendarViewModel {
         let ovulationRanges: [DateInterval] = buildRangesSplittingByWeeks(days: days) { day in
             day.events.contains { $0.type == .ovulation }
         }
-
+        
         return MonthInfo(
             monthDate: monthStart,
             days: days,
@@ -167,11 +170,11 @@ extension CalendarViewModel {
         var ranges: [DateInterval] = []
         var currentStart: Date? = nil
         var lastIndex: Int? = nil
-
+        
         for idx in days.indices {
             let day = days[idx]
             let isOn = hasEvent(day)
-
+            
             if isOn {
                 if currentStart == nil {
                     currentStart = day.date
@@ -193,12 +196,35 @@ extension CalendarViewModel {
                 lastIndex = nil
             }
         }
-
+        
         if let li = lastIndex, let start = currentStart {
             let endDate = days[li].date
             ranges.append(DateInterval(start: start, end: endDate))
         }
-
+        
         return ranges
+    }
+    
+    private func addPeriodEvents(startingAt date: Date) {
+        let normalizedDate = date.startOfDay
+        let periodEvents = eventRepository.events(of: .period).map { $0.date.startOfDay }
+        let calendar = Calendar.current
+        let previousDay = calendar.date(byAdding: .day, value: -1, to: normalizedDate)!
+        let nextDay = calendar.date(byAdding: .day, value: 1, to: normalizedDate)!
+        let isAdjacent = periodEvents.contains(where: { $0.isSameDay(as: previousDay) }) ||
+        periodEvents.contains(where: { $0.isSameDay(as: nextDay) })
+        
+        let datesToAdd: [Date]
+        if isAdjacent {
+            datesToAdd = [normalizedDate]
+        } else {
+            let endExclusive = calendar.date(byAdding: .day, value: 5, to: normalizedDate)!
+            datesToAdd = Date.dates(from: normalizedDate, toExclusive: endExclusive)
+        }
+        
+        for day in datesToAdd {
+            let new = UserEvent(id: .init(), date: day, type: .period)
+            eventRepository.save(new)
+        }
     }
 }

@@ -101,8 +101,9 @@ final class SwiftDataEventRepository: EventRepository {
     }
 
     func events(of type: EventType) -> [UserEvent] {
+        let rawValue = type.rawValue
         let descriptor = FetchDescriptor<UserEvent>(
-            predicate: #Predicate { $0.type == type },
+            predicate: #Predicate { $0.typeRaw == rawValue },
             sortBy: [ .init(\UserEvent.date, order: .forward) ]
         )
         do {

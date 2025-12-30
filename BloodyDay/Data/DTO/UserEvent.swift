@@ -12,7 +12,12 @@ import SwiftData
 final class UserEvent {
     var id: UUID
     var date: Date
-    var type: EventType
+    var typeRaw: String
+    
+    var type: EventType {
+        get { EventType(rawValue: typeRaw)! }
+        set { typeRaw = newValue.rawValue }
+    }
     
     @Attribute(.unique)
     var uniqueKey: String
@@ -20,7 +25,7 @@ final class UserEvent {
     init(id: UUID = .init(), date: Date, type: EventType, calendar: Calendar = .current) {
         self.id = id
         self.date = date
-        self.type = type
+        self.typeRaw = type.rawValue
         self.uniqueKey = Self.makeUniqueKey(date: date, type: type, calendar: calendar)
     }
     
