@@ -48,7 +48,7 @@ extension CalendarViewModel {
         for type in toRemove {
             eventRepository.delete(type: type, on: date)
         }
-        months[currentIndex] = makeMonthInfo(for: date)
+        bootstrapMonths(anchor: date)
     }
 }
 
@@ -97,14 +97,8 @@ extension CalendarViewModel {
     
     private func makeMonthInfo(for month: Date) -> MonthInfo {
         let monthStart = month.startOfMonth
-        
-        let gridStart = monthStart.startOfCalendarGrid()
-        let gridEndExclusive = monthStart.endOfCalendarGridExclusiveStart()
-        
         let allEvents = eventRepository.allEvents()
-        let monthlyEvents: [UserEvent] = allEvents.filter { gridStart..<gridEndExclusive ~= $0.date }
-        
-        let days: [DayInfo] = buildDayInfos(for: month, userEvents: monthlyEvents)
+        let days: [DayInfo] = buildDayInfos(for: month, userEvents: allEvents)
         
         let periodRanges: [DateInterval] = buildRangesSplittingByWeeks(days: days) { day in
             day.events.contains { $0.type == .period }
@@ -129,7 +123,6 @@ extension CalendarViewModel {
         for month: Date,
         userEvents: [UserEvent]
     ) -> [DayInfo] {
-        // TODO: - Logic
         let gridStart = month.startOfCalendarGrid()
         let gridEndExclusive = month.endOfCalendarGridExclusiveStart()
         
@@ -140,6 +133,23 @@ extension CalendarViewModel {
             let key = days[i].date.startOfDay
             let dayEvents: [DayEvent] = eventsByDay[key]?.map { DayEvent(type: $0.type) } ?? []
             days[i].events = dayEvents
+        }
+        
+        let periodEvents = userEvents.filter { $0.type == .period }
+        let prediction = CyclePrediction.predictEvents(
+            periodEvents: periodEvents,
+            rangeStart: gridStart,
+            rangeEndExclusive: gridEndExclusive
+        )
+        
+        if !prediction.predictedEventsByDay.isEmpty {
+            for i in days.indices {
+                let key = days[i].date.startOfDay
+                guard let predicted = prediction.predictedEventsByDay[key] else { continue }
+                for type in predicted where !days[i].events.contains(where: { $0.type == type }) {
+                    days[i].events.append(DayEvent(type: type))
+                }
+            }
         }
         
         return days
