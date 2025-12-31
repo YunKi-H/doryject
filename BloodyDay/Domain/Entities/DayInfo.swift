@@ -13,4 +13,5 @@ struct DayInfo: Identifiable, Equatable, Hashable {
     let id: UUID = .init()
     let date: Date
     var events: [DayEvent] = []
+    var pillSequence: Int? = nil
 }

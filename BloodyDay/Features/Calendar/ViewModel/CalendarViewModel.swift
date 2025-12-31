@@ -159,6 +159,26 @@ extension CalendarViewModel {
             }
         }
         
+        let calendar = Calendar.current
+        let pillDates = Set(userEvents.filter { $0.type == .pill }.map { $0.date.startOfDay })
+        var pillStreak = 0
+        var cursor = calendar.date(byAdding: .day, value: -1, to: gridStart.startOfDay)!
+        while pillDates.contains(cursor) {
+            pillStreak += 1
+            cursor = calendar.date(byAdding: .day, value: -1, to: cursor)!
+        }
+        
+        for i in days.indices {
+            let dayDate = days[i].date.startOfDay
+            if pillDates.contains(dayDate) {
+                pillStreak += 1
+                days[i].pillSequence = pillStreak
+            } else {
+                pillStreak = 0
+                days[i].pillSequence = nil
+            }
+        }
+        
         return days
     }
     

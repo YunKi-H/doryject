@@ -56,14 +56,14 @@ struct DayCellView: View {
                         .font(.system(size: 11))
                 }
                 
-                if pill != nil {
+                if pill != nil, let count = day.pillSequence {
                     HStack(spacing: 4) {
                         Image(.pillHalf)
                             .resizable()
                             .foregroundStyle(.subBlue30)
                             .frame(width: 10, height: 10)
                         
-                        Text("\(1)")
+                        Text("\(count)")
                             .font(.regular_11)
                             .foregroundStyle(.textTertiary)
                     }
