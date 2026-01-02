@@ -20,9 +20,13 @@ struct CalendarView: View {
             ZStack {
                 GeometryReader { geo in
                     PeriodCapsuleLayer(ranges: month.periodRanges, days: month.days, geo: geo)
+                        .padding(.horizontal, 20)
                     DelayedCapsuleLayer(ranges: month.delayedRanges, days: month.days, geo: geo)
+                        .padding(.horizontal, 20)
                     FertileCapsuleLayer(ranges: month.fertileRanges, days: month.days, geo: geo)
+                        .padding(.horizontal, 20)
                     OvulationCapsuleLayer(ranges: month.ovulationRanges, days: month.days, geo: geo)
+                        .padding(.horizontal, 20)
                     
                     Grid(horizontalSpacing: 0, verticalSpacing: 0) {
                         ForEach(0..<6, id: \.self) { row in
@@ -41,6 +45,7 @@ struct CalendarView: View {
                             }
                         }
                     }
+                    .padding(.horizontal, 20)
                     .overlay {
                         ForEach(0...rows, id: \.self) { r in
                             let cellHeight = geo.size.height / CGFloat(rows)
