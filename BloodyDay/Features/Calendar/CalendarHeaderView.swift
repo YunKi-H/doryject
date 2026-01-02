@@ -30,6 +30,8 @@ struct CalendarHeaderView: View {
                             .bold()
                             .foregroundStyle(.icon)
                             .frame(width: 13, height: 16)
+                            .rotationEffect(datePickerPresented ? .degrees(90) : .degrees(0))
+                            .animation(.default, value: datePickerPresented)
                     }
                 }
                 .padding(21)
