@@ -26,7 +26,7 @@ struct CapsuleSegment: View {
             let startCol = startIndex % columns
             let endCol = endIndex % columns
             
-            let cellWidth = geo.size.width / CGFloat(columns)
+            let cellWidth = (geo.size.width - 40) / CGFloat(columns)
             let cellHeight = geo.size.height / CGFloat(rows)
             
             let startX = CGFloat(startCol) * cellWidth + horizontalPadding
@@ -60,7 +60,7 @@ struct GlassCapsuleSegment: View {
             let startCol = startIndex % columns
             let endCol = endIndex % columns
             
-            let cellWidth = geo.size.width / CGFloat(columns)
+            let cellWidth = (geo.size.width - 40) / CGFloat(columns)
             let cellHeight = geo.size.height / CGFloat(rows)
             
             let startX = CGFloat(startCol) * cellWidth + horizontalPadding

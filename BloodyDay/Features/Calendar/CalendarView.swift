@@ -19,14 +19,13 @@ struct CalendarView: View {
         VStack {
             ZStack {
                 GeometryReader { geo in
-                    PeriodCapsuleLayer(ranges: month.periodRanges, days: month.days, geo: geo)
-                        .padding(.horizontal, 20)
-                    DelayedCapsuleLayer(ranges: month.delayedRanges, days: month.days, geo: geo)
-                        .padding(.horizontal, 20)
-                    FertileCapsuleLayer(ranges: month.fertileRanges, days: month.days, geo: geo)
-                        .padding(.horizontal, 20)
-                    OvulationCapsuleLayer(ranges: month.ovulationRanges, days: month.days, geo: geo)
-                        .padding(.horizontal, 20)
+                    Group {
+                        PeriodCapsuleLayer(ranges: month.periodRanges, days: month.days, geo: geo)
+                        DelayedCapsuleLayer(ranges: month.delayedRanges, days: month.days, geo: geo)
+                        FertileCapsuleLayer(ranges: month.fertileRanges, days: month.days, geo: geo)
+                        OvulationCapsuleLayer(ranges: month.ovulationRanges, days: month.days, geo: geo)
+                    }
+                    .padding(.horizontal, 20)
                     
                     Grid(horizontalSpacing: 0, verticalSpacing: 0) {
                         ForEach(0..<6, id: \.self) { row in
@@ -46,16 +45,15 @@ struct CalendarView: View {
                         }
                     }
                     .padding(.horizontal, 20)
-                    .overlay {
-                        ForEach(0...rows, id: \.self) { r in
-                            let cellHeight = geo.size.height / CGFloat(rows)
-                            let y = CGFloat(r) * cellHeight
-                            
-                            Rectangle()
-                                .fill(.mainNeutral8)
-                                .frame(height: 1)
-                                .position(x: geo.size.width / 2, y: y) // 경계선
-                        }
+                    
+                    ForEach(0...rows, id: \.self) { r in
+                        let cellHeight = geo.size.height / CGFloat(rows)
+                        let y = CGFloat(r) * cellHeight
+                        
+                        Rectangle()
+                            .fill(.mainNeutral8)
+                            .frame(height: 1)
+                            .position(x: geo.size.width / 2, y: y) // 경계선
                     }
                 }
             }
