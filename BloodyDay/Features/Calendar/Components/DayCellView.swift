@@ -18,8 +18,8 @@ struct DayCellView: View {
     private var love: DayEvent? { day.events.first(where: { $0.type == .love }) }
     private var dateFontColor: Color {
         if isToday { return .textPoint }
-        if !day.date.isInSameMonth(as: monthDate) { return .textTertiary }
-        if !isToday && isSelected && day.events.contains(where: { $0.type == .period }) { return .textSecondary40 }
+        if !day.date.isInSameMonth(as: monthDate) { return .textQuaternary }
+        if !isToday && isSelected && day.events.contains(where: { $0.type == .period }) { return .textPrimary }
         if day.events.contains(where: { $0.type == .period }) { return .textPoint }
         return .textPrimary
     }
