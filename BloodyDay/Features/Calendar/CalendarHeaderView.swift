@@ -18,8 +18,9 @@ struct CalendarHeaderView: View {
         VStack(spacing: 0) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 1) {
-                    Text("\(month.component(.year))년")
+                    Text("\(month.component(.year).formatted(.number.grouping(.never)))년")
                         .font(.medium_16)
+                        .padding(.leading, 1)
                     
                     HStack(spacing: 9) {
                         Text("\(month.component(.month))월")
