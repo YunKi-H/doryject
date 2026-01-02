@@ -121,6 +121,7 @@ struct CalendarMainView: View {
                     }
                     .listRowBackground(Color.bgSecondary)
                 }
+                .scrollDisabled(true)
                 .padding(.top, 14)
                 .contentMargins(.top, 0)
                 .toolbar {

@@ -53,7 +53,14 @@ struct AppleCalendarSettingView: View {
                         }
                         
                         if periodDataLinked {
-                            TextField("캘린더에 표시할 텍스트 (예: 🩸B-Day)", text: $periodTitle)
+                            TextField(
+                                "",
+                                text: $periodTitle,
+                                prompt: Text("🩸B-Day")
+                                    .font(.regular_18)
+                                    .foregroundColor(.textPrimary)
+                            )
+                            .opacity(periodTitle.isEmpty ? 0.15 : 1)
                         }
                     }
                     .listRowBackground(Color.bgSecondary)
@@ -72,7 +79,14 @@ struct AppleCalendarSettingView: View {
                         }
                         
                         if pillDataLinked {
-                            TextField("캘린더에 표시할 텍스트 (예: 💊피임약 복용)", text: $pillTitle)
+                            TextField(
+                                "",
+                                text: $pillTitle,
+                                prompt: Text("💊피임약 복용")
+                                    .font(.regular_18)
+                                    .foregroundColor(.textPrimary)
+                            )
+                            .opacity(pillTitle.isEmpty ? 0.15 : 1)
                         }
                     }
                     .listRowBackground(Color.bgSecondary)
@@ -91,7 +105,14 @@ struct AppleCalendarSettingView: View {
                         }
                         
                         if loveDataLinked {
-                            TextField("캘린더에 표시할 텍스트 (예: 💗사랑한 날)", text: $loveTitle)
+                            TextField(
+                                "",
+                                text: $loveTitle,
+                                prompt: Text("💗사랑한 날")
+                                    .font(.regular_18)
+                                    .foregroundColor(.textPrimary)
+                            )
+                            .opacity(loveTitle.isEmpty ? 0.15 : 1)
                         }
                     }
                     .listRowBackground(Color.bgSecondary)
@@ -108,7 +129,7 @@ struct AppleCalendarSettingView: View {
         }
         .toolbar {
             ToolbarItem(placement: .title) {
-                Text("피임약")
+                Text("Apple Calendar")
             }
             
             ToolbarItemGroup(placement: .keyboard) {
