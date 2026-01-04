@@ -25,6 +25,15 @@ final class PeriodListViewModel {
         let events = eventRepository.events(of: .period)
         summaries = PeriodSummaryBuilder.build(from: events.map { $0.date })
     }
+
+    func delete(summary: PeriodSummary) {
+        let start = summary.start.startOfDay
+        let end = summary.end.startOfDay
+        for day in Date.dates(from: start, to: end) {
+            eventRepository.delete(type: .period, on: day)
+        }
+        refresh()
+    }
     
     var lastPeriodStartDisplay: String {
         guard let lastStart = summaries.last?.start else { return "-" }

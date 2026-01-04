@@ -99,7 +99,7 @@ struct PeriodListView: View {
                         }
                         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                             Button(role: .destructive) {
-                                // delete
+                                viewModel.delete(summary: summary)
                             } label: {
                                 VStack {
                                     Image(systemName: "trash")

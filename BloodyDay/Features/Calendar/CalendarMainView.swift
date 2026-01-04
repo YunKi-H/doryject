@@ -46,6 +46,7 @@ struct CalendarMainView: View {
             .scrollIndicators(.hidden)
             .scrollPosition(id: $selectionMonth, anchor: .top)
             .onAppear {
+                viewModel.refresh()
                 if viewModel.months.indices.contains(viewModel.currentIndex) {
                     selectionMonth = viewModel.months[viewModel.currentIndex].monthDate
                 }
