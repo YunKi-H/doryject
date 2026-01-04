@@ -6,67 +6,42 @@
 //
 
 import SwiftUI
-import SwiftData
 
 struct PeriodListView: View {
-    @Query(filter: #Predicate<UserEvent> { $0.typeRaw == "period" }, sort: \UserEvent.date)
-    private var periodEvents: [UserEvent]
-    
     @State private var editSheetIsPresented: Bool = false
     @State private var settingSheetIsPresented: Bool = false
-
-    private var periodSummaries: [PeriodSummary] {
-        buildPeriodSummaries(from: periodEvents.map { $0.date })
-    }
-
-    private var lastPeriodStartText: String {
-        guard let lastStart = periodSummaries.last?.start else { return "기록 없음" }
-        return formatDate(lastStart)
-    }
-
-    private var lastPeriodRangeText: String {
-        guard let last = periodSummaries.last else { return "기록 없음" }
-        return "\(formatDate(last.start)) - \(formatDate(last.end))"
-    }
-
-    private var averagePeriodText: String {
-        let lengths = periodSummaries.map(\.lengthDays)
-        guard !lengths.isEmpty else { return "-" }
-        let avg = Double(lengths.reduce(0, +)) / Double(lengths.count)
-        return "\(Int(round(avg)))일"
-    }
-
-    private var averageCycleText: String {
-        let cycles = periodSummaries.compactMap(\.cycleDays)
-        guard !cycles.isEmpty else { return "-" }
-        let avg = Double(cycles.reduce(0, +)) / Double(cycles.count)
-        return "\(Int(round(avg)))일"
+    @State private var viewModel: PeriodListViewModel
+    
+    init(viewModel: PeriodListViewModel) {
+        _viewModel = State(initialValue: viewModel)
+        print("periodListView")
     }
     
     var body: some View {
+        let summaries = viewModel.summaries.reversed()
         VStack(alignment: .trailing, spacing: 20) {
             HStack(spacing: 0) {
-                    Button {
-                        editSheetIsPresented = true
-                    } label: {
-                        Image(systemName: "calendar.badge.plus")
-                            .font(.system(size: 22, weight: .medium))
-                            .frame(width: 36, height: 36)
-                    }
-                    .padding(6)
-                    
-                    Button {
-                        settingSheetIsPresented = true
-                    } label: {
-                        Image(systemName: "gearshape")
-                            .font(.system(size: 22, weight: .medium))
-                            .frame(width: 36, height: 36)
-                    }
-                    .padding(6)
+                Button {
+                    editSheetIsPresented = true
+                } label: {
+                    Image(systemName: "calendar.badge.plus")
+                        .font(.system(size: 22, weight: .medium))
+                        .frame(width: 36, height: 36)
                 }
-                .foregroundStyle(.icon)
-                .glassEffect()
-                .padding(.horizontal, 16)
+                .padding(6)
+                
+                Button {
+                    settingSheetIsPresented = true
+                } label: {
+                    Image(systemName: "gearshape")
+                        .font(.system(size: 22, weight: .medium))
+                        .frame(width: 36, height: 36)
+                }
+                .padding(6)
+            }
+            .foregroundStyle(.icon)
+            .glassEffect()
+            .padding(.horizontal, 16)
             
             List {
                 Section {
@@ -75,12 +50,12 @@ struct PeriodListView: View {
                             Text("마지막 생리일")
                                 .font(.regular_18)
                             Spacer()
-                            Text(lastPeriodStartText == "기록 없음" ? "-" : lastPeriodStartText)
+                            Text(viewModel.lastPeriodStartDisplay)
                                 .font(.semibold_18)
                         }
                         .foregroundStyle(.textPrimary)
                         
-                        Text(lastPeriodRangeText)
+                        Text(viewModel.lastPeriodRangeDisplay)
                             .font(.regular_14)
                             .foregroundStyle(.textSecondary40)
                     }
@@ -92,7 +67,7 @@ struct PeriodListView: View {
                         Text("평균 기간")
                             .font(.regular_18)
                         Spacer()
-                        Text(averagePeriodText)
+                        Text(viewModel.averagePeriodDisplay)
                             .font(.semibold_18)
                     }
                     .foregroundStyle(.textPrimary)
@@ -101,7 +76,7 @@ struct PeriodListView: View {
                         Text("평균 주기")
                             .font(.regular_18)
                         Spacer()
-                        Text(averageCycleText)
+                        Text(viewModel.averageCycleDisplay)
                             .font(.semibold_18)
                     }
                     .foregroundStyle(.textPrimary)
@@ -109,9 +84,9 @@ struct PeriodListView: View {
                 .listRowBackground(Color.bgSecondary)
                 
                 Section {
-                    ForEach(periodSummaries.reversed()) { summary in
+                    ForEach(summaries) { summary in
                         VStack(alignment: .leading, spacing: 6) {
-                            Text("\(formatDate(summary.start)) - \(formatDate(summary.end))")
+                            Text("\(viewModel.format(summary.start)) - \(viewModel.format(summary.end))")
                                 .font(.semibold_18)
                                 .foregroundStyle(.textPrimary)
                                 .padding(.leading, 5)
@@ -186,6 +161,9 @@ struct PeriodListView: View {
             Color.bgPrimary
                 .ignoresSafeArea()
         }
+        .onAppear {
+            viewModel.refresh()
+        }
         .sheet(isPresented: $editSheetIsPresented) {
             PeriodEditSheetView()
         }
@@ -195,73 +173,8 @@ struct PeriodListView: View {
     }
 }
 
-private struct PeriodSummary: Identifiable {
-    let id = UUID()
-    let start: Date
-    let end: Date
-    let lengthDays: Int
-    let cycleDays: Int?
-}
-
-private func buildPeriodSummaries(from dates: [Date]) -> [PeriodSummary] {
-    let calendar = Calendar.current
-    let normalized = Array(Set(dates.map { $0.startOfDay })).sorted()
-    guard !normalized.isEmpty else { return [] }
-
-    var segments: [(start: Date, end: Date)] = []
-    var currentStart = normalized[0]
-    var currentEnd = normalized[0]
-
-    for date in normalized.dropFirst() {
-        let expectedNext = calendar.date(byAdding: .day, value: 1, to: currentEnd)!
-        if calendar.isDate(date, inSameDayAs: expectedNext) {
-            currentEnd = date
-        } else {
-            segments.append((start: currentStart, end: currentEnd))
-            currentStart = date
-            currentEnd = date
-        }
-    }
-    segments.append((start: currentStart, end: currentEnd))
-
-    var summaries: [PeriodSummary] = []
-    for idx in segments.indices {
-        let start = segments[idx].start
-        let end = segments[idx].end
-        let length = calendar.dateComponents([.day], from: start, to: end).day ?? 0
-        let lengthDays = max(length + 1, 1)
-        let cycleDays: Int?
-        if idx == 0 {
-            cycleDays = nil
-        } else {
-            let prevStart = segments[idx - 1].start
-            let cycle = calendar.dateComponents([.day], from: prevStart, to: start).day ?? 0
-            cycleDays = cycle > 0 ? cycle : nil
-        }
-
-        summaries.append(
-            PeriodSummary(
-                start: start,
-                end: end,
-                lengthDays: lengthDays,
-                cycleDays: cycleDays
-            )
-        )
-    }
-
-    return summaries
-}
-
-private func formatDate(_ date: Date) -> String {
-    let formatter = DateFormatter()
-    formatter.calendar = Calendar.current
-    formatter.locale = Locale.current
-    formatter.dateFormat = "yyyy년 M월 d일"
-    return formatter.string(from: date)
-}
-
 #Preview {
     NavigationStack {
-        PeriodListView()
+        PeriodListView(viewModel: .init(eventRepository: MockEventRepository()))
     }
 }
