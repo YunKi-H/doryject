@@ -14,35 +14,11 @@ struct PeriodListView: View {
     
     init(viewModel: PeriodListViewModel) {
         _viewModel = State(initialValue: viewModel)
-        print("periodListView")
     }
     
     var body: some View {
         let summaries = viewModel.summaries.reversed()
-        VStack(alignment: .trailing, spacing: 20) {
-            HStack(spacing: 0) {
-                Button {
-                    editSheetIsPresented = true
-                } label: {
-                    Image(systemName: "calendar.badge.plus")
-                        .font(.system(size: 22, weight: .medium))
-                        .frame(width: 36, height: 36)
-                }
-                .padding(6)
-                
-                Button {
-                    settingSheetIsPresented = true
-                } label: {
-                    Image(systemName: "gearshape")
-                        .font(.system(size: 22, weight: .medium))
-                        .frame(width: 36, height: 36)
-                }
-                .padding(6)
-            }
-            .foregroundStyle(.icon)
-            .glassEffect()
-            .padding(.horizontal, 16)
-            
+        ZStack(alignment: .topTrailing) {
             List {
                 Section {
                     VStack(alignment: .leading, spacing: 4) {
@@ -110,7 +86,7 @@ struct PeriodListView: View {
                                     Text("생리 주기")
                                         .font(.medium_14)
                                         .foregroundStyle(.textSecondary40)
-                                    Text(summary.cycleDays.map { "\($0)일" } ?? "-")
+                            Text(summary.cycleDays.map { "\($0)일" } ?? "-")
                                         .font(.semibold_14)
                                         .foregroundStyle(.textSecondary50)
                                 }
@@ -136,7 +112,7 @@ struct PeriodListView: View {
                             }
                             
                             Button {
-                                // edit
+                                editSheetIsPresented = true
                             } label: {
                                 VStack {
                                     Image(systemName: "pencil")
@@ -153,9 +129,31 @@ struct PeriodListView: View {
                 .listRowBackground(Color.bgSecondary)
             }
             .listSectionSpacing(14)
-            .contentMargins(.top, 14)
+            .contentMargins(.top, 70)
             .scrollContentBackground(.hidden)
-            
+
+            HStack(spacing: 0) {
+                Button {
+                    editSheetIsPresented = true
+                } label: {
+                    Image(systemName: "calendar.badge.plus")
+                        .font(.system(size: 22, weight: .medium))
+                        .frame(width: 36, height: 36)
+                }
+                .padding(6)
+                
+                Button {
+                    settingSheetIsPresented = true
+                } label: {
+                    Image(systemName: "gearshape")
+                        .font(.system(size: 22, weight: .medium))
+                        .frame(width: 36, height: 36)
+                }
+                .padding(6)
+            }
+            .foregroundStyle(.icon)
+            .glassEffect()
+            .padding(.horizontal, 16)
         }
         .background {
             Color.bgPrimary
