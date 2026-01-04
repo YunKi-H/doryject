@@ -11,6 +11,7 @@ struct BloodyDayRootView: View {
     @Environment(\.modelContext) private var modelContext
     
     @State private var calendarViewModel: CalendarViewModel?
+    @State private var periodListViewModel: PeriodListViewModel?
     
     @State private var activeTab: BloodyDayTab = .calendar
     @State private var isPresentedCalendarSheet: Bool = false
@@ -35,14 +36,16 @@ struct BloodyDayRootView: View {
                 }
                 
                 Tab.init(value: .period) {
-                    PeriodListView()
-                        .toolbarVisibility(.hidden, for: .tabBar)
-                        .safeAreaBar(edge: .bottom, spacing: 0) {
-                            Text(".")
-                                .blendMode(.destinationOver)
-                                .frame(height: 62)
-                                .opacity(0)
-                        }
+                    if let viewModel = periodListViewModel {
+                        PeriodListView(viewModel: viewModel)
+                            .toolbarVisibility(.hidden, for: .tabBar)
+                            .safeAreaBar(edge: .bottom, spacing: 0) {
+                                Text(".")
+                                    .blendMode(.destinationOver)
+                                    .frame(height: 62)
+                                    .opacity(0)
+                            }
+                    }
                 }
             }
             .safeAreaInset(edge: .bottom) {
@@ -53,6 +56,9 @@ struct BloodyDayRootView: View {
                 let eventRepository = SwiftDataEventRepository(context: modelContext)
                 if calendarViewModel == nil {
                     calendarViewModel = CalendarViewModel(eventRepository: eventRepository)
+                }
+                if periodListViewModel == nil {
+                    periodListViewModel = PeriodListViewModel(eventRepository: eventRepository)
                 }
             }
         }

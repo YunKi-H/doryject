@@ -22,6 +22,10 @@ final class CalendarViewModel {
         
         bootstrapMonths(anchor: selectedDate)
     }
+
+    func refresh() {
+        bootstrapMonths(anchor: selectedDate)
+    }
 }
 
 // Repository

@@ -8,42 +8,17 @@
 import SwiftUI
 
 struct PeriodListView: View {
-    @State private var periodList: [DateInterval] = [
-        .init(start: .now, end: .now),
-        .init(start: .now, end: .now),
-        .init(start: .now, end: .now),
-        .init(start: .now, end: .now),
-        .init(start: .now, end: .now)
-    ]
-    
     @State private var editSheetIsPresented: Bool = false
     @State private var settingSheetIsPresented: Bool = false
+    @State private var viewModel: PeriodListViewModel
+    
+    init(viewModel: PeriodListViewModel) {
+        _viewModel = State(initialValue: viewModel)
+    }
     
     var body: some View {
-        VStack(alignment: .trailing, spacing: 20) {
-            HStack(spacing: 0) {
-                    Button {
-                        editSheetIsPresented = true
-                    } label: {
-                        Image(systemName: "calendar.badge.plus")
-                            .font(.system(size: 22, weight: .medium))
-                            .frame(width: 36, height: 36)
-                    }
-                    .padding(6)
-                    
-                    Button {
-                        settingSheetIsPresented = true
-                    } label: {
-                        Image(systemName: "gearshape")
-                            .font(.system(size: 22, weight: .medium))
-                            .frame(width: 36, height: 36)
-                    }
-                    .padding(6)
-                }
-                .foregroundStyle(.icon)
-                .glassEffect()
-                .padding(.horizontal, 16)
-            
+        let summaries = viewModel.summaries.reversed()
+        ZStack(alignment: .topTrailing) {
             List {
                 Section {
                     VStack(alignment: .leading, spacing: 4) {
@@ -51,12 +26,12 @@ struct PeriodListView: View {
                             Text("마지막 생리일")
                                 .font(.regular_18)
                             Spacer()
-                            Text("-")
+                            Text(viewModel.lastPeriodStartDisplay)
                                 .font(.semibold_18)
                         }
                         .foregroundStyle(.textPrimary)
                         
-                        Text("기록 없음")
+                        Text(viewModel.lastPeriodRangeDisplay)
                             .font(.regular_14)
                             .foregroundStyle(.textSecondary40)
                     }
@@ -68,7 +43,7 @@ struct PeriodListView: View {
                         Text("평균 기간")
                             .font(.regular_18)
                         Spacer()
-                        Text("-")
+                        Text(viewModel.averagePeriodDisplay)
                             .font(.semibold_18)
                     }
                     .foregroundStyle(.textPrimary)
@@ -77,7 +52,7 @@ struct PeriodListView: View {
                         Text("평균 주기")
                             .font(.regular_18)
                         Spacer()
-                        Text("-")
+                        Text(viewModel.averageCycleDisplay)
                             .font(.semibold_18)
                     }
                     .foregroundStyle(.textPrimary)
@@ -85,9 +60,9 @@ struct PeriodListView: View {
                 .listRowBackground(Color.bgSecondary)
                 
                 Section {
-                    ForEach(periodList.indices, id: \.self) { index in
+                    ForEach(summaries) { summary in
                         VStack(alignment: .leading, spacing: 6) {
-                            Text("2025년 8월 25일 - 27일")
+                            Text("\(viewModel.format(summary.start)) - \(viewModel.format(summary.end))")
                                 .font(.semibold_18)
                                 .foregroundStyle(.textPrimary)
                                 .padding(.leading, 5)
@@ -97,7 +72,7 @@ struct PeriodListView: View {
                                     Text("생리 기간")
                                         .font(.medium_14)
                                         .foregroundStyle(.textSecondary40)
-                                    Text("5일")
+                                    Text("\(summary.lengthDays)일")
                                         .font(.semibold_14)
                                         .foregroundStyle(.textSecondary50)
                                 }
@@ -111,7 +86,7 @@ struct PeriodListView: View {
                                     Text("생리 주기")
                                         .font(.medium_14)
                                         .foregroundStyle(.textSecondary40)
-                                    Text("28일")
+                            Text(summary.cycleDays.map { "\($0)일" } ?? "-")
                                         .font(.semibold_14)
                                         .foregroundStyle(.textSecondary50)
                                 }
@@ -124,7 +99,7 @@ struct PeriodListView: View {
                         }
                         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                             Button(role: .destructive) {
-                                // delete
+                                viewModel.delete(summary: summary)
                             } label: {
                                 VStack {
                                     Image(systemName: "trash")
@@ -137,7 +112,7 @@ struct PeriodListView: View {
                             }
                             
                             Button {
-                                // edit
+                                editSheetIsPresented = true
                             } label: {
                                 VStack {
                                     Image(systemName: "pencil")
@@ -154,13 +129,38 @@ struct PeriodListView: View {
                 .listRowBackground(Color.bgSecondary)
             }
             .listSectionSpacing(14)
-            .contentMargins(.top, 14)
+            .contentMargins(.top, 70)
             .scrollContentBackground(.hidden)
-            
+
+            HStack(spacing: 0) {
+                Button {
+                    editSheetIsPresented = true
+                } label: {
+                    Image(systemName: "calendar.badge.plus")
+                        .font(.system(size: 22, weight: .medium))
+                        .frame(width: 36, height: 36)
+                }
+                .padding(6)
+                
+                Button {
+                    settingSheetIsPresented = true
+                } label: {
+                    Image(systemName: "gearshape")
+                        .font(.system(size: 22, weight: .medium))
+                        .frame(width: 36, height: 36)
+                }
+                .padding(6)
+            }
+            .foregroundStyle(.icon)
+            .glassEffect()
+            .padding(.horizontal, 16)
         }
         .background {
             Color.bgPrimary
                 .ignoresSafeArea()
+        }
+        .onAppear {
+            viewModel.refresh()
         }
         .sheet(isPresented: $editSheetIsPresented) {
             PeriodEditSheetView()
@@ -173,6 +173,6 @@ struct PeriodListView: View {
 
 #Preview {
     NavigationStack {
-        PeriodListView()
+        PeriodListView(viewModel: .init(eventRepository: MockEventRepository()))
     }
 }
