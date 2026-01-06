@@ -8,12 +8,15 @@
 import SwiftUI
 
 struct DayInfoCardView: View {
+    let title: String
+    let subtitle: String
+
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 14) {
-                Text("B-Day 지연")
+                Text(title)
                     .font(.regular_16)
-                Text("임신 확률 낮음")
+                Text(subtitle)
                     .font(.regular_16)
             }
             .foregroundStyle(.textPrimary)
@@ -30,5 +33,5 @@ struct DayInfoCardView: View {
 }
 
 #Preview {
-    DayInfoCardView()
+    DayInfoCardView(title: "B-14", subtitle: "가임기 아님")
 }

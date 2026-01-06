@@ -23,6 +23,14 @@ final class CalendarViewModel {
         bootstrapMonths(anchor: selectedDate)
     }
 
+    var primaryStatusText: String {
+        periodStatusText(for: .now)
+    }
+
+    var secondaryStatusText: String {
+        secondaryStatusText(for: .now)
+    }
+
     func refresh() {
         bootstrapMonths(anchor: selectedDate)
     }
@@ -250,5 +258,63 @@ extension CalendarViewModel {
             let new = UserEvent(id: .init(), date: day, type: .period)
             eventRepository.save(new)
         }
+    }
+
+    private func periodStatusText(for date: Date) -> String {
+        let summaries = actualPeriodSummaries()
+        let calendar = Calendar.current
+        let target = date.startOfDay
+
+        if let ongoing = summaries.first(where: { $0.start.startOfDay <= target && target <= $0.end.startOfDay }) {
+            let dayIndex = (calendar.dateComponents([.day], from: ongoing.start.startOfDay, to: target).day ?? 0) + 1
+            return "B+\(max(dayIndex, 1))"
+        }
+
+        guard let avgCycle = averageCycleDays(from: summaries),
+              let lastStart = summaries.last?.start.startOfDay else {
+            return "-"
+        }
+
+        let predictedStart = calendar.date(byAdding: .day, value: avgCycle, to: lastStart)!
+        if target >= predictedStart {
+            return "생리 지연"
+        }
+
+        let daysUntil = calendar.dateComponents([.day], from: target, to: predictedStart).day ?? 0
+        return "B-\(max(daysUntil, 0))"
+    }
+
+    private func secondaryStatusText(for date: Date) -> String {
+        guard let dayInfo = months
+            .flatMap(\.days)
+            .first(where: { $0.date.isSameDay(as: date) }) else {
+            return "가임기 아님"
+        }
+
+        if let pillSequence = dayInfo.pillSequence {
+            return "피임약 \(pillSequence)일째"
+        }
+
+        if dayInfo.events.contains(where: { $0.type == .ovulation }) {
+            return "배란일"
+        }
+
+        if dayInfo.events.contains(where: { $0.type == .fertile }) {
+            return "가임기"
+        }
+
+        return "가임기 아님"
+    }
+
+    private func actualPeriodSummaries() -> [PeriodSummary] {
+        let events = eventRepository.events(of: .period)
+        return PeriodSummaryBuilder.build(from: events.map { $0.date })
+    }
+
+    private func averageCycleDays(from summaries: [PeriodSummary]) -> Int? {
+        let cycles = summaries.compactMap(\.cycleDays)
+        guard !cycles.isEmpty else { return nil }
+        let avg = Double(cycles.reduce(0, +)) / Double(cycles.count)
+        return Int(round(avg))
     }
 }
