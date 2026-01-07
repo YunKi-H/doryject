@@ -80,7 +80,10 @@ struct CalendarMainView: View {
                 }
             }
             
-            DayInfoCardView()
+            DayInfoCardView(
+                primaryStatus: viewModel.primaryStatus,
+                secondaryStatus: viewModel.secondaryStatus
+            )
         }
         .background {
             Color.bgPrimary

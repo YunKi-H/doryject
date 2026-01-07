@@ -8,13 +8,61 @@
 import SwiftUI
 
 struct DayInfoCardView: View {
+    let primaryStatus: CalendarPrimaryStatus
+    let secondaryStatus: CalendarSecondaryStatus
+    
+    private var primaryIcon: some View {
+        return Image(systemName: "drop.fill")
+            .foregroundStyle(.mainRed)
+            .font(.system(size: 14, weight: .regular))
+    }
+    
+    @ViewBuilder
+    private var secondaryIcon: some View {
+        switch secondaryStatus {
+        case .pill(_):
+            Image(.pillHalf)
+                .foregroundStyle(.subBlue)
+                .frame(width: 13, height: 13)
+        default:
+            Image(systemName: "sparkle")
+                .foregroundStyle(.mainNeutral)
+                .font(.system(size: 14, weight: .regular))
+        }
+    }
+
     var body: some View {
         HStack {
-            VStack(alignment: .leading, spacing: 14) {
-                Text("B-Day 지연")
-                    .font(.regular_16)
-                Text("임신 확률 낮음")
-                    .font(.regular_16)
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 3) {
+                    primaryIcon
+                        .frame(width: 20, height: 20)
+                    
+                    Text(primaryStatus.displayText)
+                        .font(.regular_16)
+                        .foregroundStyle(.textPrimary)
+                    
+                    if let subText = primaryStatus.subText {
+                        Text(subText)
+                            .font(.regular_14)
+                            .foregroundStyle(.textSecondary40)
+                    }
+                }
+                
+                HStack(spacing: 3) {
+                    secondaryIcon
+                        .frame(width: 20, height: 20)
+                    
+                    Text(secondaryStatus.displayText)
+                        .font(.regular_16)
+                        .foregroundStyle(.textPrimary)
+                    
+                    if let subText = secondaryStatus.subText {
+                        Text(subText)
+                            .font(.regular_14)
+                            .foregroundStyle(.textSecondary40)
+                    }
+                }
             }
             .foregroundStyle(.textPrimary)
             
@@ -30,5 +78,8 @@ struct DayInfoCardView: View {
 }
 
 #Preview {
-    DayInfoCardView()
+    DayInfoCardView(
+        primaryStatus: .countdown(days: 14),
+        secondaryStatus: .notFertile
+    )
 }
