@@ -81,8 +81,8 @@ struct CalendarMainView: View {
             }
             
             DayInfoCardView(
-                title: viewModel.primaryStatusText,
-                subtitle: viewModel.secondaryStatusText
+                primaryStatus: viewModel.primaryStatus,
+                secondaryStatus: viewModel.secondaryStatus
             )
         }
         .background {

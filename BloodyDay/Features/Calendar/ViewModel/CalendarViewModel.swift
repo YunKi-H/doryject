@@ -23,14 +23,6 @@ final class CalendarViewModel {
         bootstrapMonths(anchor: selectedDate)
     }
 
-    var primaryStatusText: String {
-        periodStatusText(for: .now)
-    }
-
-    var secondaryStatusText: String {
-        secondaryStatusText(for: .now)
-    }
-
     func refresh() {
         bootstrapMonths(anchor: selectedDate)
     }
@@ -259,51 +251,62 @@ extension CalendarViewModel {
             eventRepository.save(new)
         }
     }
+}
 
-    private func periodStatusText(for date: Date) -> String {
+// DayInfoCard
+extension CalendarViewModel {
+    var primaryStatus: CalendarPrimaryStatus {
+        periodStatus(for: .now)
+    }
+
+    var secondaryStatus: CalendarSecondaryStatus {
+        secondaryStatus(for: .now)
+    }
+    
+    private func periodStatus(for date: Date) -> CalendarPrimaryStatus {
         let summaries = actualPeriodSummaries()
         let calendar = Calendar.current
         let target = date.startOfDay
 
         if let ongoing = summaries.first(where: { $0.start.startOfDay <= target && target <= $0.end.startOfDay }) {
             let dayIndex = (calendar.dateComponents([.day], from: ongoing.start.startOfDay, to: target).day ?? 0) + 1
-            return "B+\(max(dayIndex, 1))"
+            return .ongoing(day: max(dayIndex, 1))
         }
 
         guard let avgCycle = averageCycleDays(from: summaries),
               let lastStart = summaries.last?.start.startOfDay else {
-            return "-"
+            return .unknown
         }
 
         let predictedStart = calendar.date(byAdding: .day, value: avgCycle, to: lastStart)!
         if target >= predictedStart {
-            return "생리 지연"
+            return .delayed(days: max(calendar.dateComponents([.day], from: predictedStart.startOfDay, to: target).day ?? 0, 0))
         }
 
         let daysUntil = calendar.dateComponents([.day], from: target, to: predictedStart).day ?? 0
-        return "B-\(max(daysUntil, 0))"
+        return .countdown(days: max(daysUntil, 0))
     }
 
-    private func secondaryStatusText(for date: Date) -> String {
+    private func secondaryStatus(for date: Date) -> CalendarSecondaryStatus {
         guard let dayInfo = months
             .flatMap(\.days)
             .first(where: { $0.date.isSameDay(as: date) }) else {
-            return "가임기 아님"
+            return .notFertile
         }
 
         if let pillSequence = dayInfo.pillSequence {
-            return "피임약 \(pillSequence)일째"
+            return .pill(day: pillSequence)
         }
 
         if dayInfo.events.contains(where: { $0.type == .ovulation }) {
-            return "배란일"
+            return .ovulation
         }
 
         if dayInfo.events.contains(where: { $0.type == .fertile }) {
-            return "가임기"
+            return .fertile
         }
 
-        return "가임기 아님"
+        return .notFertile
     }
 
     private func actualPeriodSummaries() -> [PeriodSummary] {
@@ -316,5 +319,65 @@ extension CalendarViewModel {
         guard !cycles.isEmpty else { return nil }
         let avg = Double(cycles.reduce(0, +)) / Double(cycles.count)
         return Int(round(avg))
+    }
+}
+
+enum CalendarPrimaryStatus: Equatable {
+    case countdown(days: Int)
+    case ongoing(day: Int)
+    case delayed(days: Int)
+    case unknown
+
+    var displayText: String {
+        switch self {
+        case .countdown(let days):
+            return "B-\(days)"
+        case .ongoing(let day):
+            return "B+\(day)"
+        case .delayed:
+            return "생리 지연"
+        case .unknown:
+            return "-"
+        }
+    }
+    
+    var subText: String? {
+        switch self {
+        case .delayed(let days):
+            return "(\(days)일 지연됨)"
+        default:
+            return nil
+        }
+    }
+}
+
+enum CalendarSecondaryStatus: Equatable {
+    case pill(day: Int)
+    case ovulation
+    case fertile
+    case notFertile
+
+    var displayText: String {
+        switch self {
+        case .pill(let day):
+            return "피임약 \(day)일째"
+        case .ovulation:
+            return "임신 확률 높음"
+        case .fertile:
+            return "임신 확률 보통"
+        case .notFertile:
+            return "임신 확률 낮음"
+        }
+    }
+    
+    var subText: String? {
+        switch self {
+        case .ovulation:
+            return "(배란일)"
+        case .fertile:
+            return "(가임기)"
+        default:
+            return nil
+        }
     }
 }
