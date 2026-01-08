@@ -12,6 +12,7 @@ struct BloodyDayRootView: View {
     
     @State private var calendarViewModel: CalendarViewModel?
     @State private var periodListViewModel: PeriodListViewModel?
+    @State private var periodSettingViewModel: PeriodSettingViewModel?
     @State private var notificationSettingsViewModel: NotificationSettingsViewModel?
     @State private var pillSettingsViewModel: PillSettingsViewModel?
     @State private var appleCalendarSettingsViewModel: AppleCalendarSettingViewModel?
@@ -45,15 +46,19 @@ struct BloodyDayRootView: View {
                 }
                 
                 Tab.init(value: .period) {
-                    if let viewModel = periodListViewModel {
-                        PeriodListView(viewModel: viewModel)
-                            .toolbarVisibility(.hidden, for: .tabBar)
-                            .safeAreaBar(edge: .bottom, spacing: 0) {
-                                Text(".")
-                                    .blendMode(.destinationOver)
-                                    .frame(height: 62)
-                                    .opacity(0)
-                            }
+                    if let viewModel = periodListViewModel,
+                       let settingViewModel = periodSettingViewModel {
+                        PeriodListView(
+                            viewModel: viewModel,
+                            periodSettingViewModel: settingViewModel
+                        )
+                        .toolbarVisibility(.hidden, for: .tabBar)
+                        .safeAreaBar(edge: .bottom, spacing: 0) {
+                            Text(".")
+                                .blendMode(.destinationOver)
+                                .frame(height: 62)
+                                .opacity(0)
+                        }
                     }
                 }
             }
@@ -70,6 +75,9 @@ struct BloodyDayRootView: View {
                     periodListViewModel = PeriodListViewModel(eventRepository: eventRepository)
                 }
                 let settingsRepository = UserDefaultsSettingsRepository()
+                if periodSettingViewModel == nil {
+                    periodSettingViewModel = PeriodSettingViewModel(repo: settingsRepository)
+                }
                 if notificationSettingsViewModel == nil {
                     notificationSettingsViewModel = NotificationSettingsViewModel(
                         repo: settingsRepository,
