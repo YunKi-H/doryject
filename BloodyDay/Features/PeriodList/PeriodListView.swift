@@ -10,11 +10,8 @@ import SwiftUI
 struct PeriodListView: View {
     @State private var editSheetIsPresented: Bool = false
     @State private var settingSheetIsPresented: Bool = false
-    @State private var viewModel: PeriodListViewModel
-    
-    init(viewModel: PeriodListViewModel) {
-        _viewModel = State(initialValue: viewModel)
-    }
+    @Bindable var viewModel: PeriodListViewModel
+    @Bindable var periodSettingViewModel: PeriodSettingViewModel
     
     var body: some View {
         let summaries = viewModel.summaries.reversed()
@@ -86,7 +83,7 @@ struct PeriodListView: View {
                                     Text("생리 주기")
                                         .font(.medium_14)
                                         .foregroundStyle(.textSecondary40)
-                            Text(summary.cycleDays.map { "\($0)일" } ?? "-")
+                                    Text(summary.cycleDays.map { "\($0)일" } ?? "-")
                                         .font(.semibold_14)
                                         .foregroundStyle(.textSecondary50)
                                 }
@@ -131,7 +128,7 @@ struct PeriodListView: View {
             .listSectionSpacing(14)
             .contentMargins(.top, 70)
             .scrollContentBackground(.hidden)
-
+            
             HStack(spacing: 0) {
                 Button {
                     editSheetIsPresented = true
@@ -166,13 +163,16 @@ struct PeriodListView: View {
             PeriodEditSheetView()
         }
         .sheet(isPresented: $settingSheetIsPresented) {
-            PeriodSettingSheetView()
+            PeriodSettingSheetView(viewModel: periodSettingViewModel)
         }
     }
 }
 
 #Preview {
     NavigationStack {
-        PeriodListView(viewModel: .init(eventRepository: MockEventRepository()))
+        PeriodListView(
+            viewModel: .init(eventRepository: MockEventRepository()),
+            periodSettingViewModel: .init(repo: UserDefaultsSettingsRepository())
+        )
     }
 }

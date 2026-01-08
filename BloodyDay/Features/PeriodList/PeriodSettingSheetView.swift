@@ -10,6 +10,8 @@ import SwiftUI
 struct PeriodSettingSheetView: View {
     @Environment(\.dismiss) private var dismiss
     
+    @Bindable var viewModel: PeriodSettingViewModel
+    
     @State private var autoCalculate: Bool = true
     
     @State private var togglePeriodPicker: Bool = false
@@ -121,7 +123,13 @@ struct PeriodSettingSheetView: View {
                 
                 ToolbarItem(placement: .confirmationAction) {
                     Button(role: .confirm) {
-                        // TODO: - 세팅값 커밋
+                        viewModel.setAutoPrediction(autoCalculate)
+                        if autoCalculate {
+                            viewModel.updateAverages(cycle: nil, period: nil)
+                        } else {
+                            viewModel.updateAverages(cycle: averageGap, period: averagePeriod)
+                        }
+                        dismiss()
                     } label: {
                         Image(systemName: "checkmark")
                             .foregroundStyle(.bgSecondary)
@@ -132,9 +140,15 @@ struct PeriodSettingSheetView: View {
             }
             .navigationBarTitleDisplayMode(.inline)
         }
+        .onAppear {
+            let period = viewModel.settings.period
+            autoCalculate = period.autoCyclePredictionEnabled
+            averagePeriod = period.averagePeriodDays ?? 5
+            averageGap = period.averageCycleDays ?? 28
+        }
     }
 }
 
 #Preview {
-    PeriodSettingSheetView()
+    PeriodSettingSheetView(viewModel: .init(repo: UserDefaultsSettingsRepository()))
 }

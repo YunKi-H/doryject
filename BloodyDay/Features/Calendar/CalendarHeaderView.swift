@@ -10,6 +10,9 @@ import SwiftUI
 struct CalendarHeaderView: View {
     let month: Date
     let onSelectDate: (Date) -> Void
+    let notificationViewModel: NotificationSettingsViewModel
+    let pillViewModel: PillSettingsViewModel
+    let appleCalendarViewModel: AppleCalendarSettingViewModel
     
     @State private var datePickerPresented: Bool = false
     @State private var newDate: Date = .now
@@ -45,19 +48,19 @@ struct CalendarHeaderView: View {
                 
                 Menu {
                     NavigationLink {
-                        NotificationSettingView()
+                        NotificationSettingView(viewModel: notificationViewModel)
                     } label: {
                         Label("알림 설정", systemImage: "bell")
                     }
                     
                     NavigationLink {
-                        PillSettingView()
+                        PillSettingView(viewModel: pillViewModel)
                     } label: {
                         Label("피임약 설정", image: .pillHalf)
                     }
                     
                     NavigationLink {
-                        AppleCalendarSettingView()
+                        AppleCalendarSettingView(viewModel: appleCalendarViewModel)
                     } label: {
                         Label("Apple Calendar", systemImage: "apple.logo")
                     }
@@ -130,5 +133,17 @@ struct CalendarHeaderView: View {
 }
 
 #Preview {
-    CalendarHeaderView(month: .now, onSelectDate: { _ in })
+    CalendarHeaderView(
+        month: .now,
+        onSelectDate: { _ in },
+        notificationViewModel: .init(
+            repo: UserDefaultsSettingsRepository(),
+            scheduler: NoopNotificationScheduler()
+        ),
+        pillViewModel: .init(repo: UserDefaultsSettingsRepository()),
+        appleCalendarViewModel: .init(
+            repo: UserDefaultsSettingsRepository(),
+            calendarClient: NoopAppleCalendarClient()
+        )
+    )
 }

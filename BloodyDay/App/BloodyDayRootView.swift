@@ -12,6 +12,10 @@ struct BloodyDayRootView: View {
     
     @State private var calendarViewModel: CalendarViewModel?
     @State private var periodListViewModel: PeriodListViewModel?
+    @State private var periodSettingViewModel: PeriodSettingViewModel?
+    @State private var notificationSettingsViewModel: NotificationSettingsViewModel?
+    @State private var pillSettingsViewModel: PillSettingsViewModel?
+    @State private var appleCalendarSettingsViewModel: AppleCalendarSettingViewModel?
     
     @State private var activeTab: BloodyDayTab = .calendar
     @State private var isPresentedCalendarSheet: Bool = false
@@ -20,9 +24,15 @@ struct BloodyDayRootView: View {
         NavigationStack {
             TabView(selection: $activeTab) {
                 Tab.init(value: .calendar) {
-                    if let viewModel = calendarViewModel {
+                    if let viewModel = calendarViewModel,
+                       let notificationViewModel = notificationSettingsViewModel,
+                       let pillViewModel = pillSettingsViewModel,
+                       let appleCalendarViewModel = appleCalendarSettingsViewModel {
                         CalendarMainView(
                             viewModel: viewModel,
+                            notificationViewModel: notificationViewModel,
+                            pillViewModel: pillViewModel,
+                            appleCalendarViewModel: appleCalendarViewModel,
                             isPresentedEventSheet: $isPresentedCalendarSheet
                         )
                         .toolbarVisibility(.hidden, for: .tabBar)
@@ -36,15 +46,19 @@ struct BloodyDayRootView: View {
                 }
                 
                 Tab.init(value: .period) {
-                    if let viewModel = periodListViewModel {
-                        PeriodListView(viewModel: viewModel)
-                            .toolbarVisibility(.hidden, for: .tabBar)
-                            .safeAreaBar(edge: .bottom, spacing: 0) {
-                                Text(".")
-                                    .blendMode(.destinationOver)
-                                    .frame(height: 62)
-                                    .opacity(0)
-                            }
+                    if let viewModel = periodListViewModel,
+                       let settingViewModel = periodSettingViewModel {
+                        PeriodListView(
+                            viewModel: viewModel,
+                            periodSettingViewModel: settingViewModel
+                        )
+                        .toolbarVisibility(.hidden, for: .tabBar)
+                        .safeAreaBar(edge: .bottom, spacing: 0) {
+                            Text(".")
+                                .blendMode(.destinationOver)
+                                .frame(height: 62)
+                                .opacity(0)
+                        }
                     }
                 }
             }
@@ -59,6 +73,25 @@ struct BloodyDayRootView: View {
                 }
                 if periodListViewModel == nil {
                     periodListViewModel = PeriodListViewModel(eventRepository: eventRepository)
+                }
+                let settingsRepository = UserDefaultsSettingsRepository()
+                if periodSettingViewModel == nil {
+                    periodSettingViewModel = PeriodSettingViewModel(repo: settingsRepository)
+                }
+                if notificationSettingsViewModel == nil {
+                    notificationSettingsViewModel = NotificationSettingsViewModel(
+                        repo: settingsRepository,
+                        scheduler: UserNotificationScheduler()
+                    )
+                }
+                if pillSettingsViewModel == nil {
+                    pillSettingsViewModel = PillSettingsViewModel(repo: settingsRepository)
+                }
+                if appleCalendarSettingsViewModel == nil {
+                    appleCalendarSettingsViewModel = AppleCalendarSettingViewModel(
+                        repo: settingsRepository,
+                        calendarClient: EventKitAppleCalendarClient()
+                    )
                 }
             }
         }

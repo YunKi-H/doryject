@@ -8,28 +8,25 @@
 import SwiftUI
 
 struct NotificationSettingView: View {
-    @State private var periodDueDateNotify: Bool = false
-    @State private var periodDelayedNotify: Bool = false
-    
-    @State private var pillTakingNotify: Bool = false
-    @State private var pillBuyingNotify: Bool = false
+    @Bindable var viewModel: NotificationSettingsViewModel
     
     var body: some View {
+        let notifications = viewModel.settings.notifications
         VStack {
             List {
                 Section {
-                    Toggle(isOn: $periodDueDateNotify) {
+                    Toggle(isOn: notificationBinding(\.periodReminderEnabled)) {
                         VStack(alignment: .leading) {
                             Text("생리 예정일")
                                 .font(.regular_18)
                                 .foregroundStyle(.textPrimary)
-                            Text("시작 예정일 이틀 전 09:00")
+                            Text("시작 예정일 \(notifications.periodReminderDaysBefore)일 전 \(formatTime(notifications.periodReminderTime))")
                                 .font(.regular_14)
-                                .foregroundStyle(periodDueDateNotify ? .mainRed : .textTertiary)
+                                .foregroundStyle(notifications.periodReminderEnabled ? .mainRed : .textTertiary)
                         }
                     }
                     
-                    Toggle(isOn: $periodDelayedNotify) {
+                    Toggle(isOn: notificationBinding(\.periodDelayedEnabled)) {
                         Text("생리 지연")
                             .font(.regular_18)
                             .foregroundStyle(.textPrimary)
@@ -39,25 +36,25 @@ struct NotificationSettingView: View {
                 .tint(.mainRed)
                 
                 Section {
-                    Toggle(isOn: $pillTakingNotify) {
+                    Toggle(isOn: notificationBinding(\.pillReminderEnabled)) {
                         VStack(alignment: .leading) {
                             Text("피임약 복용")
                                 .font(.regular_18)
                                 .foregroundStyle(.textPrimary)
-                            Text("매일 12:40")
+                            Text("매일 \(formatTime(notifications.pillReminderTime))")
                                 .font(.regular_14)
-                                .foregroundStyle(pillTakingNotify ? .subBlue : .textTertiary)
+                                .foregroundStyle(notifications.pillReminderEnabled ? .subBlue : .textTertiary)
                         }
                     }
                     
-                    Toggle(isOn: $pillBuyingNotify) {
+                    Toggle(isOn: notificationBinding(\.pillPurchaseReminderEnabled)) {
                         VStack(alignment: .leading) {
                             Text("피임약 구매")
                                 .font(.regular_18)
                                 .foregroundStyle(.textPrimary)
-                            Text("복용 예정일 하루 전 16:00")
+                            Text("복용 예정일 하루 전 \(formatTime(notifications.pillPurchaseReminderTime))")
                                 .font(.regular_14)
-                                .foregroundStyle(pillBuyingNotify ? .subBlue : .textTertiary)
+                                .foregroundStyle(notifications.pillPurchaseReminderEnabled ? .subBlue : .textTertiary)
                         }
                     }
                 }
@@ -79,10 +76,30 @@ struct NotificationSettingView: View {
         }
         .navigationBarTitleDisplayMode(.inline)
     }
+
+    private func notificationBinding(_ keyPath: WritableKeyPath<NotificationSettings, Bool>) -> Binding<Bool> {
+        Binding(
+            get: { viewModel.settings.notifications[keyPath: keyPath] },
+            set: { value in
+                viewModel.updateNotifications { $0[keyPath: keyPath] = value }
+            }
+        )
+    }
+
+    private func formatTime(_ components: DateComponents) -> String {
+        let hour = components.hour ?? 0
+        let minute = components.minute ?? 0
+        return String(format: "%02d:%02d", hour, minute)
+    }
 }
 
 #Preview {
     NavigationStack {
-        NotificationSettingView()
+        NotificationSettingView(
+            viewModel: .init(
+                repo: UserDefaultsSettingsRepository(),
+                scheduler: NoopNotificationScheduler()
+            )
+        )
     }
 }

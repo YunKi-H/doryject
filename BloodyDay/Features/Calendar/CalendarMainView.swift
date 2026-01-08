@@ -9,6 +9,9 @@ import SwiftUI
 
 struct CalendarMainView: View {
     @Bindable var viewModel: CalendarViewModel
+    @Bindable var notificationViewModel: NotificationSettingsViewModel
+    @Bindable var pillViewModel: PillSettingsViewModel
+    @Bindable var appleCalendarViewModel: AppleCalendarSettingViewModel
     @State private var selectionMonth: Date?
     
     @Binding var isPresentedEventSheet: Bool
@@ -25,7 +28,10 @@ struct CalendarMainView: View {
         VStack(spacing: 0) {
             CalendarHeaderView(
                 month: viewModel.selectedDate,
-                onSelectDate: viewModel.selectDate(_:)
+                onSelectDate: viewModel.selectDate(_:),
+                notificationViewModel: notificationViewModel,
+                pillViewModel: pillViewModel,
+                appleCalendarViewModel: appleCalendarViewModel
             )
             
             ScrollView(.vertical) {
@@ -196,6 +202,15 @@ struct CalendarMainView: View {
 #Preview {
     CalendarMainView(
         viewModel: .init(eventRepository: MockEventRepository()),
+        notificationViewModel: .init(
+            repo: UserDefaultsSettingsRepository(),
+            scheduler: NoopNotificationScheduler()
+        ),
+        pillViewModel: .init(repo: UserDefaultsSettingsRepository()),
+        appleCalendarViewModel: .init(
+            repo: UserDefaultsSettingsRepository(),
+            calendarClient: NoopAppleCalendarClient()
+        ),
         isPresentedEventSheet: .constant(false)
     )
 }
