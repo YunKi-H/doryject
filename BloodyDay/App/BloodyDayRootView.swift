@@ -73,7 +73,7 @@ struct BloodyDayRootView: View {
                 if notificationSettingsViewModel == nil {
                     notificationSettingsViewModel = NotificationSettingsViewModel(
                         repo: settingsRepository,
-                        scheduler: NoopNotificationScheduler()
+                        scheduler: UserNotificationScheduler()
                     )
                 }
                 if pillSettingsViewModel == nil {
@@ -82,7 +82,7 @@ struct BloodyDayRootView: View {
                 if appleCalendarSettingsViewModel == nil {
                     appleCalendarSettingsViewModel = AppleCalendarSettingViewModel(
                         repo: settingsRepository,
-                        calendarClient: NoopAppleCalendarClient()
+                        calendarClient: EventKitAppleCalendarClient()
                     )
                 }
             }
