@@ -8,19 +8,13 @@
 import SwiftUI
 
 struct PillSettingView: View {
-    @State private var pillTaking: Bool = false
-    
-    @State private var calendarCalculation: Bool = false
-    @State private var autoRecord: Bool = false
-    
-    @State private var pillcount: String = "21"
-    @State private var pillBreakDuration: String = "7"
+    @Bindable var viewModel: PillSettingsViewModel
     
     var body: some View {
         VStack {
             List {
                 Section {
-                    Toggle(isOn: $pillTaking) {
+                    Toggle(isOn: pillBinding(\.pillEnabled)) {
                         Text("경구 피임약 복용")
                             .font(.regular_18)
                             .foregroundStyle(.textPrimary)
@@ -29,15 +23,15 @@ struct PillSettingView: View {
                 .listRowBackground(Color.bgSecondary)
                 .tint(.subBlue)
                 
-                if pillTaking {
+                if viewModel.settings.pill.pillEnabled {
                     Section {
-                        Toggle(isOn: $calendarCalculation) {
+                        Toggle(isOn: pillBinding(\.pillCalendarCalculationEnabled)) {
                             Text("피임약 기반 캘린더 계산")
                                 .font(.regular_18)
                                 .foregroundStyle(.textPrimary)
                         }
                         
-                        Toggle(isOn: $autoRecord) {
+                        Toggle(isOn: pillBinding(\.pillAutoRecordEnabled)) {
                             Text("캘린더에 복용일 자동 기록")
                                 .font(.regular_18)
                                 .foregroundStyle(.textPrimary)
@@ -51,7 +45,7 @@ struct PillSettingView: View {
                             Text("피임약 개수")
                             
                             Group {
-                                TextField("", text: $pillcount)
+                                TextField("", text: pillCountBinding())
                                     .keyboardType(.numberPad)
                                     .multilineTextAlignment(.trailing)
                                 Text("정")
@@ -63,7 +57,7 @@ struct PillSettingView: View {
                             Text("휴약 기간")
                             
                             Group {
-                                TextField("", text: $pillBreakDuration)
+                                TextField("", text: pillBreakBinding())
                                     .keyboardType(.numberPad)
                                     .multilineTextAlignment(.trailing)
                                 Text("일")
@@ -97,10 +91,39 @@ struct PillSettingView: View {
         }
         .navigationBarTitleDisplayMode(.inline)
     }
+    
+    private func pillBinding(_ keyPath: WritableKeyPath<PillSettings, Bool>) -> Binding<Bool> {
+        Binding(
+            get: { viewModel.settings.pill[keyPath: keyPath] },
+            set: { value in
+                viewModel.updatePill { $0[keyPath: keyPath] = value }
+            }
+        )
+    }
+    
+    private func pillCountBinding() -> Binding<String> {
+        Binding(
+            get: { String(viewModel.settings.pill.pillCount) },
+            set: { value in
+                guard let intValue = Int(value) else { return }
+                viewModel.updatePill { $0.pillCount = intValue }
+            }
+        )
+    }
+    
+    private func pillBreakBinding() -> Binding<String> {
+        Binding(
+            get: { String(viewModel.settings.pill.pillBreakDuration) },
+            set: { value in
+                guard let intValue = Int(value) else { return }
+                viewModel.updatePill { $0.pillBreakDuration = intValue }
+            }
+        )
+    }
 }
 
 #Preview {
     NavigationStack {
-        PillSettingView()
+        PillSettingView(viewModel: .init(repo: UserDefaultsSettingsRepository()))
     }
 }

@@ -40,10 +40,10 @@ struct PeriodEditSheetView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                CalendarHeaderView(
-                    month: .now,
-                    onSelectDate: { _ in }
-                )
+//                CalendarHeaderView(
+//                    month: .now,
+//                    onSelectDate: { _ in }
+//                )
                 
                 ScrollView(.vertical) {
                     LazyVStack(spacing: 0) {

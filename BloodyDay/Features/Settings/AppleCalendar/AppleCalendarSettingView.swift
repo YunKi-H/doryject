@@ -8,40 +8,30 @@
 import SwiftUI
 
 struct AppleCalendarSettingView: View {
-    @State private var appleCalendarLinked: Bool = false
-    @State private var savedLocation: String = "B-Day"
-    
-    @State private var periodDataLinked: Bool = false
-    @State private var periodTitle: String = ""
-    
-    @State private var pillDataLinked: Bool = false
-    @State private var pillTitle: String = ""
-    
-    @State private var loveDataLinked: Bool = false
-    @State private var loveTitle: String = ""
+    @Bindable var viewModel: AppleCalendarSettingViewModel
     
     var body: some View {
+        let isEnabled = Binding(
+            get: { viewModel.settings.appleCalendar.isEnabled },
+            set: { value in
+                Task { await viewModel.setEnabled(value) }
+            }
+        )
         VStack {
             List {
                 Section {
-                    Toggle(isOn: $appleCalendarLinked) {
+                    Toggle(isOn: isEnabled) {
                         Text("Apple Calendar 연결")
                             .font(.regular_18)
                             .foregroundStyle(.textPrimary)
                     }
                     .tint(.mainRed)
-                    
-                    if appleCalendarLinked {
-                        Picker("저장 위치", selection: $savedLocation) {
-                            Text("B-Day").tag("B-Day")
-                        }
-                    }
                 }
                 .listRowBackground(Color.bgSecondary)
                 
-                if appleCalendarLinked {
+                if viewModel.settings.appleCalendar.isEnabled {
                     Section {
-                        Toggle(isOn: $periodDataLinked) {
+                        Toggle(isOn: eventToggleBinding(.period)) {
                             HStack {
                                 Image(systemName: "drop.fill")
                                     .font(.system(size: 20))
@@ -52,22 +42,22 @@ struct AppleCalendarSettingView: View {
                             }
                         }
                         
-                        if periodDataLinked {
+                        if viewModel.isEventEnabled(.period) {
                             TextField(
                                 "",
-                                text: $periodTitle,
+                                text: calendarNameBinding(.period),
                                 prompt: Text("🩸B-Day")
                                     .font(.regular_18)
                                     .foregroundColor(.textPrimary)
                             )
-                            .opacity(periodTitle.isEmpty ? 0.15 : 1)
+                            .opacity(viewModel.calendarName(for: .period).isEmpty ? 0.15 : 1)
                         }
                     }
                     .listRowBackground(Color.bgSecondary)
                     .tint(.mainRed)
                     
                     Section {
-                        Toggle(isOn: $pillDataLinked) {
+                        Toggle(isOn: eventToggleBinding(.pill)) {
                             HStack {
                                 Image(.pillHalf)
                                     .font(.system(size: 20))
@@ -78,22 +68,22 @@ struct AppleCalendarSettingView: View {
                             }
                         }
                         
-                        if pillDataLinked {
+                        if viewModel.isEventEnabled(.pill) {
                             TextField(
                                 "",
-                                text: $pillTitle,
+                                text: calendarNameBinding(.pill),
                                 prompt: Text("💊피임약 복용")
                                     .font(.regular_18)
                                     .foregroundColor(.textPrimary)
                             )
-                            .opacity(pillTitle.isEmpty ? 0.15 : 1)
+                            .opacity(viewModel.calendarName(for: .pill).isEmpty ? 0.15 : 1)
                         }
                     }
                     .listRowBackground(Color.bgSecondary)
                     .tint(.subBlue)
                     
                     Section {
-                        Toggle(isOn: $loveDataLinked) {
+                        Toggle(isOn: eventToggleBinding(.love)) {
                             HStack {
                                 Image(systemName: "heart.fill")
                                     .font(.system(size: 20))
@@ -104,15 +94,15 @@ struct AppleCalendarSettingView: View {
                             }
                         }
                         
-                        if loveDataLinked {
+                        if viewModel.isEventEnabled(.love) {
                             TextField(
                                 "",
-                                text: $loveTitle,
+                                text: calendarNameBinding(.love),
                                 prompt: Text("💗사랑한 날")
                                     .font(.regular_18)
                                     .foregroundColor(.textPrimary)
                             )
-                            .opacity(loveTitle.isEmpty ? 0.15 : 1)
+                            .opacity(viewModel.calendarName(for: .love).isEmpty ? 0.15 : 1)
                         }
                     }
                     .listRowBackground(Color.bgSecondary)
@@ -141,10 +131,33 @@ struct AppleCalendarSettingView: View {
         }
         .navigationBarTitleDisplayMode(.inline)
     }
+
+    private func eventToggleBinding(_ type: EventType) -> Binding<Bool> {
+        Binding(
+            get: { viewModel.isEventEnabled(type) },
+            set: { value in
+                Task { await viewModel.setEventEnabled(type, value) }
+            }
+        )
+    }
+
+    private func calendarNameBinding(_ type: EventType) -> Binding<String> {
+        Binding(
+            get: { viewModel.calendarName(for: type) },
+            set: { value in
+                Task { await viewModel.setCalendarName(type, value) }
+            }
+        )
+    }
 }
 
 #Preview {
     NavigationStack {
-        AppleCalendarSettingView()
+        AppleCalendarSettingView(
+            viewModel: .init(
+                repo: UserDefaultsSettingsRepository(),
+                calendarClient: NoopAppleCalendarClient()
+            )
+        )
     }
 }
