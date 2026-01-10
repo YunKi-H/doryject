@@ -44,43 +44,33 @@ final class EventKitAppleCalendarClient: AppleCalendarClient {
         }
     }
     
-    func syncEvents(
-        events: [UserEvent],
+    func upsertEvent(
+        event: UserEvent,
         calendarIdentifier: String,
-        title: String
-    ) {
-        guard let calendar = eventStore.calendar(withIdentifier: calendarIdentifier) else { return }
-        let sortedDates = events.map { $0.date.startOfDay }.sorted()
-        guard let first = sortedDates.first, let last = sortedDates.last else { return }
-        
+        title: String,
+        existingEventIdentifier: String?
+    ) -> String? {
+        guard let calendar = eventStore.calendar(withIdentifier: calendarIdentifier) else { return nil }
         let calendarRef = Calendar.current
-        let endExclusive = calendarRef.date(byAdding: .day, value: 1, to: last)!
-        
-        let predicate = eventStore.predicateForEvents(withStart: first, end: endExclusive, calendars: [calendar])
-        let existing = eventStore.events(matching: predicate).filter { $0.title == title }
-        
-        for event in existing {
-            do {
-                try eventStore.remove(event, span: .thisEvent, commit: false)
-            } catch {
-            }
-        }
-        
-        for event in events {
-            let ekEvent = EKEvent(eventStore: eventStore)
-            ekEvent.calendar = calendar
-            ekEvent.title = title
-            ekEvent.isAllDay = true
-            ekEvent.startDate = event.date.startOfDay
-            ekEvent.endDate = calendarRef.date(byAdding: .day, value: 1, to: ekEvent.startDate)!
-            do {
-                try eventStore.save(ekEvent, span: .thisEvent, commit: false)
-            } catch {
-            }
-        }
-        
+        let ekEvent = existingEventIdentifier.flatMap { eventStore.event(withIdentifier: $0) } ?? EKEvent(eventStore: eventStore)
+        ekEvent.calendar = calendar
+        ekEvent.title = title
+        ekEvent.isAllDay = true
+        ekEvent.startDate = event.date.startOfDay
+        ekEvent.endDate = calendarRef.date(byAdding: .day, value: 1, to: ekEvent.startDate)!
+        ekEvent.url = URL(string: "bloodyday://event/\(event.id.uuidString)")
         do {
-            try eventStore.commit()
+            try eventStore.save(ekEvent, span: .thisEvent, commit: true)
+            return ekEvent.eventIdentifier
+        } catch {
+            return nil
+        }
+    }
+
+    func deleteEvent(identifier: String) {
+        guard let event = eventStore.event(withIdentifier: identifier) else { return }
+        do {
+            try eventStore.remove(event, span: .thisEvent, commit: true)
         } catch {
         }
     }

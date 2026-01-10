@@ -19,6 +19,15 @@ final class NoopAppleCalendarClient: AppleCalendarClient {
     func removeCalendar(identifier: String) {
     }
 
-    func syncEvents(events: [UserEvent], calendarIdentifier: String, title: String) {
+    func upsertEvent(
+        event: UserEvent,
+        calendarIdentifier: String,
+        title: String,
+        existingEventIdentifier: String?
+    ) -> String? {
+        existingEventIdentifier ?? UUID().uuidString
+    }
+
+    func deleteEvent(identifier: String) {
     }
 }

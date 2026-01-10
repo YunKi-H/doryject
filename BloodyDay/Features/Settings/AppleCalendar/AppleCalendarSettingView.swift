@@ -156,7 +156,13 @@ struct AppleCalendarSettingView: View {
         AppleCalendarSettingView(
             viewModel: .init(
                 repo: UserDefaultsSettingsRepository(),
-                calendarClient: NoopAppleCalendarClient()
+                calendarClient: NoopAppleCalendarClient(),
+                syncService: AppleCalendarSyncService(
+                    settingsRepository: UserDefaultsSettingsRepository(),
+                    eventRepository: MockEventRepository(),
+                    calendarClient: NoopAppleCalendarClient(),
+                    syncStore: UserDefaultsAppleCalendarSyncStore()
+                )
             )
         )
     }

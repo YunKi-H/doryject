@@ -143,7 +143,13 @@ struct CalendarHeaderView: View {
         pillViewModel: .init(repo: UserDefaultsSettingsRepository()),
         appleCalendarViewModel: .init(
             repo: UserDefaultsSettingsRepository(),
-            calendarClient: NoopAppleCalendarClient()
+            calendarClient: NoopAppleCalendarClient(),
+            syncService: AppleCalendarSyncService(
+                settingsRepository: UserDefaultsSettingsRepository(),
+                eventRepository: MockEventRepository(),
+                calendarClient: NoopAppleCalendarClient(),
+                syncStore: UserDefaultsAppleCalendarSyncStore()
+            )
         )
     )
 }

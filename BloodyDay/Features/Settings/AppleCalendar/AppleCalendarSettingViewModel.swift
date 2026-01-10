@@ -12,12 +12,18 @@ import Observation
 final class AppleCalendarSettingViewModel {
     private let repo: SettingsRepository
     private let calendarClient: AppleCalendarClient
+    private let syncService: AppleCalendarSyncService
     private(set) var settings: UserSettings
     private let supportedTypes: [EventType] = [.period, .pill, .love]
 
-    init(repo: SettingsRepository, calendarClient: AppleCalendarClient) {
+    init(
+        repo: SettingsRepository,
+        calendarClient: AppleCalendarClient,
+        syncService: AppleCalendarSyncService
+    ) {
         self.repo = repo
         self.calendarClient = calendarClient
+        self.syncService = syncService
         self.settings = repo.load()
         ensureDefaults()
     }
@@ -27,6 +33,7 @@ final class AppleCalendarSettingViewModel {
         repo.save(settings)
         if enabled {
             await setupCalendarsIfNeeded()
+            await syncService.syncAll()
         }
     }
     
@@ -36,9 +43,11 @@ final class AppleCalendarSettingViewModel {
         repo.save(settings)
         if enabled && settings.appleCalendar.isEnabled {
             await ensureCalendar(for: type)
+            await syncService.syncAll()
         } else if !enabled {
             settings.appleCalendar.calendarIdentifiers[type] = nil
             repo.save(settings)
+            await syncService.syncAll()
         }
     }
     
@@ -48,6 +57,7 @@ final class AppleCalendarSettingViewModel {
         repo.save(settings)
         if settings.appleCalendar.isEnabled && isEventEnabled(type) {
             await ensureCalendar(for: type)
+            await syncService.syncAll()
         }
     }
 
