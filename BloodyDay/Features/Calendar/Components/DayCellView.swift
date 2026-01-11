@@ -19,7 +19,7 @@ struct DayCellView: View {
     private var dateFontColor: Color {
         if isToday && !isSelected { return .textPoint }
         if !day.date.isInSameMonth(as: monthDate) { return .textQuaternary }
-        if !isToday && isSelected && day.events.contains(where: { $0.type == .period }) { return .textPrimary }
+        if isSelected && day.events.contains(where: { $0.type == .period }) { return .textPrimary }
         if day.events.contains(where: { $0.type == .period }) { return .textPoint }
         return .textPrimary
     }
