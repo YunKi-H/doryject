@@ -47,16 +47,16 @@ final class CalendarViewModel {
 // Repository
 extension CalendarViewModel {
     func isEventOnSelectedDate(_ type: EventType) -> Bool {
-        let thisMonth = months[currentIndex]
-        guard let todayInfo = thisMonth.days.first(where: { $0.date.isSameDay(as: selectedDate) })
-        else { return false }
-        return todayInfo.events.contains {
-            $0.type == type
-        }
+        let target = selectedDate.startOfDay
+        return eventRepository.events(of: type).contains { $0.date.startOfDay == target }
     }
     
     func setEvent(_ type: EventType, enabled: Bool) {
         let date = selectedDate.startOfDay
+        let alreadySet = isEventOnSelectedDate(type)
+        if enabled == alreadySet {
+            return
+        }
         if enabled {
             if type == .period {
                 addPeriodEvents(startingAt: date)
@@ -67,7 +67,8 @@ extension CalendarViewModel {
         } else {
             eventRepository.delete(type: type, on: date)
         }
-        bootstrapMonths(anchor: date)
+        let anchorMonth = months.indices.contains(currentIndex) ? months[currentIndex].monthDate : date
+        bootstrapMonths(anchor: anchorMonth)
     }
 }
 
