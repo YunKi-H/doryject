@@ -34,6 +34,12 @@ final class AppleCalendarSettingViewModel {
         if enabled {
             await setupCalendarsIfNeeded()
             await syncService.syncAll()
+        } else {
+            let identifiers = ownedCalendarIdentifiers()
+            await syncService.disableAll(calendarIdentifiers: identifiers)
+            settings.appleCalendar.calendarIdentifiers = [:]
+            settings.appleCalendar.calendarOwnership = [:]
+            repo.save(settings)
         }
     }
     
@@ -45,7 +51,11 @@ final class AppleCalendarSettingViewModel {
             await ensureCalendar(for: type)
             await syncService.syncAll()
         } else if !enabled {
+            if settings.appleCalendar.calendarOwnership[type] == true {
+                await syncService.disable(type: type, calendarIdentifier: settings.appleCalendar.calendarIdentifiers[type])
+            }
             settings.appleCalendar.calendarIdentifiers[type] = nil
+            settings.appleCalendar.calendarOwnership[type] = nil
             repo.save(settings)
             await syncService.syncAll()
         }
@@ -87,6 +97,9 @@ final class AppleCalendarSettingViewModel {
         let identifier = calendarClient.createOrFetchCalendar(name: name, existingIdentifier: existing)
         if let identifier {
             settings.appleCalendar.calendarIdentifiers[type] = identifier
+            if existing == nil {
+                settings.appleCalendar.calendarOwnership[type] = true
+            }
             repo.save(settings)
         }
     }
@@ -99,5 +112,9 @@ final class AppleCalendarSettingViewModel {
             settings.appleCalendar.eventSyncEnabled = AppleCalendarSettings.defaultEventSyncEnabled
         }
         repo.save(settings)
+    }
+
+    private func ownedCalendarIdentifiers() -> [EventType: String] {
+        settings.appleCalendar.calendarIdentifiers.filter { settings.appleCalendar.calendarOwnership[$0.key] == true }
     }
 }

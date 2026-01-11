@@ -52,7 +52,6 @@ final class EventKitAppleCalendarClient: AppleCalendarClient {
         dateRange: DateInterval?
     ) -> String? {
         guard let calendar = eventStore.calendar(withIdentifier: calendarIdentifier) else { return nil }
-        let calendarRef = Calendar.current
         let ekEvent = existingEventIdentifier.flatMap { eventStore.event(withIdentifier: $0) } ?? EKEvent(eventStore: eventStore)
         ekEvent.calendar = calendar
         ekEvent.title = title

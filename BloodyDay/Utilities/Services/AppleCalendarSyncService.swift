@@ -113,6 +113,22 @@ final class AppleCalendarSyncService {
         }
     }
 
+    func disableAll(calendarIdentifiers: [EventType: String]) async {
+        guard await calendarClient.requestAccess() else { return }
+        for identifier in calendarIdentifiers.values {
+            calendarClient.removeCalendar(identifier: identifier)
+        }
+        syncStore.removeAll()
+    }
+
+    func disable(type: EventType, calendarIdentifier: String?) async {
+        guard await calendarClient.requestAccess() else { return }
+        if let identifier = calendarIdentifier {
+            calendarClient.removeCalendar(identifier: identifier)
+        }
+        removeRecords(for: type)
+    }
+
     private func ensureCalendar(
         for type: EventType,
         settings: inout UserSettings
@@ -158,6 +174,13 @@ final class AppleCalendarSyncService {
         let records = syncStore.records().filter { $0.eventType == type }
         for record in records {
             calendarClient.deleteEvent(identifier: record.ekEventIdentifier)
+            syncStore.remove(for: record.userEventId)
+        }
+    }
+
+    private func removeRecords(for type: EventType) {
+        let records = syncStore.records().filter { $0.eventType == type }
+        for record in records {
             syncStore.remove(for: record.userEventId)
         }
     }

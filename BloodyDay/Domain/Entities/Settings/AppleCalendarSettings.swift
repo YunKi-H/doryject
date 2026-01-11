@@ -12,6 +12,7 @@ struct AppleCalendarSettings: Codable {
     var eventSyncEnabled: [EventType: Bool] = Self.defaultEventSyncEnabled
     var calendarNames: [EventType: String] = Self.defaultCalendarNames
     var calendarIdentifiers: [EventType: String] = [:]
+    var calendarOwnership: [EventType: Bool] = [:]
     var lastSyncedAt: Date? = nil
 
     static let defaultEventSyncEnabled: [EventType: Bool] = [
