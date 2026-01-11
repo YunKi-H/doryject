@@ -23,7 +23,8 @@ final class NoopAppleCalendarClient: AppleCalendarClient {
         event: UserEvent,
         calendarIdentifier: String,
         title: String,
-        existingEventIdentifier: String?
+        existingEventIdentifier: String?,
+        dateRange: DateInterval?
     ) -> String? {
         existingEventIdentifier ?? UUID().uuidString
     }

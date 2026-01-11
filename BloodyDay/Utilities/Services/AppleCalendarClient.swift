@@ -15,7 +15,8 @@ protocol AppleCalendarClient {
         event: UserEvent,
         calendarIdentifier: String,
         title: String,
-        existingEventIdentifier: String?
+        existingEventIdentifier: String?,
+        dateRange: DateInterval?
     ) -> String?
     func deleteEvent(identifier: String)
 }

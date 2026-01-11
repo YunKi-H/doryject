@@ -31,12 +31,24 @@ final class AppleCalendarSyncService {
         guard settings.appleCalendar.isEnabled else { return }
         guard await calendarClient.requestAccess() else { return }
 
+        var validIds: Set<UUID> = []
+
         for type in supportedTypes {
             if settings.appleCalendar.eventSyncEnabled[type] == true {
                 if let calendarId = await ensureCalendar(for: type, settings: &settings) {
-                    let events = eventRepository.events(of: type)
-                    for event in events {
-                        await upsert(event: event, type: type, calendarIdentifier: calendarId)
+                    if type == .period {
+                        let summaries = PeriodSummaryBuilder.build(from: eventRepository.events(of: .period).map { $0.date })
+                        for summary in summaries {
+                            let syntheticId = periodSummaryId(start: summary.start)
+                            validIds.insert(syntheticId)
+                            await upsertPeriodSummary(summary, calendarIdentifier: calendarId, syntheticId: syntheticId)
+                        }
+                    } else {
+                        let events = eventRepository.events(of: type)
+                        for event in events {
+                            validIds.insert(event.id)
+                            await upsert(event: event, type: type, calendarIdentifier: calendarId, dateRange: nil)
+                        }
                     }
                 }
             } else {
@@ -44,7 +56,7 @@ final class AppleCalendarSyncService {
             }
         }
 
-        removeOrphanedRecords(validEvents: eventRepository.allEvents())
+        removeOrphanedRecords(validIds: validIds)
     }
 
     func syncUpsert(event: UserEvent) async {
@@ -54,15 +66,25 @@ final class AppleCalendarSyncService {
         guard settings.appleCalendar.eventSyncEnabled[event.type] == true else { return }
         guard await calendarClient.requestAccess() else { return }
 
+        if event.type == .period {
+            await syncAll()
+            return
+        }
+
         var mutableSettings = settings
         guard let calendarId = await ensureCalendar(for: event.type, settings: &mutableSettings) else { return }
-        await upsert(event: event, type: event.type, calendarIdentifier: calendarId)
+        await upsert(event: event, type: event.type, calendarIdentifier: calendarId, dateRange: nil)
     }
 
     func syncDelete(eventId: UUID, eventType: EventType?) async {
         let settings = settingsRepository.load()
         guard settings.appleCalendar.isEnabled else { return }
         guard await calendarClient.requestAccess() else { return }
+
+        if eventType == .period {
+            await syncAll()
+            return
+        }
 
         if let record = syncStore.record(for: eventId) {
             calendarClient.deleteEvent(identifier: record.ekEventIdentifier)
@@ -77,6 +99,11 @@ final class AppleCalendarSyncService {
         let settings = settingsRepository.load()
         guard settings.appleCalendar.isEnabled else { return }
         guard await calendarClient.requestAccess() else { return }
+
+        if events.contains(where: { $0.type == .period }) {
+            await syncAll()
+            return
+        }
 
         for event in events {
             if let record = syncStore.record(for: event.id) {
@@ -104,7 +131,8 @@ final class AppleCalendarSyncService {
     private func upsert(
         event: UserEvent,
         type: EventType,
-        calendarIdentifier: String
+        calendarIdentifier: String,
+        dateRange: DateInterval?
     ) async {
         let existing = syncStore.record(for: event.id)?.ekEventIdentifier
         let title = defaultTitle(for: type)
@@ -112,7 +140,8 @@ final class AppleCalendarSyncService {
             event: event,
             calendarIdentifier: calendarIdentifier,
             title: title,
-            existingEventIdentifier: existing
+            existingEventIdentifier: existing,
+            dateRange: dateRange
         ) {
             let record = AppleCalendarSyncRecord(
                 userEventId: event.id,
@@ -133,8 +162,7 @@ final class AppleCalendarSyncService {
         }
     }
 
-    private func removeOrphanedRecords(validEvents: [UserEvent]) {
-        let validIds = Set(validEvents.map(\.id))
+    private func removeOrphanedRecords(validIds: Set<UUID>) {
         for record in syncStore.records() where !validIds.contains(record.userEventId) {
             calendarClient.deleteEvent(identifier: record.ekEventIdentifier)
             syncStore.remove(for: record.userEventId)
@@ -152,5 +180,29 @@ final class AppleCalendarSyncService {
         default:
             return "BloodyDay"
         }
+    }
+
+    private func periodSummaryId(start: Date) -> UUID {
+        let calendar = Calendar.current
+        let comps = calendar.dateComponents([.year, .month, .day], from: start.startOfDay)
+        let dayKey = (comps.year ?? 0) * 10_000 + (comps.month ?? 0) * 100 + (comps.day ?? 0)
+        let suffix = String(format: "%012d", dayKey)
+        let uuidString = "00000000-0000-0000-0000-\(suffix)"
+        return UUID(uuidString: uuidString) ?? UUID()
+    }
+
+    private func upsertPeriodSummary(
+        _ summary: PeriodSummary,
+        calendarIdentifier: String,
+        syntheticId: UUID
+    ) async {
+        let range = DateInterval(start: summary.start.startOfDay, end: summary.end.endOfDay)
+        let syntheticEvent = UserEvent(id: syntheticId, date: summary.start, type: .period)
+        await upsert(
+            event: syntheticEvent,
+            type: .period,
+            calendarIdentifier: calendarIdentifier,
+            dateRange: range
+        )
     }
 }

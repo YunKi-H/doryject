@@ -18,20 +18,32 @@ final class SyncingEventRepository: EventRepository {
 
     func save(_ event: UserEvent) {
         base.save(event)
-        Task { await syncService.syncUpsert(event: event) }
+        if event.type == .period {
+            Task { await syncService.syncAll() }
+        } else {
+            Task { await syncService.syncUpsert(event: event) }
+        }
     }
 
     func delete(id: UUID) {
         let event = base.allEvents().first(where: { $0.id == id })
         base.delete(id: id)
-        Task { await syncService.syncDelete(eventId: id, eventType: event?.type) }
+        if event?.type == .period {
+            Task { await syncService.syncAll() }
+        } else {
+            Task { await syncService.syncDelete(eventId: id, eventType: event?.type) }
+        }
     }
 
     func delete(type: EventType, on: Date) {
         let target = on.startOfDay
         let events = base.events(of: type).filter { $0.date.startOfDay == target }
         base.delete(type: type, on: on)
-        Task { await syncService.syncDelete(events: events) }
+        if type == .period {
+            Task { await syncService.syncAll() }
+        } else {
+            Task { await syncService.syncDelete(events: events) }
+        }
     }
 
     func allEvents() -> [UserEvent] {

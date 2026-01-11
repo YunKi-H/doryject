@@ -48,7 +48,8 @@ final class EventKitAppleCalendarClient: AppleCalendarClient {
         event: UserEvent,
         calendarIdentifier: String,
         title: String,
-        existingEventIdentifier: String?
+        existingEventIdentifier: String?,
+        dateRange: DateInterval?
     ) -> String? {
         guard let calendar = eventStore.calendar(withIdentifier: calendarIdentifier) else { return nil }
         let calendarRef = Calendar.current
@@ -56,8 +57,13 @@ final class EventKitAppleCalendarClient: AppleCalendarClient {
         ekEvent.calendar = calendar
         ekEvent.title = title
         ekEvent.isAllDay = true
-        ekEvent.startDate = event.date.startOfDay
-        ekEvent.endDate = calendarRef.date(byAdding: .day, value: 1, to: ekEvent.startDate)!
+        if let range = dateRange {
+            ekEvent.startDate = range.start.startOfDay
+            ekEvent.endDate = range.end
+        } else {
+            ekEvent.startDate = event.date.startOfDay
+            ekEvent.endDate = event.date.endOfDay
+        }
         ekEvent.url = URL(string: "bloodyday://event/\(event.id.uuidString)")
         do {
             try eventStore.save(ekEvent, span: .thisEvent, commit: true)
