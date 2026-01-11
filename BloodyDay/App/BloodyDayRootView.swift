@@ -89,7 +89,10 @@ struct BloodyDayRootView: View {
                     syncService: appleCalendarSyncService!
                 )
                 if calendarViewModel == nil {
-                    calendarViewModel = CalendarViewModel(eventRepository: syncingRepository)
+                    calendarViewModel = CalendarViewModel(
+                        eventRepository: syncingRepository,
+                        settingsRepository: settingsRepository
+                    )
                 }
                 if periodListViewModel == nil {
                     periodListViewModel = PeriodListViewModel(eventRepository: syncingRepository)

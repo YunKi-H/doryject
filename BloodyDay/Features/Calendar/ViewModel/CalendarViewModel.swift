@@ -16,9 +16,11 @@ final class CalendarViewModel {
     var currentIndex: Int = 0
     
     private let eventRepository: EventRepository
+    private let settingsRepository: SettingsRepository?
     
-    init(eventRepository: EventRepository) {
+    init(eventRepository: EventRepository, settingsRepository: SettingsRepository? = nil) {
         self.eventRepository = eventRepository
+        self.settingsRepository = settingsRepository
         
         bootstrapMonths(anchor: selectedDate)
     }
@@ -45,16 +47,16 @@ final class CalendarViewModel {
 // Repository
 extension CalendarViewModel {
     func isEventOnSelectedDate(_ type: EventType) -> Bool {
-        let thisMonth = months[currentIndex]
-        guard let todayInfo = thisMonth.days.first(where: { $0.date.isSameDay(as: selectedDate) })
-        else { return false }
-        return todayInfo.events.contains {
-            $0.type == type
-        }
+        let target = selectedDate.startOfDay
+        return eventRepository.events(of: type).contains { $0.date.startOfDay == target }
     }
     
     func setEvent(_ type: EventType, enabled: Bool) {
         let date = selectedDate.startOfDay
+        let alreadySet = isEventOnSelectedDate(type)
+        if enabled == alreadySet {
+            return
+        }
         if enabled {
             if type == .period {
                 addPeriodEvents(startingAt: date)
@@ -65,7 +67,8 @@ extension CalendarViewModel {
         } else {
             eventRepository.delete(type: type, on: date)
         }
-        bootstrapMonths(anchor: date)
+        let anchorMonth = months.indices.contains(currentIndex) ? months[currentIndex].monthDate : date
+        bootstrapMonths(anchor: anchorMonth)
     }
 }
 
@@ -156,10 +159,13 @@ extension CalendarViewModel {
         }
         
         let periodEvents = userEvents.filter { $0.type == .period }
+        let manualAverages = manualCycleAverages()
         let prediction = CyclePrediction.predictEvents(
             periodEvents: periodEvents,
             rangeStart: gridStart,
-            rangeEndExclusive: gridEndExclusive
+            rangeEndExclusive: gridEndExclusive,
+            avgCycleDays: manualAverages.cycleDays,
+            avgPeriodDays: manualAverages.periodDays
         )
         
         if !prediction.predictedEventsByDay.isEmpty {
@@ -246,12 +252,13 @@ extension CalendarViewModel {
         let nextDay = calendar.date(byAdding: .day, value: 1, to: normalizedDate)!
         let isAdjacent = periodEvents.contains(where: { $0.isSameDay(as: previousDay) }) ||
         periodEvents.contains(where: { $0.isSameDay(as: nextDay) })
-        
+
         let datesToAdd: [Date]
         if isAdjacent {
             datesToAdd = [normalizedDate]
         } else {
-            let endExclusive = calendar.date(byAdding: .day, value: 5, to: normalizedDate)!
+            let lengthDays = max(periodAutoLengthDays(), 1)
+            let endExclusive = calendar.date(byAdding: .day, value: lengthDays, to: normalizedDate)!
             datesToAdd = Date.dates(from: normalizedDate, toExclusive: endExclusive)
         }
         
@@ -276,13 +283,13 @@ extension CalendarViewModel {
         let summaries = actualPeriodSummaries()
         let calendar = Calendar.current
         let target = date.startOfDay
-        
+
         if let ongoing = summaries.first(where: { $0.start.startOfDay <= target && target <= $0.end.startOfDay }) {
             let dayIndex = (calendar.dateComponents([.day], from: ongoing.start.startOfDay, to: target).day ?? 0) + 1
             return .ongoing(day: max(dayIndex, 1))
         }
-        
-        guard let avgCycle = averageCycleDays(from: summaries),
+
+        guard let avgCycle = effectiveAverageCycleDays(from: summaries),
               let lastStart = summaries.last?.start.startOfDay else {
             return .unknown
         }
@@ -328,6 +335,36 @@ extension CalendarViewModel {
         guard !cycles.isEmpty else { return nil }
         let avg = Double(cycles.reduce(0, +)) / Double(cycles.count)
         return Int(round(avg))
+    }
+
+    private func periodAutoLengthDays() -> Int {
+        let settings = settingsRepository?.load().period
+        if settings?.autoCyclePredictionEnabled == false, let manual = settings?.averagePeriodDays {
+            return manual
+        }
+        let summaries = actualPeriodSummaries()
+        let lengths = summaries.map(\.lengthDays).filter { $0 > 0 }
+        if !lengths.isEmpty {
+            let avg = Double(lengths.reduce(0, +)) / Double(lengths.count)
+            return Int(round(avg))
+        }
+        return 5
+    }
+
+    private func effectiveAverageCycleDays(from summaries: [PeriodSummary]) -> Int? {
+        let settings = settingsRepository?.load().period
+        if settings?.autoCyclePredictionEnabled == false, let manual = settings?.averageCycleDays {
+            return manual
+        }
+        return averageCycleDays(from: summaries)
+    }
+
+    private func manualCycleAverages() -> (cycleDays: Int?, periodDays: Int?) {
+        guard let settings = settingsRepository?.load().period,
+              settings.autoCyclePredictionEnabled == false else {
+            return (nil, nil)
+        }
+        return (settings.averageCycleDays, settings.averagePeriodDays)
     }
 }
 
