@@ -11,9 +11,12 @@ protocol AppleCalendarClient {
     func requestAccess() async -> Bool
     func createOrFetchCalendar(name: String, existingIdentifier: String?) -> String?
     func removeCalendar(identifier: String)
-    func syncEvents(
-        events: [UserEvent],
+    func upsertEvent(
+        event: UserEvent,
         calendarIdentifier: String,
-        title: String
-    )
+        title: String,
+        existingEventIdentifier: String?,
+        dateRange: DateInterval?
+    ) -> String?
+    func deleteEvent(identifier: String)
 }
