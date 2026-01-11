@@ -163,7 +163,19 @@ struct PeriodListView: View {
             PeriodEditSheetView()
         }
         .sheet(isPresented: $settingSheetIsPresented) {
-            PeriodSettingSheetView(viewModel: periodSettingViewModel)
+            NavigationStack {
+                PeriodSettingView(viewModel: periodSettingViewModel)
+                    .toolbar {
+                        ToolbarItem(placement: .topBarLeading) {
+                            Button {
+                                settingSheetIsPresented = false
+                            } label: {
+                                Image(systemName: "xmark")
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+            }
         }
     }
 }

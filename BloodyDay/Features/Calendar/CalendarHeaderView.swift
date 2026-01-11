@@ -11,6 +11,7 @@ struct CalendarHeaderView: View {
     let month: Date
     let onSelectDate: (Date) -> Void
     let notificationViewModel: NotificationSettingsViewModel
+    let periodSettingViewModel: PeriodSettingViewModel
     let pillViewModel: PillSettingsViewModel
     let appleCalendarViewModel: AppleCalendarSettingViewModel
     
@@ -19,7 +20,7 @@ struct CalendarHeaderView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            HStack(alignment: .top) {
+            HStack(alignment: .top, spacing: 10) {
                 VStack(alignment: .leading, spacing: 1) {
                     Text("\(month.component(.year).formatted(.number.grouping(.never)))년")
                         .font(.medium_16)
@@ -46,11 +47,28 @@ struct CalendarHeaderView: View {
                 
                 Spacer()
                 
+                Button {
+                    onSelectDate(.now)
+                } label: {
+                    Text("오늘")
+                        .font(.medium_16)
+                        .padding(.init(top: 10, leading: 20, bottom: 10, trailing: 20))
+                }
+                .buttonStyle(.plain)
+                .glassEffect(.regular.interactive())
+                .frame(height: 44)
+                
                 Menu {
                     NavigationLink {
                         NotificationSettingView(viewModel: notificationViewModel)
                     } label: {
                         Label("알림 설정", systemImage: "bell")
+                    }
+                    
+                    NavigationLink {
+                        PeriodSettingView(viewModel: periodSettingViewModel)
+                    } label: {
+                        Label("생리 주기 설정", systemImage: "drop.fill")
                     }
                     
                     NavigationLink {
@@ -140,6 +158,7 @@ struct CalendarHeaderView: View {
             repo: UserDefaultsSettingsRepository(),
             scheduler: NoopNotificationScheduler()
         ),
+        periodSettingViewModel: .init(repo: UserDefaultsSettingsRepository()),
         pillViewModel: .init(repo: UserDefaultsSettingsRepository()),
         appleCalendarViewModel: .init(
             repo: UserDefaultsSettingsRepository(),
