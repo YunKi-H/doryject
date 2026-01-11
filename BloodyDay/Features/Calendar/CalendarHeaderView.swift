@@ -11,6 +11,7 @@ struct CalendarHeaderView: View {
     let month: Date
     let onSelectDate: (Date) -> Void
     let notificationViewModel: NotificationSettingsViewModel
+    let periodSettingViewModel: PeriodSettingViewModel
     let pillViewModel: PillSettingsViewModel
     let appleCalendarViewModel: AppleCalendarSettingViewModel
     
@@ -51,6 +52,12 @@ struct CalendarHeaderView: View {
                         NotificationSettingView(viewModel: notificationViewModel)
                     } label: {
                         Label("알림 설정", systemImage: "bell")
+                    }
+                    
+                    NavigationLink {
+                        PeriodSettingView(viewModel: periodSettingViewModel)
+                    } label: {
+                        Label("생리 주기 설정", systemImage: "drop.fill")
                     }
                     
                     NavigationLink {
@@ -140,6 +147,7 @@ struct CalendarHeaderView: View {
             repo: UserDefaultsSettingsRepository(),
             scheduler: NoopNotificationScheduler()
         ),
+        periodSettingViewModel: .init(repo: UserDefaultsSettingsRepository()),
         pillViewModel: .init(repo: UserDefaultsSettingsRepository()),
         appleCalendarViewModel: .init(
             repo: UserDefaultsSettingsRepository(),

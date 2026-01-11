@@ -28,11 +28,13 @@ struct BloodyDayRootView: View {
                 Tab.init(value: .calendar) {
                     if let viewModel = calendarViewModel,
                        let notificationViewModel = notificationSettingsViewModel,
+                       let periodSettingViewModel = periodSettingViewModel,
                        let pillViewModel = pillSettingsViewModel,
                        let appleCalendarViewModel = appleCalendarSettingsViewModel {
                         CalendarMainView(
                             viewModel: viewModel,
                             notificationViewModel: notificationViewModel,
+                            periodSettingViewModel: periodSettingViewModel,
                             pillViewModel: pillViewModel,
                             appleCalendarViewModel: appleCalendarViewModel,
                             isPresentedEventSheet: $isPresentedCalendarSheet

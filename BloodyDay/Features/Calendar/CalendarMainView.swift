@@ -10,6 +10,7 @@ import SwiftUI
 struct CalendarMainView: View {
     @Bindable var viewModel: CalendarViewModel
     @Bindable var notificationViewModel: NotificationSettingsViewModel
+    @Bindable var periodSettingViewModel: PeriodSettingViewModel
     @Bindable var pillViewModel: PillSettingsViewModel
     @Bindable var appleCalendarViewModel: AppleCalendarSettingViewModel
     @State private var selectionMonth: Date?
@@ -26,6 +27,7 @@ struct CalendarMainView: View {
                 month: viewModel.selectedDate,
                 onSelectDate: viewModel.selectDate(_:),
                 notificationViewModel: notificationViewModel,
+                periodSettingViewModel: periodSettingViewModel,
                 pillViewModel: pillViewModel,
                 appleCalendarViewModel: appleCalendarViewModel
             )
@@ -199,6 +201,7 @@ struct CalendarMainView: View {
             repo: UserDefaultsSettingsRepository(),
             scheduler: NoopNotificationScheduler()
         ),
+        periodSettingViewModel: .init(repo: UserDefaultsSettingsRepository()),
         pillViewModel: .init(repo: UserDefaultsSettingsRepository()),
         appleCalendarViewModel: .init(
             repo: UserDefaultsSettingsRepository(),

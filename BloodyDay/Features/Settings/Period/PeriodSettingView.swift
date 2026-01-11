@@ -1,5 +1,5 @@
 //
-//  PeriodSettingSheetView.swift
+//  PeriodSettingView.swift
 //  BloodyDay
 //
 //  Created by Yunki on 12/14/25.
@@ -7,9 +7,7 @@
 
 import SwiftUI
 
-struct PeriodSettingSheetView: View {
-    @Environment(\.dismiss) private var dismiss
-    
+struct PeriodSettingView: View {
     @Bindable var viewModel: PeriodSettingViewModel
     
     @State private var autoCalculate: Bool = true
@@ -107,35 +105,9 @@ struct PeriodSettingSheetView: View {
                     .ignoresSafeArea()
             }
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        dismiss()
-                    } label: {
-                        Image(systemName: "xmark")
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                
                 ToolbarItem(placement: .title) {
                     Text("생리 주기 설정")
                         .font(.semibold_18)
-                }
-                
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(role: .confirm) {
-                        viewModel.setAutoPrediction(autoCalculate)
-                        if autoCalculate {
-                            viewModel.updateAverages(cycle: nil, period: nil)
-                        } else {
-                            viewModel.updateAverages(cycle: averageGap, period: averagePeriod)
-                        }
-                        dismiss()
-                    } label: {
-                        Image(systemName: "checkmark")
-                            .foregroundStyle(.bgSecondary)
-                    }
-                    .tint(.mainRed)
-                    .buttonStyle(.glassProminent)
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
@@ -146,9 +118,25 @@ struct PeriodSettingSheetView: View {
             averagePeriod = period.averagePeriodDays ?? 5
             averageGap = period.averageCycleDays ?? 28
         }
+        .onChange(of: autoCalculate) { _, newValue in
+            viewModel.setAutoPrediction(newValue)
+            if newValue {
+                viewModel.updateAverages(cycle: nil, period: nil)
+            } else {
+                viewModel.updateAverages(cycle: averageGap, period: averagePeriod)
+            }
+        }
+        .onChange(of: averagePeriod) { _, newValue in
+            guard !autoCalculate else { return }
+            viewModel.updateAverages(cycle: averageGap, period: newValue)
+        }
+        .onChange(of: averageGap) { _, newValue in
+            guard !autoCalculate else { return }
+            viewModel.updateAverages(cycle: newValue, period: averagePeriod)
+        }
     }
 }
 
 #Preview {
-    PeriodSettingSheetView(viewModel: .init(repo: UserDefaultsSettingsRepository()))
+    PeriodSettingView(viewModel: .init(repo: UserDefaultsSettingsRepository()))
 }
