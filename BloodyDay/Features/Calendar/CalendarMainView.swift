@@ -16,10 +16,6 @@ struct CalendarMainView: View {
     
     @Binding var isPresentedEventSheet: Bool
     
-    @State private var initialPeriod: Bool = false
-    @State private var initialPill: Bool = false
-    @State private var initialLove: Bool = false
-    
     @State private var period: Bool = false
     @State private var pill: Bool = false
     @State private var love: Bool = false
@@ -113,6 +109,9 @@ struct CalendarMainView: View {
                             }
                         }
                         .tint(.mainRed)
+                        .onChange(of: period) { _, newValue in
+                            viewModel.setEvent(.period, enabled: newValue)
+                        }
                         
                         Toggle(isOn: $pill) {
                             Label {
@@ -123,6 +122,9 @@ struct CalendarMainView: View {
                             }
                         }
                         .tint(.subBlue)
+                        .onChange(of: pill) { _, newValue in
+                            viewModel.setEvent(.pill, enabled: newValue)
+                        }
                         
                         Toggle(isOn: $love) {
                             Label {
@@ -133,6 +135,9 @@ struct CalendarMainView: View {
                             }
                         }
                         .tint(.subPink)
+                        .onChange(of: love) { _, newValue in
+                            viewModel.setEvent(.love, enabled: newValue)
+                        }
                     }
                     .listRowBackground(Color.bgSecondary)
                 }
@@ -142,10 +147,9 @@ struct CalendarMainView: View {
                 .toolbar {
                     ToolbarItem(placement: .topBarLeading) {
                         Button {
-                            isPresentedEventSheet = false
+                            viewModel.moveSelectedDate(by: -1)
                         } label: {
-                            Image(systemName: "xmark")
-                                .foregroundStyle(.secondary)
+                            Image(systemName: "chevron.left")
                         }
                     }
                     
@@ -159,28 +163,12 @@ struct CalendarMainView: View {
                         Text("\(month)월 \(day)일 \(weekDay)")
                     }
                     
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button(role: .confirm) {
-                            let initial: Set<EventType> = Set([
-                                initialPeriod ? .period : nil,
-                                initialPill ? .pill : nil,
-                                initialLove ? .love : nil
-                            ].compactMap{ $0 })
-                            
-                            let final: Set<EventType> = Set([
-                                period ? .period : nil,
-                                pill ? .pill : nil,
-                                love ? .love : nil
-                            ].compactMap { $0 })
-                            
-                            viewModel.commitEventsForSelectedDate(from: initial, to: final)
-                            isPresentedEventSheet = false
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button {
+                            viewModel.moveSelectedDate(by: 1)
                         } label: {
-                            Image(systemName: "checkmark")
-                                .foregroundStyle(.bgSecondary)
+                            Image(systemName: "chevron.right")
                         }
-                        .tint(.mainRed)
-                        .buttonStyle(.glassProminent)
                     }
                 }
                 .navigationBarTitleDisplayMode(.inline)
@@ -188,19 +176,19 @@ struct CalendarMainView: View {
             .presentationDetents([.height(240)])
             .presentationDragIndicator(.visible)
             .onAppear {
-                let hasPeriod = viewModel.isEventOnSelectedDate(.period)
-                let hasPill = viewModel.isEventOnSelectedDate(.pill)
-                let hasLove = viewModel.isEventOnSelectedDate(.love)
-                
-                self.period = hasPeriod
-                self.pill = hasPill
-                self.love = hasLove
-                
-                self.initialPeriod = hasPeriod
-                self.initialPill = hasPill
-                self.initialLove = hasLove
+                syncToggleState()
+            }
+            .onChange(of: viewModel.selectedDate) { _, _ in
+                syncToggleState()
             }
         }
+    }
+    
+    private func syncToggleState() {
+        let states = viewModel.toggleStatesForSelectedDate()
+        period = states.period
+        pill = states.pill
+        love = states.love
     }
 }
 

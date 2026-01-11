@@ -22,9 +22,23 @@ final class CalendarViewModel {
         
         bootstrapMonths(anchor: selectedDate)
     }
-
+    
     func refresh() {
         bootstrapMonths(anchor: selectedDate)
+    }
+    
+    func moveSelectedDate(by days: Int) {
+        let calendar = Calendar.current
+        let next = calendar.date(byAdding: .day, value: days, to: selectedDate) ?? selectedDate
+        selectDate(next)
+    }
+    
+    func toggleStatesForSelectedDate() -> (period: Bool, pill: Bool, love: Bool) {
+        (
+            isEventOnSelectedDate(.period),
+            isEventOnSelectedDate(.pill),
+            isEventOnSelectedDate(.love)
+        )
     }
 }
 
@@ -39,20 +53,16 @@ extension CalendarViewModel {
         }
     }
     
-    func commitEventsForSelectedDate(from initial: Set<EventType>, to final: Set<EventType>) {
+    func setEvent(_ type: EventType, enabled: Bool) {
         let date = selectedDate.startOfDay
-        
-        let toAdd = final.subtracting(initial)
-        let toRemove = initial.subtracting(final)
-        
-        if toAdd.contains(.period) {
-            addPeriodEvents(startingAt: date)
-        }
-        for type in toAdd where type != .period {
-            let new = UserEvent(id: .init(), date: date, type: type)
-            eventRepository.save(new)
-        }
-        for type in toRemove {
+        if enabled {
+            if type == .period {
+                addPeriodEvents(startingAt: date)
+            } else {
+                let new = UserEvent(id: .init(), date: date, type: type)
+                eventRepository.save(new)
+            }
+        } else {
             eventRepository.delete(type: type, on: date)
         }
         bootstrapMonths(anchor: date)
@@ -258,7 +268,7 @@ extension CalendarViewModel {
     var primaryStatus: CalendarPrimaryStatus {
         periodStatus(for: .now)
     }
-
+    
     var secondaryStatus: CalendarSecondaryStatus {
         secondaryStatus(for: .now)
     }
@@ -267,53 +277,53 @@ extension CalendarViewModel {
         let summaries = actualPeriodSummaries()
         let calendar = Calendar.current
         let target = date.startOfDay
-
+        
         if let ongoing = summaries.first(where: { $0.start.startOfDay <= target && target <= $0.end.startOfDay }) {
             let dayIndex = (calendar.dateComponents([.day], from: ongoing.start.startOfDay, to: target).day ?? 0) + 1
             return .ongoing(day: max(dayIndex, 1))
         }
-
+        
         guard let avgCycle = averageCycleDays(from: summaries),
               let lastStart = summaries.last?.start.startOfDay else {
             return .unknown
         }
-
+        
         let predictedStart = calendar.date(byAdding: .day, value: avgCycle, to: lastStart)!
         if target >= predictedStart {
             return .delayed(days: max(calendar.dateComponents([.day], from: predictedStart.startOfDay, to: target).day ?? 0, 0))
         }
-
+        
         let daysUntil = calendar.dateComponents([.day], from: target, to: predictedStart).day ?? 0
         return .countdown(days: max(daysUntil, 0))
     }
-
+    
     private func secondaryStatus(for date: Date) -> CalendarSecondaryStatus {
         guard let dayInfo = months
             .flatMap(\.days)
             .first(where: { $0.date.isSameDay(as: date) }) else {
             return .notFertile
         }
-
+        
         if let pillSequence = dayInfo.pillSequence {
             return .pill(day: pillSequence)
         }
-
+        
         if dayInfo.events.contains(where: { $0.type == .ovulation }) {
             return .ovulation
         }
-
+        
         if dayInfo.events.contains(where: { $0.type == .fertile }) {
             return .fertile
         }
-
+        
         return .notFertile
     }
-
+    
     private func actualPeriodSummaries() -> [PeriodSummary] {
         let events = eventRepository.events(of: .period)
         return PeriodSummaryBuilder.build(from: events.map { $0.date })
     }
-
+    
     private func averageCycleDays(from summaries: [PeriodSummary]) -> Int? {
         let cycles = summaries.compactMap(\.cycleDays)
         guard !cycles.isEmpty else { return nil }
@@ -327,7 +337,7 @@ enum CalendarPrimaryStatus: Equatable {
     case ongoing(day: Int)
     case delayed(days: Int)
     case unknown
-
+    
     var displayText: String {
         switch self {
         case .countdown(let days):
@@ -356,7 +366,7 @@ enum CalendarSecondaryStatus: Equatable {
     case ovulation
     case fertile
     case notFertile
-
+    
     var displayText: String {
         switch self {
         case .pill(let day):
