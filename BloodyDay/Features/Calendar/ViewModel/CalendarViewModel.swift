@@ -80,7 +80,6 @@ extension CalendarViewModel {
     
     func setCurrentMonth(to month: Date) {
         let start = month.startOfMonth
-        selectedDate = start
         
         if let idx = months.firstIndex(where: { $0.monthDate == start }) {
             currentIndex = idx
