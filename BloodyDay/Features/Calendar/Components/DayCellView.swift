@@ -17,7 +17,7 @@ struct DayCellView: View {
     private var pill: DayEvent? { day.events.first(where: { $0.type == .pill }) }
     private var love: DayEvent? { day.events.first(where: { $0.type == .love }) }
     private var dateFontColor: Color {
-        if isToday { return .textPoint }
+        if isToday && !isSelected { return .textPoint }
         if !day.date.isInSameMonth(as: monthDate) { return .textQuaternary }
         if !isToday && isSelected && day.events.contains(where: { $0.type == .period }) { return .textPrimary }
         if day.events.contains(where: { $0.type == .period }) { return .textPoint }
@@ -33,14 +33,15 @@ struct DayCellView: View {
                     if isToday || isSelected {
                         if day.events.contains(where: { $0.type.isCycleRelated }) {
                             Capsule(style: .continuous)
-                                .foregroundStyle(isToday ? .textPrimary : .bgSecondary)
+                                .foregroundStyle(isSelected ? .bgSecondary : .textPrimary)
                                 .frame(width: 38, height: 20)
                                 .glassEffect(.clear)
                         } else {
                             Circle()
-                                .foregroundStyle(isToday ? .textPrimary : .bgSecondary)
+                                .foregroundStyle(isSelected ? .bgSecondary : .textPrimary)
                                 .frame(width: 30, height: 30)
                                 .glassEffect(.clear, in: .circle)
+                                .shadow(radius: 20)
                         }
                     }
                 }
