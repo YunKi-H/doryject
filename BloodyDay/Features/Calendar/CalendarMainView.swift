@@ -40,7 +40,12 @@ struct CalendarMainView: View {
                         CalendarView(
                             month: month,
                             selectedDate: viewModel.selectedDate,
-                            onSelectDate: viewModel.selectDate(_:)
+                            onSelectDate: {
+                                if viewModel.selectedDate.isSameDay(as: $0) {
+                                    isPresentedEventSheet = true
+                                }
+                                viewModel.selectDate($0)
+                            }
                         )
                         .containerRelativeFrame(.vertical)
                         .id(month.monthDate)
