@@ -60,6 +60,8 @@ extension CalendarViewModel {
         if enabled {
             if type == .period {
                 addPeriodEvents(startingAt: date)
+            } else if type == .pill, shouldAutoRecordPill {
+                addPillEvents(startingAt: date)
             } else {
                 let new = UserEvent(id: .init(), date: date, type: type)
                 eventRepository.save(new)
@@ -180,16 +182,31 @@ extension CalendarViewModel {
         
         let calendar = Calendar.current
         let pillDates = Set(userEvents.filter { $0.type == .pill }.map { $0.date.startOfDay })
+        let predictedPillDates = predictedPillDates(
+            rangeStart: gridStart,
+            rangeEndExclusive: gridEndExclusive,
+            pillDates: pillDates
+        )
+        if !predictedPillDates.isEmpty {
+            for i in days.indices {
+                let key = days[i].date.startOfDay
+                if predictedPillDates.contains(key),
+                   !days[i].events.contains(where: { $0.type == .pill }) {
+                    days[i].events.append(DayEvent(type: .pill))
+                }
+            }
+        }
+        let allPillDates = pillDates.union(predictedPillDates)
         var pillStreak = 0
         var cursor = calendar.date(byAdding: .day, value: -1, to: gridStart.startOfDay)!
-        while pillDates.contains(cursor) {
+        while allPillDates.contains(cursor) {
             pillStreak += 1
             cursor = calendar.date(byAdding: .day, value: -1, to: cursor)!
         }
         
         for i in days.indices {
             let dayDate = days[i].date.startOfDay
-            if pillDates.contains(dayDate) {
+            if allPillDates.contains(dayDate) {
                 pillStreak += 1
                 days[i].pillSequence = pillStreak
             } else {
@@ -266,6 +283,98 @@ extension CalendarViewModel {
             let new = UserEvent(id: .init(), date: day, type: .period)
             eventRepository.save(new)
         }
+    }
+    
+    private var shouldAutoRecordPill: Bool {
+        settingsRepository?.load().pill.pillAutoRecordEnabled == true
+    }
+    
+    private func addPillEvents(startingAt date: Date) {
+        guard let pillSettings = settingsRepository?.load().pill,
+              pillSettings.pillAutoRecordEnabled else { return }
+        let pillCount = max(pillSettings.pillCount, 0)
+        let breakDays = max(pillSettings.pillBreakDuration, 0)
+        let cycleLength = pillCount + breakDays
+        guard pillCount > 0, cycleLength > 0 else { return }
+        
+        let calendar = Calendar.current
+        let start = date.startOfDay
+        let today = Date().startOfDay
+        guard start <= today else { return }
+        
+        let endExclusive = calendar.date(byAdding: .day, value: 1, to: today)!
+        for day in Date.dates(from: start, toExclusive: endExclusive) {
+            if isPillDay(
+                day,
+                anchor: start,
+                pillCount: pillCount,
+                breakDays: breakDays,
+                calendar: calendar
+            ) {
+                let new = UserEvent(id: .init(), date: day, type: .pill)
+                eventRepository.save(new)
+            }
+        }
+    }
+    
+    private func predictedPillDates(
+        rangeStart: Date,
+        rangeEndExclusive: Date,
+        pillDates: Set<Date>
+    ) -> Set<Date> {
+        guard let pillSettings = settingsRepository?.load().pill,
+              pillSettings.pillAutoRecordEnabled else { return [] }
+        let pillCount = max(pillSettings.pillCount, 0)
+        let breakDays = max(pillSettings.pillBreakDuration, 0)
+        let cycleLength = pillCount + breakDays
+        guard pillCount > 0, cycleLength > 0 else { return [] }
+        guard let anchor = mostRecentPillStart(from: pillDates, calendar: .current) else { return [] }
+
+        let start = max(rangeStart.startOfDay, anchor.startOfDay)
+        var predicted: Set<Date> = []
+        for day in Date.dates(from: start, to: rangeEndExclusive.startOfDay) {
+            if pillDates.contains(day) { continue }
+            if isPillDay(
+                day,
+                anchor: anchor.startOfDay,
+                pillCount: pillCount,
+                breakDays: breakDays,
+                calendar: .current
+            ) {
+                predicted.insert(day)
+            }
+        }
+        return predicted
+    }
+
+    private func mostRecentPillStart(
+        from pillDates: Set<Date>,
+        calendar: Calendar
+    ) -> Date? {
+        guard !pillDates.isEmpty else { return nil }
+        let sorted = pillDates.sorted()
+        for date in sorted.reversed() {
+            let previous = calendar.date(byAdding: .day, value: -1, to: date.startOfDay)!
+            if !pillDates.contains(previous) {
+                return date.startOfDay
+            }
+        }
+        return sorted.first?.startOfDay
+    }
+    
+    private func isPillDay(
+        _ day: Date,
+        anchor: Date,
+        pillCount: Int,
+        breakDays: Int,
+        calendar: Calendar
+    ) -> Bool {
+        let cycleLength = pillCount + breakDays
+        guard cycleLength > 0, pillCount > 0 else { return false }
+        let daysFromAnchor = calendar.dateComponents([.day], from: anchor.startOfDay, to: day.startOfDay).day ?? 0
+        guard daysFromAnchor >= 0 else { return false }
+        let indexInCycle = daysFromAnchor % cycleLength
+        return indexInCycle < pillCount
     }
 }
 
