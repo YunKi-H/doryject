@@ -26,7 +26,7 @@ struct PillSettingView: View {
                 if viewModel.settings.pill.pillEnabled {
                     Section {
                         Toggle(isOn: pillBinding(\.pillCalendarCalculationEnabled)) {
-                            Text("피임약 기반 캘린더 계산")
+                            Text("피임약 기반 생리 주기 계산")
                                 .font(.regular_18)
                                 .foregroundStyle(.textPrimary)
                         }
