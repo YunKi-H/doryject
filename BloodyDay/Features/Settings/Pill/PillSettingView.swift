@@ -10,6 +10,20 @@ import SwiftUI
 struct PillSettingView: View {
     @Bindable var viewModel: PillSettingsViewModel
     
+    @FocusState private var focusedField: PillSettingField?
+    
+    private enum PillSettingField: Hashable {
+        case pillCount
+        case pillBreak
+        
+        var message: String {
+            switch self {
+            case .pillCount: return "일반적인 경구 피임약 한 팩의 개수는  21~35정입니다."
+            case .pillBreak: return "일반적인 경구 피임약의 휴약 기간은 4~7일입니다."
+            }
+        }
+    }
+    
     var body: some View {
         VStack {
             List {
@@ -48,6 +62,7 @@ struct PillSettingView: View {
                                 TextField("", text: pillCountBinding())
                                     .keyboardType(.numberPad)
                                     .multilineTextAlignment(.trailing)
+                                    .focused($focusedField, equals: .pillCount)
                                 Text("정")
                             }
                             .foregroundStyle(.subBlue)
@@ -60,6 +75,7 @@ struct PillSettingView: View {
                                 TextField("", text: pillBreakBinding())
                                     .keyboardType(.numberPad)
                                     .multilineTextAlignment(.trailing)
+                                    .focused($focusedField, equals: .pillBreak)
                                 Text("일")
                             }
                             .foregroundStyle(.subBlue)
@@ -67,6 +83,28 @@ struct PillSettingView: View {
                     }
                     .listRowBackground(Color.bgSecondary)
                     .tint(.subBlue)
+                    
+                    if let focused = focusedField {
+                        ZStack(alignment: .leading) {
+                            RoundedRectangle(cornerRadius: 20)
+                                .fill(.subBlue)
+                                .opacity(0.07)
+                                .frame(height: 40)
+                            
+                            HStack(spacing: 4) {
+                                Image(systemName: "exclamationmark.circle.fill")
+                                    .font(.system(size: 14, weight: .regular))
+                                
+                                Text(focused.message)
+                                    .font(.regular_14)
+                            }
+                            .foregroundStyle(.subBlue)
+                            .padding(.horizontal, 16)
+                        }
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                        .listRowInsets(.init(top: 0, leading: 0, bottom: 0, trailing: 0))
+                    }
                 }
             }
             .listSectionSpacing(14)
