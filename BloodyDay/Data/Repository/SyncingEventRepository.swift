@@ -10,10 +10,19 @@ import Foundation
 final class SyncingEventRepository: EventRepository {
     private let base: EventRepository
     private let syncService: AppleCalendarSyncService
+    private let settingsRepository: SettingsRepository?
+    private let notificationScheduler: NotificationScheduler?
 
-    init(base: EventRepository, syncService: AppleCalendarSyncService) {
+    init(
+        base: EventRepository,
+        syncService: AppleCalendarSyncService,
+        settingsRepository: SettingsRepository? = nil,
+        notificationScheduler: NotificationScheduler? = nil
+    ) {
         self.base = base
         self.syncService = syncService
+        self.settingsRepository = settingsRepository
+        self.notificationScheduler = notificationScheduler
     }
 
     func save(_ event: UserEvent) {
@@ -23,6 +32,7 @@ final class SyncingEventRepository: EventRepository {
         } else {
             Task { await syncService.syncUpsert(event: event) }
         }
+        refreshNotifications()
     }
 
     func delete(id: UUID) {
@@ -33,6 +43,7 @@ final class SyncingEventRepository: EventRepository {
         } else {
             Task { await syncService.syncDelete(eventId: id, eventType: event?.type) }
         }
+        refreshNotifications()
     }
 
     func delete(type: EventType, on: Date) {
@@ -44,6 +55,7 @@ final class SyncingEventRepository: EventRepository {
         } else {
             Task { await syncService.syncDelete(events: events) }
         }
+        refreshNotifications()
     }
 
     func allEvents() -> [UserEvent] {
@@ -56,5 +68,12 @@ final class SyncingEventRepository: EventRepository {
 
     func events(of type: EventType) -> [UserEvent] {
         base.events(of: type)
+    }
+
+    private func refreshNotifications() {
+        guard let scheduler = notificationScheduler,
+              let settingsRepository = settingsRepository else { return }
+        let settings = settingsRepository.load()
+        scheduler.apply(settings: settings, eventRepository: base)
     }
 }

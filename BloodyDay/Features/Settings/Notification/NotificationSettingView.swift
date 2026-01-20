@@ -98,7 +98,8 @@ struct NotificationSettingView: View {
         NotificationSettingView(
             viewModel: .init(
                 repo: UserDefaultsSettingsRepository(),
-                scheduler: NoopNotificationScheduler()
+                scheduler: NoopNotificationScheduler(),
+                eventRepository: MockEventRepository()
             )
         )
     }
