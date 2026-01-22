@@ -15,5 +15,6 @@ struct NotificationSettings: Codable {
     var pillReminderEnabled: Bool = false
     var pillReminderTime: DateComponents = .init(hour: 9, minute: 0)
     var pillPurchaseReminderEnabled: Bool = false
+    var pillPurchaseReminderDaysBefore: Int = 1
     var pillPurchaseReminderTime: DateComponents = .init(hour: 16, minute: 0)
 }

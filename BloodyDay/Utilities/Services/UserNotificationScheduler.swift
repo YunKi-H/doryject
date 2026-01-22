@@ -77,7 +77,7 @@ final class UserNotificationScheduler: NotificationScheduler {
             )
             let reminders = nextPillPurchaseReminderDates(
                 nextStarts: nextStarts,
-                settings: settings,
+                daysBefore: max(notificationSettings.pillPurchaseReminderDaysBefore, 0),
                 time: notificationSettings.pillPurchaseReminderTime
             )
             for (index, reminder) in reminders.enumerated() {
@@ -272,13 +272,13 @@ final class UserNotificationScheduler: NotificationScheduler {
 
     private func nextPillPurchaseReminderDates(
         nextStarts: [Date],
-        settings: UserSettings,
+        daysBefore: Int,
         time: DateComponents
     ) -> [Date] {
         let now = Date()
         var reminders: [Date] = []
         for start in nextStarts {
-            guard let base = calendar.date(byAdding: .day, value: -1, to: start.startOfDay),
+            guard let base = calendar.date(byAdding: .day, value: -daysBefore, to: start.startOfDay),
                   let reminder = combineDate(base, time: time) else {
                 continue
             }
