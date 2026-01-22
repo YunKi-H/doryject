@@ -50,9 +50,6 @@ struct PillReminderSheet: View {
         .onAppear {
             reminderTime = timeFromSettings()
         }
-        .onChange(of: reminderTime) { _, newValue in
-            updateTime(newValue)
-        }
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button(role: .close) {
@@ -72,6 +69,7 @@ struct PillReminderSheet: View {
             
             ToolbarItem(placement: .confirmationAction) {
                 Button(role: .confirm) {
+                    applyChanges()
                     dismiss()
                 } label: {
                     Image(systemName: "checkmark")
@@ -97,8 +95,8 @@ struct PillReminderSheet: View {
         ) ?? now
     }
     
-    private func updateTime(_ date: Date) {
-        let components = Calendar.current.dateComponents([.hour, .minute], from: date)
+    private func applyChanges() {
+        let components = Calendar.current.dateComponents([.hour, .minute], from: reminderTime)
         viewModel.updateNotifications {
             $0.pillReminderTime = components
         }

@@ -11,6 +11,7 @@ struct PillPurchaseReminderSheet: View {
     @Bindable var viewModel: NotificationSettingsViewModel
     @Environment(\.dismiss) private var dismiss
     @State private var reminderTime: Date = Date()
+    @State private var selectedDaysBefore: Int = 0
     
     private let options: [(label: String, daysBefore: Int)] = [
         ("새 피임약 복용 이틀 전", 2),
@@ -25,7 +26,7 @@ struct PillPurchaseReminderSheet: View {
                     let option = options[index]
                     Button {
                         withAnimation {
-                            updateDaysBefore(option.daysBefore)
+                            selectedDaysBefore = option.daysBefore
                         }
                     } label: {
                         HStack(spacing: 10) {
@@ -62,10 +63,9 @@ struct PillPurchaseReminderSheet: View {
                 .ignoresSafeArea()
         }
         .onAppear {
-            reminderTime = timeFromSettings()
-        }
-        .onChange(of: reminderTime) { _, newValue in
-            updateTime(newValue)
+            let settings = viewModel.settings.notifications
+            selectedDaysBefore = settings.pillPurchaseReminderDaysBefore
+            reminderTime = timeFromSettings(settings.pillPurchaseReminderTime, fallbackHour: 16)
         }
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
@@ -86,6 +86,7 @@ struct PillPurchaseReminderSheet: View {
             
             ToolbarItem(placement: .confirmationAction) {
                 Button(role: .confirm) {
+                    applyChanges()
                     dismiss()
                 } label: {
                     Image(systemName: "checkmark")
@@ -97,19 +98,10 @@ struct PillPurchaseReminderSheet: View {
         }
         .navigationBarTitleDisplayMode(.inline)
     }
-    
-    private var selectedDaysBefore: Int {
-        viewModel.settings.notifications.pillPurchaseReminderDaysBefore
-    }
-    
-    private func updateDaysBefore(_ value: Int) {
-        viewModel.updateNotifications { $0.pillPurchaseReminderDaysBefore = value }
-    }
-    
-    private func timeFromSettings() -> Date {
+
+    private func timeFromSettings(_ components: DateComponents, fallbackHour: Int) -> Date {
         let now = Date()
-        let components = viewModel.settings.notifications.pillPurchaseReminderTime
-        let hour = components.hour ?? 16
+        let hour = components.hour ?? fallbackHour
         let minute = components.minute ?? 0
         return Calendar.current.date(
             bySettingHour: hour,
@@ -118,11 +110,12 @@ struct PillPurchaseReminderSheet: View {
             of: now
         ) ?? now
     }
-    
-    private func updateTime(_ date: Date) {
-        let components = Calendar.current.dateComponents([.hour, .minute], from: date)
+
+    private func applyChanges() {
+        let timeComponents = Calendar.current.dateComponents([.hour, .minute], from: reminderTime)
         viewModel.updateNotifications {
-            $0.pillPurchaseReminderTime = components
+            $0.pillPurchaseReminderDaysBefore = selectedDaysBefore
+            $0.pillPurchaseReminderTime = timeComponents
         }
     }
 }

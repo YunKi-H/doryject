@@ -11,6 +11,7 @@ struct PeriodReminderSheet: View {
     @Bindable var viewModel: NotificationSettingsViewModel
     @Environment(\.dismiss) private var dismiss
     @State private var reminderTime: Date = Date()
+    @State private var selectedDaysBefore: Int = 0
     
     private let options: [(label: String, daysBefore: Int)] = [
         ("시작 예정일 이틀 전", 2),
@@ -25,7 +26,7 @@ struct PeriodReminderSheet: View {
                     let option = options[index]
                     Button {
                         withAnimation {
-                            updateDaysBefore(option.daysBefore)
+                            selectedDaysBefore = option.daysBefore
                         }
                     } label: {
                         HStack(spacing: 10) {
@@ -62,10 +63,9 @@ struct PeriodReminderSheet: View {
                 .ignoresSafeArea()
         }
         .onAppear {
-            reminderTime = timeFromSettings()
-        }
-        .onChange(of: reminderTime) { _, newValue in
-            updateTime(newValue)
+            let settings = viewModel.settings.notifications
+            selectedDaysBefore = settings.periodReminderDaysBefore
+            reminderTime = timeFromSettings(settings.periodReminderTime, fallbackHour: 9)
         }
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
@@ -86,6 +86,7 @@ struct PeriodReminderSheet: View {
             
             ToolbarItem(placement: .confirmationAction) {
                 Button(role: .confirm) {
+                    applyChanges()
                     dismiss()
                 } label: {
                     Image(systemName: "checkmark")
@@ -98,18 +99,9 @@ struct PeriodReminderSheet: View {
         .navigationBarTitleDisplayMode(.inline)
     }
     
-    private var selectedDaysBefore: Int {
-        viewModel.settings.notifications.periodReminderDaysBefore
-    }
-    
-    private func updateDaysBefore(_ value: Int) {
-        viewModel.updateNotifications { $0.periodReminderDaysBefore = value }
-    }
-    
-    private func timeFromSettings() -> Date {
+    private func timeFromSettings(_ components: DateComponents, fallbackHour: Int) -> Date {
         let now = Date()
-        let components = viewModel.settings.notifications.periodReminderTime
-        let hour = components.hour ?? 9
+        let hour = components.hour ?? fallbackHour
         let minute = components.minute ?? 0
         return Calendar.current.date(
             bySettingHour: hour,
@@ -118,11 +110,12 @@ struct PeriodReminderSheet: View {
             of: now
         ) ?? now
     }
-    
-    private func updateTime(_ date: Date) {
-        let components = Calendar.current.dateComponents([.hour, .minute], from: date)
+
+    private func applyChanges() {
+        let timeComponents = Calendar.current.dateComponents([.hour, .minute], from: reminderTime)
         viewModel.updateNotifications {
-            $0.periodReminderTime = components
+            $0.periodReminderDaysBefore = selectedDaysBefore
+            $0.periodReminderTime = timeComponents
         }
     }
 }
