@@ -22,7 +22,7 @@ struct PillReminderSheet: View {
                             .foregroundStyle(.subBlue)
                             .font(.system(size: 18))
                         Text("매일")
-                            .font(.regular_16)
+                            .font(.regular_18)
                             .foregroundStyle(.textPrimary)
                         Spacer()
                     }
@@ -58,16 +58,10 @@ struct PillReminderSheet: View {
                 Button {
                     dismiss()
                 } label: {
-                    Circle()
-                        .fill(Color.bgSecondary)
-                        .frame(width: 36, height: 36)
-                        .overlay {
-                            Image(systemName: "xmark")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundStyle(.textPrimary)
-                        }
+                    Image(systemName: "xmark")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.secondary)
                 }
-                .buttonStyle(.plain)
             }
             
             ToolbarItem(placement: .principal) {
@@ -80,16 +74,11 @@ struct PillReminderSheet: View {
                 Button {
                     dismiss()
                 } label: {
-                    Circle()
-                        .fill(Color.subBlue)
-                        .frame(width: 36, height: 36)
-                        .overlay {
-                            Image(systemName: "checkmark")
-                                .font(.system(size: 16, weight: .bold))
-                                .foregroundStyle(.white)
-                        }
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 16, weight: .bold))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.glassProminent)
+                .tint(.subBlue)
             }
         }
         .navigationBarTitleDisplayMode(.inline)

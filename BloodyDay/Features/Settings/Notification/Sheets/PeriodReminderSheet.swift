@@ -33,7 +33,7 @@ struct PeriodReminderSheet: View {
                                 .foregroundStyle(option.daysBefore == selectedDaysBefore ? .mainRed : .textQuaternary)
                                 .font(.system(size: 18))
                             Text(option.label)
-                                .font(.regular_16)
+                                .font(.regular_18)
                                 .foregroundStyle(.textPrimary)
                             Spacer()
                         }
@@ -72,16 +72,10 @@ struct PeriodReminderSheet: View {
                 Button {
                     dismiss()
                 } label: {
-                    Circle()
-                        .fill(Color.bgSecondary)
-                        .frame(width: 36, height: 36)
-                        .overlay {
-                            Image(systemName: "xmark")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundStyle(.textPrimary)
-                        }
+                    Image(systemName: "xmark")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.secondary)
                 }
-                .buttonStyle(.plain)
             }
             
             ToolbarItem(placement: .principal) {
@@ -94,16 +88,11 @@ struct PeriodReminderSheet: View {
                 Button {
                     dismiss()
                 } label: {
-                    Circle()
-                        .fill(Color.mainRed)
-                        .frame(width: 36, height: 36)
-                        .overlay {
-                            Image(systemName: "checkmark")
-                                .font(.system(size: 16, weight: .bold))
-                                .foregroundStyle(.white)
-                        }
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 16, weight: .bold))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.glassProminent)
+                .tint(.mainRed)
             }
         }
         .navigationBarTitleDisplayMode(.inline)
