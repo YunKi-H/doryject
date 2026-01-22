@@ -68,8 +68,8 @@ struct PeriodReminderSheet: View {
             updateTime(newValue)
         }
         .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Button {
+            ToolbarItem(placement: .cancellationAction) {
+                Button(role: .close) {
                     dismiss()
                 } label: {
                     Image(systemName: "xmark")
@@ -78,14 +78,14 @@ struct PeriodReminderSheet: View {
                 }
             }
             
-            ToolbarItem(placement: .principal) {
+            ToolbarItem(placement: .title) {
                 Text("생리 예정일 알림 설정")
                     .font(.semibold_18)
                     .foregroundStyle(.textPrimary)
             }
             
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
+            ToolbarItem(placement: .confirmationAction) {
+                Button(role: .confirm) {
                     dismiss()
                 } label: {
                     Image(systemName: "checkmark")
