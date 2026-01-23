@@ -24,7 +24,7 @@ struct NotificationSettingView: View {
                                 Text("생리 예정일")
                                     .font(.regular_18)
                                     .foregroundStyle(.textPrimary)
-                                Text("시작 예정일 \(notifications.periodReminderDaysBefore)일 전 \(formatTime(notifications.periodReminderTime))")
+                                Text("시작 예정일 \(dayLabel(notifications.periodReminderDaysBefore)) \(formatTime(notifications.periodReminderTime))")
                                     .font(.regular_14)
                                     .foregroundStyle(notifications.periodReminderEnabled ? .mainRed : .textTertiary)
                             }
@@ -79,7 +79,7 @@ struct NotificationSettingView: View {
                                 Text("피임약 구매")
                                     .font(.regular_18)
                                     .foregroundStyle(.textPrimary)
-                                Text("복용 예정일 \(notifications.pillPurchaseReminderDaysBefore)일 전 \(formatTime(notifications.pillPurchaseReminderTime))")
+                                Text("복용 예정일 \(dayLabel(notifications.pillPurchaseReminderDaysBefore)) \(formatTime(notifications.pillPurchaseReminderTime))")
                                     .font(.regular_14)
                                     .foregroundStyle(notifications.pillPurchaseReminderEnabled ? .subBlue : .textTertiary)
                             }
@@ -161,6 +161,19 @@ private enum NotificationSheet: Int, Identifiable {
     case pillPurchaseReminder
     
     var id: Int { rawValue }
+}
+
+private func dayLabel(_ daysBefore: Int) -> String {
+    switch daysBefore {
+    case 0:
+        return "당일"
+    case 1:
+        return "하루 전"
+    case 2:
+        return "이틀 전"
+    default:
+        return "\(daysBefore)일 전"
+    }
 }
 
 #Preview {
