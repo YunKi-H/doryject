@@ -8,7 +8,7 @@
 import Foundation
 
 final class NoopNotificationScheduler: NotificationScheduler {
-    func apply(settings: UserSettings) {
+    func apply(settings: UserSettings, eventRepository: EventRepository) {
         // No-op placeholder for app wiring.
     }
 }

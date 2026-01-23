@@ -156,7 +156,8 @@ struct CalendarHeaderView: View {
         onSelectDate: { _ in },
         notificationViewModel: .init(
             repo: UserDefaultsSettingsRepository(),
-            scheduler: NoopNotificationScheduler()
+            scheduler: NoopNotificationScheduler(),
+            eventRepository: MockEventRepository()
         ),
         periodSettingViewModel: .init(repo: UserDefaultsSettingsRepository()),
         pillViewModel: .init(repo: UserDefaultsSettingsRepository()),

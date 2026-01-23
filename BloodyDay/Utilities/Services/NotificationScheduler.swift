@@ -8,5 +8,5 @@
 import Foundation
 
 protocol NotificationScheduler {
-    func apply(settings: UserSettings)
+    func apply(settings: UserSettings, eventRepository: EventRepository)
 }
