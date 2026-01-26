@@ -550,8 +550,8 @@ enum CalendarSecondaryStatus: Equatable {
                 return "\(day)정 복용/\(total)정"
             }
             return "피임약 \(day)일째"
-        case .pillBreak(let day, let total):
-            return "휴약기 (\(day)일째/\(total)일)"
+        case .pillBreak:
+            return "휴약기"
         case .ovulation:
             return "임신 확률 높음"
         case .fertile:
@@ -565,6 +565,8 @@ enum CalendarSecondaryStatus: Equatable {
     
     var subText: String? {
         switch self {
+        case .pillBreak(let day, let total):
+            return "(\(day)일째/\(total)일)"
         case .ovulation:
             return "(배란일)"
         case .fertile:
