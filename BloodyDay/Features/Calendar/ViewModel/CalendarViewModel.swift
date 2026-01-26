@@ -413,6 +413,9 @@ extension CalendarViewModel {
     }
     
     private func secondaryStatus(for date: Date) -> CalendarSecondaryStatus {
+        if eventRepository.allEvents().isEmpty {
+            return .unknown
+        }
         guard let dayInfo = months
             .flatMap(\.days)
             .first(where: { $0.date.isSameDay(as: date) }) else {
@@ -420,7 +423,12 @@ extension CalendarViewModel {
         }
         
         if let pillSequence = dayInfo.pillSequence {
-            return .pill(day: pillSequence)
+            let total = settingsRepository?.load().pill.pillCount
+            return .pill(day: pillSequence, total: total)
+        }
+
+        if let breakInfo = pillBreakInfo(for: date) {
+            return .pillBreak(day: breakInfo.day, total: breakInfo.total)
         }
         
         if dayInfo.events.contains(where: { $0.type == .ovulation }) {
@@ -475,6 +483,26 @@ extension CalendarViewModel {
         }
         return (settings.averageCycleDays, settings.averagePeriodDays)
     }
+
+    private func pillBreakInfo(for date: Date) -> (day: Int, total: Int)? {
+        guard let pillSettings = settingsRepository?.load().pill,
+              pillSettings.pillEnabled else { return nil }
+        let pillCount = max(pillSettings.pillCount, 0)
+        let breakDays = max(pillSettings.pillBreakDuration, 0)
+        let cycleLength = pillCount + breakDays
+        guard pillCount > 0, breakDays > 0, cycleLength > 0 else { return nil }
+
+        let pillDates = Set(eventRepository.events(of: .pill).map { $0.date.startOfDay })
+        guard let anchor = mostRecentPillStart(from: pillDates, calendar: .current) else { return nil }
+
+        let target = date.startOfDay
+        guard target >= anchor.startOfDay else { return nil }
+        let daysFromAnchor = Calendar.current.dateComponents([.day], from: anchor.startOfDay, to: target).day ?? 0
+        let indexInCycle = daysFromAnchor % cycleLength
+        guard indexInCycle >= pillCount else { return nil }
+        let breakDay = indexInCycle - pillCount + 1
+        return (day: breakDay, total: breakDays)
+    }
 }
 
 enum CalendarPrimaryStatus: Equatable {
@@ -507,26 +535,38 @@ enum CalendarPrimaryStatus: Equatable {
 }
 
 enum CalendarSecondaryStatus: Equatable {
-    case pill(day: Int)
+    case pill(day: Int, total: Int?)
+    case pillBreak(day: Int, total: Int)
     case ovulation
     case fertile
     case notFertile
+    case unknown
     
     var displayText: String {
         switch self {
-        case .pill(let day):
+        
+        case .pill(let day, let total):
+            if let total, total > 0 {
+                return "\(day)정 복용/\(total)정"
+            }
             return "피임약 \(day)일째"
+        case .pillBreak:
+            return "휴약기"
         case .ovulation:
             return "임신 확률 높음"
         case .fertile:
             return "임신 확률 보통"
         case .notFertile:
             return "임신 확률 낮음"
+        case .unknown:
+            return "-"
         }
     }
     
     var subText: String? {
         switch self {
+        case .pillBreak(let day, let total):
+            return "(\(day)일째/\(total)일)"
         case .ovulation:
             return "(배란일)"
         case .fertile:
