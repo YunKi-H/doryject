@@ -20,7 +20,7 @@ struct DayInfoCardView: View {
     @ViewBuilder
     private var secondaryIcon: some View {
         switch secondaryStatus {
-        case .pill(_):
+        case .pill(_, _), .pillBreak(_, _):
             Image(.pillHalf)
                 .foregroundStyle(.subBlue)
                 .frame(width: 13, height: 13)
