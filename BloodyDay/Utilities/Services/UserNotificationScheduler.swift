@@ -32,10 +32,10 @@ final class UserNotificationScheduler: NotificationScheduler {
                       reminderDate > Date() else {
                     continue
                 }
-                let body = "시작 예정일 \(daysBefore)일 전 알림"
+                let body = periodReminderBody(daysBefore: daysBefore)
                 scheduleOnce(
                     identifier: Self.periodReminderIds[index],
-                    title: "생리 예정일",
+                    title: "B-Day",
                     body: body,
                     date: reminderDate
                 )
@@ -52,10 +52,14 @@ final class UserNotificationScheduler: NotificationScheduler {
                 )
                 for (index, date) in scheduled.enumerated() {
                     guard index < Self.periodDelayedIds.count else { break }
+                    let daysDelayed = max(
+                        calendar.dateComponents([.day], from: nextPeriodStart.startOfDay, to: date.startOfDay).day ?? 0,
+                        0
+                    )
                     scheduleOnce(
                         identifier: Self.periodDelayedIds[index],
-                        title: "생리 지연",
-                        body: "생리 일정이 지연되고 있어요",
+                        title: "B-Day",
+                        body: periodDelayedBody(daysDelayed: daysDelayed),
                         date: date
                     )
                 }
@@ -64,8 +68,8 @@ final class UserNotificationScheduler: NotificationScheduler {
         if notificationSettings.pillReminderEnabled, settings.pill.pillEnabled {
             scheduleDaily(
                 identifier: Self.pillReminderId,
-                title: "피임약 복용",
-                body: "피임약 복용 시간이에요",
+                title: "B-Day",
+                body: "피임약을 복용하실 시간입니다.",
                 time: notificationSettings.pillReminderTime
             )
         }
@@ -84,8 +88,8 @@ final class UserNotificationScheduler: NotificationScheduler {
                 guard index < Self.pillPurchaseReminderIds.count else { break }
                 scheduleOnce(
                     identifier: Self.pillPurchaseReminderIds[index],
-                    title: "피임약 구매",
-                    body: "피임약 구매 예정일이에요",
+                    title: "B-Day",
+                    body: pillPurchaseReminderBody(daysBefore: max(notificationSettings.pillPurchaseReminderDaysBefore, 0)),
                     date: reminder
                 )
             }
@@ -287,6 +291,35 @@ final class UserNotificationScheduler: NotificationScheduler {
             }
         }
         return reminders
+    }
+
+    private func periodReminderBody(daysBefore: Int) -> String {
+        switch daysBefore {
+        case 1:
+            return "생리 예정일 하루 전입니다."
+        case 0:
+            return "오늘은 생리 예정일 입니다."
+        default:
+            return "생리 예정일이 \(daysBefore)일 남았습니다."
+        }
+    }
+
+    private func pillPurchaseReminderBody(daysBefore: Int) -> String {
+        switch daysBefore {
+        case 1:
+            return "내일부터 새로운 피임약 복용이 시작됩니다. 미리 준비해주세요."
+        case 0:
+            return "오늘부터 새로운 피임약 복용이 시작됩니다. 잊지 말고 복용해주세요."
+        default:
+            return "\(daysBefore)일 후부터 새로운 피임약 복용이 시작됩니다. 미리 준비해주세요."
+        }
+    }
+
+    private func periodDelayedBody(daysDelayed: Int) -> String {
+        if daysDelayed >= 7 {
+            return "생리가 7일 이상 지연되고 있습니다. 개인 건강을 위해 병원 진료를 권장합니다."
+        }
+        return "생리가 예정일보다 \(daysDelayed)일 지연되고 있습니다. 스트레스나 컨디션을 점검해보세요."
     }
 
     private func mostRecentPillStart(from pillDates: Set<Date>) -> Date? {
