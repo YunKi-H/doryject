@@ -26,6 +26,27 @@ final class PeriodListViewModel {
         summaries = PeriodSummaryBuilder.build(from: events.map { $0.date })
     }
 
+    func periodDates() -> Set<Date> {
+        Set(eventRepository.events(of: .period).map { $0.date.startOfDay })
+    }
+
+    func applyPeriodDates(_ dates: Set<Date>) {
+        let existing = periodDates()
+        let toAdd = dates.subtracting(existing)
+        let toRemove = existing.subtracting(dates)
+
+        for day in toAdd {
+            let new = UserEvent(id: .init(), date: day.startOfDay, type: .period)
+            eventRepository.save(new)
+        }
+
+        for day in toRemove {
+            eventRepository.delete(type: .period, on: day.startOfDay)
+        }
+
+        refresh()
+    }
+
     func delete(summary: PeriodSummary) {
         let start = summary.start.startOfDay
         let end = summary.end.startOfDay
