@@ -52,10 +52,14 @@ final class UserNotificationScheduler: NotificationScheduler {
                 )
                 for (index, date) in scheduled.enumerated() {
                     guard index < Self.periodDelayedIds.count else { break }
+                    let daysDelayed = max(
+                        calendar.dateComponents([.day], from: nextPeriodStart.startOfDay, to: date.startOfDay).day ?? 0,
+                        0
+                    )
                     scheduleOnce(
                         identifier: Self.periodDelayedIds[index],
                         title: "B-Day",
-                        body: "생리 일정이 지연되고 있어요",
+                        body: periodDelayedBody(daysDelayed: daysDelayed),
                         date: date
                     )
                 }
@@ -309,6 +313,13 @@ final class UserNotificationScheduler: NotificationScheduler {
         default:
             return "\(daysBefore)일 후부터 새로운 피임약 복용이 시작됩니다. 미리 준비해주세요."
         }
+    }
+
+    private func periodDelayedBody(daysDelayed: Int) -> String {
+        if daysDelayed >= 7 {
+            return "생리가 7일 이상 지연되고 있습니다. 개인 건강을 위해 병원 진료를 권장합니다."
+        }
+        return "생리가 예정일보다 \(daysDelayed)일 지연되고 있습니다. 스트레스나 컨디션을 점검해보세요."
     }
 
     private func mostRecentPillStart(from pillDates: Set<Date>) -> Date? {
