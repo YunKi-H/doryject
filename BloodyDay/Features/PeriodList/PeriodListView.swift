@@ -160,7 +160,7 @@ struct PeriodListView: View {
             viewModel.refresh()
         }
         .sheet(isPresented: $editSheetIsPresented) {
-            PeriodEditSheetView()
+            PeriodEditSheetView(viewModel: viewModel)
         }
         .sheet(isPresented: $settingSheetIsPresented) {
             NavigationStack {
