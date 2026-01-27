@@ -85,7 +85,7 @@ final class UserNotificationScheduler: NotificationScheduler {
                 scheduleOnce(
                     identifier: Self.pillPurchaseReminderIds[index],
                     title: "B-Day",
-                    body: "피임약 구매 예정일이에요",
+                    body: pillPurchaseReminderBody(daysBefore: max(notificationSettings.pillPurchaseReminderDaysBefore, 0)),
                     date: reminder
                 )
             }
@@ -297,6 +297,17 @@ final class UserNotificationScheduler: NotificationScheduler {
             return "오늘은 생리 예정일 입니다."
         default:
             return "생리 예정일이 \(daysBefore)일 남았습니다."
+        }
+    }
+
+    private func pillPurchaseReminderBody(daysBefore: Int) -> String {
+        switch daysBefore {
+        case 1:
+            return "내일부터 새로운 피임약 복용이 시작됩니다. 미리 준비해주세요."
+        case 0:
+            return "오늘부터 새로운 피임약 복용이 시작됩니다. 잊지 말고 복용해주세요."
+        default:
+            return "\(daysBefore)일 후부터 새로운 피임약 복용이 시작됩니다. 미리 준비해주세요."
         }
     }
 
