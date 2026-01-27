@@ -35,7 +35,7 @@ final class UserNotificationScheduler: NotificationScheduler {
                 let body = "시작 예정일 \(daysBefore)일 전 알림"
                 scheduleOnce(
                     identifier: Self.periodReminderIds[index],
-                    title: "생리 예정일",
+                    title: "B-Day",
                     body: body,
                     date: reminderDate
                 )
@@ -54,7 +54,7 @@ final class UserNotificationScheduler: NotificationScheduler {
                     guard index < Self.periodDelayedIds.count else { break }
                     scheduleOnce(
                         identifier: Self.periodDelayedIds[index],
-                        title: "생리 지연",
+                        title: "B-Day",
                         body: "생리 일정이 지연되고 있어요",
                         date: date
                     )
@@ -64,7 +64,7 @@ final class UserNotificationScheduler: NotificationScheduler {
         if notificationSettings.pillReminderEnabled, settings.pill.pillEnabled {
             scheduleDaily(
                 identifier: Self.pillReminderId,
-                title: "피임약 복용",
+                title: "B-Day",
                 body: "피임약 복용 시간이에요",
                 time: notificationSettings.pillReminderTime
             )
@@ -84,7 +84,7 @@ final class UserNotificationScheduler: NotificationScheduler {
                 guard index < Self.pillPurchaseReminderIds.count else { break }
                 scheduleOnce(
                     identifier: Self.pillPurchaseReminderIds[index],
-                    title: "피임약 구매",
+                    title: "B-Day",
                     body: "피임약 구매 예정일이에요",
                     date: reminder
                 )
