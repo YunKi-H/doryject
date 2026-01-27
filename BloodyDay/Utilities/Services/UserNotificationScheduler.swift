@@ -32,7 +32,7 @@ final class UserNotificationScheduler: NotificationScheduler {
                       reminderDate > Date() else {
                     continue
                 }
-                let body = "시작 예정일 \(daysBefore)일 전 알림"
+                let body = periodReminderBody(daysBefore: daysBefore)
                 scheduleOnce(
                     identifier: Self.periodReminderIds[index],
                     title: "B-Day",
@@ -65,7 +65,7 @@ final class UserNotificationScheduler: NotificationScheduler {
             scheduleDaily(
                 identifier: Self.pillReminderId,
                 title: "B-Day",
-                body: "피임약 복용 시간이에요",
+                body: "피임약을 복용하실 시간입니다.",
                 time: notificationSettings.pillReminderTime
             )
         }
@@ -287,6 +287,17 @@ final class UserNotificationScheduler: NotificationScheduler {
             }
         }
         return reminders
+    }
+
+    private func periodReminderBody(daysBefore: Int) -> String {
+        switch daysBefore {
+        case 1:
+            return "생리 예정일 하루 전입니다."
+        case 0:
+            return "오늘은 생리 예정일 입니다."
+        default:
+            return "생리 예정일이 \(daysBefore)일 남았습니다."
+        }
     }
 
     private func mostRecentPillStart(from pillDates: Set<Date>) -> Date? {
