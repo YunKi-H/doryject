@@ -14,6 +14,6 @@ struct BloodyDayApp: App {
         WindowGroup {
             BloodyDayRootView()
         }
-        .modelContainer(for: [UserEvent.self], inMemory: true)
+        .modelContainer(for: [UserEvent.self])
     }
 }

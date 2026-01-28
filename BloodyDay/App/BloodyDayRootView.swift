@@ -104,7 +104,10 @@ struct BloodyDayRootView: View {
                     periodListViewModel = PeriodListViewModel(eventRepository: syncingRepository)
                 }
                 if periodSettingViewModel == nil {
-                    periodSettingViewModel = PeriodSettingViewModel(repo: settingsRepository)
+                    periodSettingViewModel = PeriodSettingViewModel(
+                        repo: settingsRepository,
+                        eventRepository: syncingRepository
+                    )
                 }
                 if notificationSettingsViewModel == nil {
                     notificationSettingsViewModel = NotificationSettingsViewModel(
