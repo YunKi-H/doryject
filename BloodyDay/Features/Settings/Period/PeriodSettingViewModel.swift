@@ -11,10 +11,12 @@ import Observation
 @Observable
 final class PeriodSettingViewModel {
     private let repo: SettingsRepository
+    private let eventRepository: EventRepository?
     private(set) var settings: UserSettings
     
-    init(repo: SettingsRepository) {
+    init(repo: SettingsRepository, eventRepository: EventRepository? = nil) {
         self.repo = repo
+        self.eventRepository = eventRepository
         self.settings = repo.load()
     }
     
@@ -27,5 +29,13 @@ final class PeriodSettingViewModel {
         settings.period.averageCycleDays = cycle
         settings.period.averagePeriodDays = period
         repo.save(settings)
+    }
+
+    func resetAllEvents() {
+        guard let eventRepository else { return }
+        let events = eventRepository.allEvents()
+        for event in events {
+            eventRepository.delete(id: event.id)
+        }
     }
 }
