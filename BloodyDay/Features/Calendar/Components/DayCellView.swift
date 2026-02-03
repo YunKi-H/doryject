@@ -10,6 +10,7 @@ import SwiftUI
 struct DayCellView: View {
     let day: DayInfo
     let isSelected: Bool
+    let isPredictedPeriodDay: Bool
     let monthDate: Date
     var onTap: (Date) -> Void
     
@@ -19,6 +20,9 @@ struct DayCellView: View {
     private var dateFontColor: Color {
         if isToday { return .textPoint }
         if isSelected && day.events.contains(where: { $0.type == .period }) { return .textPrimary }
+        if isPredictedPeriodDay {
+            return day.date.isInSameMonth(as: monthDate) ? .textPrimary : .textQuaternary
+        }
         if day.events.contains(where: { $0.type == .period }) {
             return day.date.isInSameMonth(as: monthDate) ? .textPoint : .textPoint50
         }
@@ -93,6 +97,7 @@ struct DayCellView: View {
             ]
         ),
         isSelected: true,
+        isPredictedPeriodDay: false,
         monthDate: .now
     ) { _ in }
 }

@@ -294,6 +294,8 @@ struct PeriodEditSheetView: View {
             monthDate: monthStart,
             days: days,
             periodRanges: periodRanges,
+            predictedPeriodRanges: [],
+            predictedPeriodDates: [],
             delayedRanges: [],
             fertileRanges: [],
             ovulationRanges: []
