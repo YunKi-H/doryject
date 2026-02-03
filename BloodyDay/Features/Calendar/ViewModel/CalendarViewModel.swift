@@ -392,12 +392,12 @@ extension CalendarViewModel {
 
 // DayInfoCard
 extension CalendarViewModel {
-    var primaryStatus: CalendarPrimaryStatus {
-        periodStatus(for: .now)
+    func primaryStatus(for date: Date) -> CalendarPrimaryStatus {
+        periodStatus(for: date)
     }
-    
-    var secondaryStatus: CalendarSecondaryStatus {
-        secondaryStatus(for: .now)
+
+    func secondaryStatus(for date: Date) -> CalendarSecondaryStatus {
+        calculateSecondaryStatus(for: date)
     }
     
     private func periodStatus(for date: Date) -> CalendarPrimaryStatus {
@@ -424,7 +424,7 @@ extension CalendarViewModel {
         return .countdown(days: max(daysUntil, 0))
     }
     
-    private func secondaryStatus(for date: Date) -> CalendarSecondaryStatus {
+    private func calculateSecondaryStatus(for date: Date) -> CalendarSecondaryStatus {
         if eventRepository.allEvents().isEmpty {
             return .unknown
         }
