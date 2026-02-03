@@ -25,7 +25,12 @@ struct CalendarMainView: View {
         VStack(spacing: 0) {
             CalendarHeaderView(
                 month: viewModel.months[viewModel.currentIndex].monthDate,
-                onSelectDate: viewModel.selectDate(_:),
+                onSelectDate: { date in
+                    viewModel.selectDate(date)
+                    withAnimation {
+                        selectionMonth = date.startOfMonth
+                    }
+                },
                 notificationViewModel: notificationViewModel,
                 periodSettingViewModel: periodSettingViewModel,
                 pillViewModel: pillViewModel,

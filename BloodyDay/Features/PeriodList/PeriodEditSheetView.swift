@@ -233,6 +233,9 @@ struct PeriodEditSheetView: View {
             setCurrentMonth(to: date)
         }
         selectedDate = date
+        withAnimation {
+            selectionMonth = date.startOfMonth
+        }
     }
 
     private func togglePeriod(on date: Date) {
