@@ -233,6 +233,9 @@ struct PeriodEditSheetView: View {
             setCurrentMonth(to: date)
         }
         selectedDate = date
+        withAnimation {
+            selectionMonth = date.startOfMonth
+        }
     }
 
     private func togglePeriod(on date: Date) {
@@ -294,6 +297,8 @@ struct PeriodEditSheetView: View {
             monthDate: monthStart,
             days: days,
             periodRanges: periodRanges,
+            predictedPeriodRanges: [],
+            predictedPeriodDates: [],
             delayedRanges: [],
             fertileRanges: [],
             ovulationRanges: []

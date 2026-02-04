@@ -119,14 +119,18 @@ extension CalendarViewModel {
     private func makeMonthInfo(for month: Date) -> MonthInfo {
         let monthStart = month.startOfMonth
         let allEvents = eventRepository.allEvents()
-        let days: [DayInfo] = buildDayInfos(for: month, userEvents: allEvents)
+        let actualPeriodDates = Set(allEvents.filter { $0.type == .period }.map { $0.date.startOfDay })
+        let result = buildDayInfos(for: month, userEvents: allEvents)
+        let days: [DayInfo] = result.days
+        let predictedPeriodDates: Set<Date> = result.predictedPeriodDates
         
         let periodRanges: [DateInterval] = buildRangesSplittingByWeeks(days: days) { day in
-            day.events.contains { $0.type == .period }
+            actualPeriodDates.contains(day.date.startOfDay)
         }
-        let delayedRanges: [DateInterval] = buildRangesSplittingByWeeks(days: days) { day in
-            day.events.contains { $0.type == .delayed }
+        let predictedPeriodRanges: [DateInterval] = buildRangesSplittingByWeeks(days: days) { day in
+            predictedPeriodDates.contains(day.date.startOfDay)
         }
+        let delayedRanges: [DateInterval] = []
         let fertileRanges: [DateInterval] = buildRangesSplittingByWeeks(days: days) { day in
             day.events.contains { $0.type == .fertile }
         }
@@ -138,6 +142,8 @@ extension CalendarViewModel {
             monthDate: monthStart,
             days: days,
             periodRanges: periodRanges,
+            predictedPeriodRanges: predictedPeriodRanges,
+            predictedPeriodDates: predictedPeriodDates,
             delayedRanges: delayedRanges,
             fertileRanges: fertileRanges,
             ovulationRanges: ovulationRanges
@@ -147,7 +153,7 @@ extension CalendarViewModel {
     private func buildDayInfos(
         for month: Date,
         userEvents: [UserEvent]
-    ) -> [DayInfo] {
+    ) -> (days: [DayInfo], predictedPeriodDates: Set<Date>) {
         let gridStart = month.startOfCalendarGrid()
         let gridEndExclusive = month.endOfCalendarGridExclusiveStart()
         
@@ -170,12 +176,16 @@ extension CalendarViewModel {
             avgPeriodDays: manualAverages.periodDays
         )
         
+        var predictedPeriodDates: Set<Date> = []
         if !prediction.predictedEventsByDay.isEmpty {
             for i in days.indices {
                 let key = days[i].date.startOfDay
                 guard let predicted = prediction.predictedEventsByDay[key] else { continue }
                 for type in predicted where !days[i].events.contains(where: { $0.type == type }) {
                     days[i].events.append(DayEvent(type: type))
+                    if type == .period || type == .delayed {
+                        predictedPeriodDates.insert(key)
+                    }
                 }
             }
         }
@@ -215,7 +225,7 @@ extension CalendarViewModel {
             }
         }
         
-        return days
+        return (days, predictedPeriodDates)
     }
     
     private func buildRangesSplittingByWeeks(
@@ -380,12 +390,12 @@ extension CalendarViewModel {
 
 // DayInfoCard
 extension CalendarViewModel {
-    var primaryStatus: CalendarPrimaryStatus {
-        periodStatus(for: .now)
+    func primaryStatus(for date: Date) -> CalendarPrimaryStatus {
+        periodStatus(for: date)
     }
-    
-    var secondaryStatus: CalendarSecondaryStatus {
-        secondaryStatus(for: .now)
+
+    func secondaryStatus(for date: Date) -> CalendarSecondaryStatus {
+        calculateSecondaryStatus(for: date)
     }
     
     private func periodStatus(for date: Date) -> CalendarPrimaryStatus {
@@ -412,7 +422,7 @@ extension CalendarViewModel {
         return .countdown(days: max(daysUntil, 0))
     }
     
-    private func secondaryStatus(for date: Date) -> CalendarSecondaryStatus {
+    private func calculateSecondaryStatus(for date: Date) -> CalendarSecondaryStatus {
         if eventRepository.allEvents().isEmpty {
             return .unknown
         }

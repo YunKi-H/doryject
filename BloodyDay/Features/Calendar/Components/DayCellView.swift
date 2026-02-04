@@ -10,6 +10,7 @@ import SwiftUI
 struct DayCellView: View {
     let day: DayInfo
     let isSelected: Bool
+    let isPredictedPeriodDay: Bool
     let monthDate: Date
     var onTap: (Date) -> Void
     
@@ -17,10 +18,15 @@ struct DayCellView: View {
     private var pill: DayEvent? { day.events.first(where: { $0.type == .pill }) }
     private var love: DayEvent? { day.events.first(where: { $0.type == .love }) }
     private var dateFontColor: Color {
-        if isToday && !isSelected { return .textPoint }
-        if !day.date.isInSameMonth(as: monthDate) { return .textQuaternary }
+        if isToday { return .textPoint }
         if isSelected && day.events.contains(where: { $0.type == .period }) { return .textPrimary }
-        if day.events.contains(where: { $0.type == .period }) { return .textPoint }
+        if isPredictedPeriodDay {
+            return day.date.isInSameMonth(as: monthDate) ? .textPrimary : .textQuaternary
+        }
+        if day.events.contains(where: { $0.type == .period }) {
+            return day.date.isInSameMonth(as: monthDate) ? .textPoint : .textPoint50
+        }
+        if !day.date.isInSameMonth(as: monthDate) { return .textQuaternary }
         return .textPrimary
     }
     
@@ -33,15 +39,17 @@ struct DayCellView: View {
                     if isToday || isSelected {
                         if day.events.contains(where: { $0.type.isCycleRelated }) {
                             Capsule(style: .continuous)
-                                .foregroundStyle(isSelected ? .bgSecondary : .textPrimary)
+                                .foregroundStyle(isToday ? .mainNeutral : .bgSecondary)
                                 .frame(width: 38, height: 20)
                                 .glassEffect(.clear)
+                                .opacity(day.date.isInSameMonth(as: monthDate) ? 1 : 0.3)
                         } else {
                             Circle()
-                                .foregroundStyle(isSelected ? .bgSecondary : .textPrimary)
+                                .foregroundStyle(isToday ? .mainNeutral : .bgSecondary)
                                 .frame(width: 30, height: 30)
                                 .glassEffect(.clear, in: .circle)
                                 .shadow(radius: 20)
+                                .opacity(day.date.isInSameMonth(as: monthDate) ? 1 : 0.3)
                         }
                     }
                 }
@@ -71,6 +79,7 @@ struct DayCellView: View {
                 }
             }
             .padding(.init(top: 0, leading: 6, bottom: 10, trailing: 6))
+            .opacity(day.date.isInSameMonth(as: monthDate) ? 1 : 0.3)
         }
         .frame(maxWidth: .infinity)
         .onTapGesture { onTap(day.date) }
@@ -88,6 +97,7 @@ struct DayCellView: View {
             ]
         ),
         isSelected: true,
+        isPredictedPeriodDay: false,
         monthDate: .now
     ) { _ in }
 }

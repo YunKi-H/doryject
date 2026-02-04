@@ -121,13 +121,6 @@ struct AppleCalendarSettingView: View {
             ToolbarItem(placement: .title) {
                 Text("Apple Calendar")
             }
-            
-            ToolbarItemGroup(placement: .keyboard) {
-                Spacer()
-                Button("Done") {
-                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-                }
-            }
         }
         .navigationBarTitleDisplayMode(.inline)
     }
