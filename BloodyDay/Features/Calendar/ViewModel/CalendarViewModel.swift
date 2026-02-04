@@ -130,9 +130,7 @@ extension CalendarViewModel {
         let predictedPeriodRanges: [DateInterval] = buildRangesSplittingByWeeks(days: days) { day in
             predictedPeriodDates.contains(day.date.startOfDay)
         }
-        let delayedRanges: [DateInterval] = buildRangesSplittingByWeeks(days: days) { day in
-            day.events.contains { $0.type == .delayed }
-        }
+        let delayedRanges: [DateInterval] = []
         let fertileRanges: [DateInterval] = buildRangesSplittingByWeeks(days: days) { day in
             day.events.contains { $0.type == .fertile }
         }
@@ -185,7 +183,7 @@ extension CalendarViewModel {
                 guard let predicted = prediction.predictedEventsByDay[key] else { continue }
                 for type in predicted where !days[i].events.contains(where: { $0.type == type }) {
                     days[i].events.append(DayEvent(type: type))
-                    if type == .period {
+                    if type == .period || type == .delayed {
                         predictedPeriodDates.insert(key)
                     }
                 }
