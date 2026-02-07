@@ -11,7 +11,8 @@ import UserNotifications
 final class UserNotificationScheduler: NotificationScheduler {
     private let center = UNUserNotificationCenter.current()
     private let calendar = Calendar.current
-    private let maxScheduledOccurrences = 3
+    private static let maxScheduledOccurrences = 3
+    private let maxScheduledOccurrences = UserNotificationScheduler.maxScheduledOccurrences
     
     func apply(settings: UserSettings, eventRepository: EventRepository) {
         center.requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in }
@@ -25,20 +26,24 @@ final class UserNotificationScheduler: NotificationScheduler {
                 eventRepository: eventRepository,
                 count: maxScheduledOccurrences
             )
-            for (index, start) in starts.enumerated() {
-                guard index < Self.periodReminderIds.count else { break }
-                guard let reminderBase = calendar.date(byAdding: .day, value: -daysBefore, to: start),
-                      let reminderDate = combineDate(reminderBase, time: notificationSettings.periodReminderTime),
-                      reminderDate > Date() else {
-                    continue
+            var idIndex = 0
+            for start in starts {
+                for offset in stride(from: daysBefore, through: 0, by: -1) {
+                    guard idIndex < Self.periodReminderIds.count else { break }
+                    guard let reminderBase = calendar.date(byAdding: .day, value: -offset, to: start),
+                          let reminderDate = combineDate(reminderBase, time: notificationSettings.periodReminderTime),
+                          reminderDate > Date() else {
+                        continue
+                    }
+                    let body = periodReminderBody(daysBefore: offset)
+                    scheduleOnce(
+                        identifier: Self.periodReminderIds[idIndex],
+                        title: "B-Day",
+                        body: body,
+                        date: reminderDate
+                    )
+                    idIndex += 1
                 }
-                let body = periodReminderBody(daysBefore: daysBefore)
-                scheduleOnce(
-                    identifier: Self.periodReminderIds[index],
-                    title: "B-Day",
-                    body: body,
-                    date: reminderDate
-                )
             }
         }
         if notificationSettings.periodDelayedEnabled,
@@ -295,10 +300,10 @@ final class UserNotificationScheduler: NotificationScheduler {
 
     private func periodReminderBody(daysBefore: Int) -> String {
         switch daysBefore {
-        case 1:
-            return "생리 예정일 하루 전입니다."
         case 0:
             return "오늘은 생리 예정일 입니다."
+        case 1:
+            return "생리 예정일 하루 전입니다."
         default:
             return "생리 예정일이 \(daysBefore)일 남았습니다."
         }
@@ -306,10 +311,10 @@ final class UserNotificationScheduler: NotificationScheduler {
 
     private func pillPurchaseReminderBody(daysBefore: Int) -> String {
         switch daysBefore {
-        case 1:
-            return "내일부터 새로운 피임약 복용이 시작됩니다. 미리 준비해주세요."
         case 0:
             return "오늘부터 새로운 피임약 복용이 시작됩니다. 잊지 말고 복용해주세요."
+        case 1:
+            return "내일부터 새로운 피임약 복용이 시작됩니다. 미리 준비해주세요."
         default:
             return "\(daysBefore)일 후부터 새로운 피임약 복용이 시작됩니다. 미리 준비해주세요."
         }
@@ -338,9 +343,12 @@ final class UserNotificationScheduler: NotificationScheduler {
     private static let periodDelayedId = "notification.period.delayed"
     private static let pillReminderId = "notification.pill.reminder"
     private static let pillPurchaseReminderId = "notification.pill.purchase"
-    private static let periodReminderIds = (0..<3).map { "\(periodReminderId).\($0)" }
-    private static let periodDelayedIds = (0..<3).map { "\(periodDelayedId).\($0)" }
-    private static let pillPurchaseReminderIds = (0..<3).map { "\(pillPurchaseReminderId).\($0)" }
+    private static let maxPeriodReminderLeadDays = 7
+    private static let periodReminderIds = (0..<(maxScheduledOccurrences * maxPeriodReminderLeadDays)).map {
+        "\(periodReminderId).\($0)"
+    }
+    private static let periodDelayedIds = (0..<maxScheduledOccurrences).map { "\(periodDelayedId).\($0)" }
+    private static let pillPurchaseReminderIds = (0..<maxScheduledOccurrences).map { "\(pillPurchaseReminderId).\($0)" }
     private static let identifiers: [String] = [
         periodReminderId,
         periodDelayedId,
