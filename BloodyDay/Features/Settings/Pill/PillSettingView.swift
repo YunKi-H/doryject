@@ -25,80 +25,56 @@ struct PillSettingView: View {
     }
     
     var body: some View {
-        VStack {
-            List {
-                Section {
-                    Toggle(isOn: pillBinding(\.pillCalendarCalculationEnabled)) {
-                        Text("피임약 기반 생리 주기 계산")
-                            .font(.regular_18)
-                            .foregroundStyle(.textPrimary)
-                    }
-                    
-                    Toggle(isOn: pillBinding(\.pillAutoRecordEnabled)) {
-                        Text("캘린더에 복용일 자동 기록")
-                            .font(.regular_18)
-                            .foregroundStyle(.textPrimary)
-                    }
+        List {
+            Section {
+                Toggle(isOn: pillBinding(\.pillCalendarCalculationEnabled)) {
+                    Text("피임약 기반 생리 주기 계산")
+                        .font(.regular_18)
+                        .foregroundStyle(.textPrimary)
                 }
-                .listRowBackground(Color.bgSecondary)
-                .tint(.subBlue)
                 
-                Section {
-                    HStack(spacing: 1) {
-                        Text("피임약 개수")
-                        
-                        Group {
-                            TextField("", text: pillCountBinding())
-                                .keyboardType(.numberPad)
-                                .multilineTextAlignment(.trailing)
-                                .focused($focusedField, equals: .pillCount)
-                            Text("정")
-                        }
-                        .foregroundStyle(.subBlue)
-                    }
-                    
-                    HStack(spacing: 1) {
-                        Text("휴약 기간")
-                        
-                        Group {
-                            TextField("", text: pillBreakBinding())
-                                .keyboardType(.numberPad)
-                                .multilineTextAlignment(.trailing)
-                                .focused($focusedField, equals: .pillBreak)
-                            Text("일")
-                        }
-                        .foregroundStyle(.subBlue)
-                    }
-                }
-                .listRowBackground(Color.bgSecondary)
-                .tint(.subBlue)
-                
-                if let focused = focusedField {
-                    ZStack(alignment: .leading) {
-                        RoundedRectangle(cornerRadius: 20)
-                            .fill(.subBlue)
-                            .opacity(0.07)
-                            .frame(height: 40)
-                        
-                        HStack(spacing: 4) {
-                            Image(systemName: "exclamationmark.circle.fill")
-                                .font(.system(size: 14, weight: .regular))
-                            
-                            Text(focused.message)
-                                .font(.regular_14)
-                        }
-                        .foregroundStyle(.subBlue)
-                        .padding(.horizontal, 16)
-                    }
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-                    .listRowInsets(.init(top: 0, leading: 0, bottom: 0, trailing: 0))
+                Toggle(isOn: pillBinding(\.pillAutoRecordEnabled)) {
+                    Text("캘린더에 복용일 자동 기록")
+                        .font(.regular_18)
+                        .foregroundStyle(.textPrimary)
                 }
             }
-            .listSectionSpacing(14)
-            .contentMargins(.top, 14)
-            .scrollContentBackground(.hidden)
+            .listRowBackground(Color.bgSecondary)
+            .tint(.subBlue)
+            
+            Section(footer: footerMessage) {
+                HStack(spacing: 1) {
+                    Text("피임약 개수")
+                    
+                    Group {
+                        TextField("", text: pillCountBinding())
+                            .keyboardType(.numberPad)
+                            .multilineTextAlignment(.trailing)
+                            .focused($focusedField, equals: .pillCount)
+                        Text("정")
+                    }
+                    .foregroundStyle(.subBlue)
+                }
+                
+                HStack(spacing: 1) {
+                    Text("휴약 기간")
+                    
+                    Group {
+                        TextField("", text: pillBreakBinding())
+                            .keyboardType(.numberPad)
+                            .multilineTextAlignment(.trailing)
+                            .focused($focusedField, equals: .pillBreak)
+                        Text("일")
+                    }
+                    .foregroundStyle(.subBlue)
+                }
+            }
+            .listRowBackground(Color.bgSecondary)
+            .tint(.subBlue)
         }
+        .listSectionSpacing(14)
+        .contentMargins(.top, 14)
+        .scrollContentBackground(.hidden)
         .background {
             Color.bgPrimary
                 .ignoresSafeArea()
@@ -109,6 +85,30 @@ struct PillSettingView: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    @ViewBuilder
+    private var footerMessage: some View {
+        if let focused = focusedField {
+            ZStack(alignment: .leading) {
+                RoundedRectangle(cornerRadius: 100)
+                    .fill(.subBlue)
+                    .opacity(0.07)
+                    .frame(height: 40)
+                
+                HStack(spacing: 4) {
+                    Image(systemName: "exclamationmark.circle.fill")
+                        .font(.system(size: 14, weight: .regular))
+                    
+                    Text(focused.message)
+                        .font(.regular_14)
+                }
+                .foregroundStyle(.subBlue)
+                .padding(.horizontal, 16)
+            }
+            .padding(.top, 14)
+            .listRowInsets(.init(top: 0, leading: 0, bottom: 0, trailing: 0))
+        }
     }
     
     private func pillBinding(_ keyPath: WritableKeyPath<PillSettings, Bool>) -> Binding<Bool> {
