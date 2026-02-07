@@ -495,8 +495,7 @@ extension CalendarViewModel {
     }
 
     private func pillBreakInfo(for date: Date) -> (day: Int, total: Int)? {
-        guard let pillSettings = settingsRepository?.load().pill,
-              pillSettings.pillEnabled else { return nil }
+        guard let pillSettings = settingsRepository?.load().pill else { return nil }
         let pillCount = max(pillSettings.pillCount, 0)
         let breakDays = max(pillSettings.pillBreakDuration, 0)
         let cycleLength = pillCount + breakDays
