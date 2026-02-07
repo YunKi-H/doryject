@@ -14,9 +14,9 @@ struct PeriodReminderSheet: View {
     @State private var selectedDaysBefore: Int = 0
     
     private let options: [(label: String, daysBefore: Int)] = [
-        ("시작 예정일 이틀 전", 2),
-        ("시작 예정일 하루 전", 1),
-        ("시작 예정일 당일", 0)
+        ("시작 예정일 이틀 전부터", 2),
+        ("시작 예정일 하루 전부터", 1),
+        ("시작 예정일 당일만", 0)
     ]
     
     var body: some View {
