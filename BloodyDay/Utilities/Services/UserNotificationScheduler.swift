@@ -11,7 +11,8 @@ import UserNotifications
 final class UserNotificationScheduler: NotificationScheduler {
     private let center = UNUserNotificationCenter.current()
     private let calendar = Calendar.current
-    private let maxScheduledOccurrences = 3
+    private static let maxScheduledOccurrences = 3
+    private let maxScheduledOccurrences = UserNotificationScheduler.maxScheduledOccurrences
     
     func apply(settings: UserSettings, eventRepository: EventRepository) {
         center.requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in }
@@ -343,11 +344,11 @@ final class UserNotificationScheduler: NotificationScheduler {
     private static let pillReminderId = "notification.pill.reminder"
     private static let pillPurchaseReminderId = "notification.pill.purchase"
     private static let maxPeriodReminderLeadDays = 7
-    private static let periodReminderIds = (0..<(3 * maxPeriodReminderLeadDays)).map {
+    private static let periodReminderIds = (0..<(maxScheduledOccurrences * maxPeriodReminderLeadDays)).map {
         "\(periodReminderId).\($0)"
     }
-    private static let periodDelayedIds = (0..<3).map { "\(periodDelayedId).\($0)" }
-    private static let pillPurchaseReminderIds = (0..<3).map { "\(pillPurchaseReminderId).\($0)" }
+    private static let periodDelayedIds = (0..<maxScheduledOccurrences).map { "\(periodDelayedId).\($0)" }
+    private static let pillPurchaseReminderIds = (0..<maxScheduledOccurrences).map { "\(pillPurchaseReminderId).\($0)" }
     private static let identifiers: [String] = [
         periodReminderId,
         periodDelayedId,
