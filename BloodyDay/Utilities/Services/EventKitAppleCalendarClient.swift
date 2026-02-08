@@ -21,6 +21,14 @@ final class EventKitAppleCalendarClient: AppleCalendarClient {
     
     func createOrFetchCalendar(name: String, existingIdentifier: String?) -> String? {
         if let id = existingIdentifier, let existing = eventStore.calendar(withIdentifier: id) {
+            if existing.title != name {
+                existing.title = name
+                do {
+                    try eventStore.saveCalendar(existing, commit: true)
+                } catch {
+                    return existing.calendarIdentifier
+                }
+            }
             return existing.calendarIdentifier
         }
         
