@@ -27,12 +27,6 @@ struct PillSettingView: View {
     var body: some View {
         List {
             Section {
-                Toggle(isOn: pillBinding(\.pillCalendarCalculationEnabled)) {
-                    Text("피임약 기반 생리 주기 계산")
-                        .font(.regular_18)
-                        .foregroundStyle(.textPrimary)
-                }
-                
                 Toggle(isOn: pillBinding(\.pillAutoRecordEnabled)) {
                     Text("캘린더에 복용일 자동 기록")
                         .font(.regular_18)
