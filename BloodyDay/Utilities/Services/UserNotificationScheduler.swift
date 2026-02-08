@@ -70,7 +70,8 @@ final class UserNotificationScheduler: NotificationScheduler {
                 }
             }
         }
-        if notificationSettings.pillReminderEnabled, settings.pill.pillEnabled {
+        if notificationSettings.pillReminderEnabled,
+           pillScheduleInfo(settings: settings, eventRepository: eventRepository) != nil {
             scheduleDaily(
                 identifier: Self.pillReminderId,
                 title: "B-Day",
@@ -78,7 +79,8 @@ final class UserNotificationScheduler: NotificationScheduler {
                 time: notificationSettings.pillReminderTime
             )
         }
-        if notificationSettings.pillPurchaseReminderEnabled, settings.pill.pillEnabled {
+        if notificationSettings.pillPurchaseReminderEnabled,
+           pillScheduleInfo(settings: settings, eventRepository: eventRepository) != nil {
             let nextStarts = nextPillStartDates(
                 settings: settings,
                 eventRepository: eventRepository,
@@ -252,6 +254,21 @@ final class UserNotificationScheduler: NotificationScheduler {
             nextStart = candidate
         }
         return nextStart
+    }
+
+    private func pillScheduleInfo(
+        settings: UserSettings,
+        eventRepository: EventRepository
+    ) -> (anchor: Date, cycleLength: Int, pillCount: Int, breakDays: Int)? {
+        let pillSettings = settings.pill
+        let pillCount = max(pillSettings.pillCount, 0)
+        let breakDays = max(pillSettings.pillBreakDuration, 0)
+        let cycleLength = pillCount + breakDays
+        guard pillCount > 0, cycleLength > 0 else { return nil }
+
+        let pillDates = Set(eventRepository.events(of: .pill).map { $0.date.startOfDay })
+        guard let anchor = mostRecentPillStart(from: pillDates) else { return nil }
+        return (anchor, cycleLength, pillCount, breakDays)
     }
 
     private func nextPillStartDates(

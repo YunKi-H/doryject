@@ -175,12 +175,29 @@ extension CalendarViewModel {
             avgCycleDays: manualAverages.cycleDays,
             avgPeriodDays: manualAverages.periodDays
         )
-        
+        var predictedEventsByDay = prediction.predictedEventsByDay
+        if let pillPrediction = pillBasedPeriodPrediction(
+            rangeStart: gridStart,
+            rangeEndExclusive: gridEndExclusive,
+            userEvents: userEvents
+        ) {
+            for key in predictedEventsByDay.keys {
+                predictedEventsByDay[key] = predictedEventsByDay[key]?.filter { $0 != .period && $0 != .delayed } ?? []
+            }
+            for (key, types) in pillPrediction {
+                var merged = predictedEventsByDay[key, default: []]
+                for type in types where !merged.contains(type) {
+                    merged.append(type)
+                }
+                predictedEventsByDay[key] = merged
+            }
+        }
+
         var predictedPeriodDates: Set<Date> = []
-        if !prediction.predictedEventsByDay.isEmpty {
+        if !predictedEventsByDay.isEmpty {
             for i in days.indices {
                 let key = days[i].date.startOfDay
-                guard let predicted = prediction.predictedEventsByDay[key] else { continue }
+                guard let predicted = predictedEventsByDay[key] else { continue }
                 for type in predicted where !days[i].events.contains(where: { $0.type == type }) {
                     days[i].events.append(DayEvent(type: type))
                     if type == .period || type == .delayed {
@@ -226,6 +243,41 @@ extension CalendarViewModel {
         }
         
         return (days, predictedPeriodDates)
+    }
+
+    private func pillBasedPeriodPrediction(
+        rangeStart: Date,
+        rangeEndExclusive: Date,
+        userEvents: [UserEvent]
+    ) -> [Date: [EventType]]? {
+        let pillDates = userEvents
+            .filter { $0.type == .pill }
+            .map { $0.date.startOfDay }
+        guard let anchor = mostRecentPillStart(from: Set(pillDates), calendar: .current) else { return nil }
+        let pillCount = max(settingsRepository?.load().pill.pillCount ?? 0, 0)
+        guard pillCount > 0 else { return nil }
+        let calendar = Calendar.current
+        guard let lastPill = calendar.date(byAdding: .day, value: pillCount - 1, to: anchor.startOfDay),
+              let predictedStart = calendar.date(byAdding: .day, value: 3, to: lastPill) else {
+            return nil
+        }
+        let lengthDays = max(periodAutoLengthDays(), 1)
+        guard let endExclusive = calendar.date(byAdding: .day, value: lengthDays, to: predictedStart) else {
+            return nil
+        }
+
+        let normalizedStart = rangeStart.startOfDay
+        let normalizedEnd = rangeEndExclusive.startOfDay
+        let today = Date().startOfDay
+        var predicted: [Date: [EventType]] = [:]
+
+        for day in Date.dates(from: predictedStart.startOfDay, toExclusive: endExclusive) {
+            guard day >= normalizedStart && day < normalizedEnd else { continue }
+            let type: EventType = day < today ? .delayed : .period
+            predicted[day, default: []].append(type)
+        }
+
+        return predicted.isEmpty ? nil : predicted
     }
     
     private func buildRangesSplittingByWeeks(
@@ -495,8 +547,7 @@ extension CalendarViewModel {
     }
 
     private func pillBreakInfo(for date: Date) -> (day: Int, total: Int)? {
-        guard let pillSettings = settingsRepository?.load().pill,
-              pillSettings.pillEnabled else { return nil }
+        guard let pillSettings = settingsRepository?.load().pill else { return nil }
         let pillCount = max(pillSettings.pillCount, 0)
         let breakDays = max(pillSettings.pillBreakDuration, 0)
         let cycleLength = pillCount + breakDays
