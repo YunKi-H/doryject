@@ -36,18 +36,30 @@ final class AppleCalendarSyncService {
         for type in supportedTypes {
             if settings.appleCalendar.eventSyncEnabled[type] == true {
                 if let calendarId = await ensureCalendar(for: type, settings: &settings) {
+                    let title = calendarTitle(for: type, settings: settings)
                     if type == .period {
                         let summaries = PeriodSummaryBuilder.build(from: eventRepository.events(of: .period).map { $0.date })
                         for summary in summaries {
                             let syntheticId = periodSummaryId(start: summary.start)
                             validIds.insert(syntheticId)
-                            await upsertPeriodSummary(summary, calendarIdentifier: calendarId, syntheticId: syntheticId)
+                            await upsertPeriodSummary(
+                                summary,
+                                calendarIdentifier: calendarId,
+                                syntheticId: syntheticId,
+                                title: title
+                            )
                         }
                     } else {
                         let events = eventRepository.events(of: type)
                         for event in events {
                             validIds.insert(event.id)
-                            await upsert(event: event, type: type, calendarIdentifier: calendarId, dateRange: nil)
+                            await upsert(
+                                event: event,
+                                type: type,
+                                calendarIdentifier: calendarId,
+                                dateRange: nil,
+                                title: title
+                            )
                         }
                     }
                 }
@@ -73,7 +85,14 @@ final class AppleCalendarSyncService {
 
         var mutableSettings = settings
         guard let calendarId = await ensureCalendar(for: event.type, settings: &mutableSettings) else { return }
-        await upsert(event: event, type: event.type, calendarIdentifier: calendarId, dateRange: nil)
+        let title = calendarTitle(for: event.type, settings: settings)
+        await upsert(
+            event: event,
+            type: event.type,
+            calendarIdentifier: calendarId,
+            dateRange: nil,
+            title: title
+        )
     }
 
     func syncDelete(eventId: UUID, eventType: EventType?) async {
@@ -148,10 +167,10 @@ final class AppleCalendarSyncService {
         event: UserEvent,
         type: EventType,
         calendarIdentifier: String,
-        dateRange: DateInterval?
+        dateRange: DateInterval?,
+        title: String
     ) async {
         let existing = syncStore.record(for: event.id)?.ekEventIdentifier
-        let title = defaultTitle(for: type)
         if let ekId = calendarClient.upsertEvent(
             event: event,
             calendarIdentifier: calendarIdentifier,
@@ -192,17 +211,9 @@ final class AppleCalendarSyncService {
         }
     }
 
-    private func defaultTitle(for type: EventType) -> String {
-        switch type {
-        case .period:
-            return "생리"
-        case .pill:
-            return "피임약 복용"
-        case .love:
-            return "사랑한 날"
-        default:
-            return "BloodyDay"
-        }
+    private func calendarTitle(for type: EventType, settings: UserSettings) -> String {
+        settings.appleCalendar.calendarNames[type]
+            ?? AppleCalendarSettings.defaultCalendarNames[type, default: "BloodyDay"]
     }
 
     private func periodSummaryId(start: Date) -> UUID {
@@ -217,7 +228,8 @@ final class AppleCalendarSyncService {
     private func upsertPeriodSummary(
         _ summary: PeriodSummary,
         calendarIdentifier: String,
-        syntheticId: UUID
+        syntheticId: UUID,
+        title: String
     ) async {
         let range = DateInterval(start: summary.start.startOfDay, end: summary.end.endOfDay)
         let syntheticEvent = UserEvent(id: syntheticId, date: summary.start, type: .period)
@@ -225,7 +237,8 @@ final class AppleCalendarSyncService {
             event: syntheticEvent,
             type: .period,
             calendarIdentifier: calendarIdentifier,
-            dateRange: range
+            dateRange: range,
+            title: title
         )
     }
 }
