@@ -67,10 +67,10 @@ struct PeriodListView: View {
                             HStack(spacing: 6) {
                                 HStack(spacing: 4) {
                                     Text("생리 기간")
-                                        .font(.medium_14)
+                                        .font(.regular_14)
                                         .foregroundStyle(.textSecondary40)
                                     Text("\(summary.lengthDays)일")
-                                        .font(.semibold_14)
+                                        .font(.medium_14)
                                         .foregroundStyle(.textSecondary50)
                                 }
                                 .padding(.init(top: 4.5, leading: 8, bottom: 4.5, trailing: 8))
@@ -81,10 +81,10 @@ struct PeriodListView: View {
                                 
                                 HStack(spacing: 4) {
                                     Text("생리 주기")
-                                        .font(.medium_14)
+                                        .font(.regular_14)
                                         .foregroundStyle(.textSecondary40)
                                     Text(summary.cycleDays.map { "\($0)일" } ?? "-")
-                                        .font(.semibold_14)
+                                        .font(.medium_14)
                                         .foregroundStyle(.textSecondary50)
                                 }
                                 .padding(.init(top: 4.5, leading: 8, bottom: 4.5, trailing: 8))
