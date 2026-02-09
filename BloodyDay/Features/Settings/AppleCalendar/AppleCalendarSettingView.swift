@@ -50,7 +50,7 @@ struct AppleCalendarSettingView: View {
                                     .font(.regular_18)
                                     .foregroundColor(.textPrimary)
                             )
-                            .opacity(viewModel.calendarName(for: .period).isEmpty ? 0.15 : 1)
+                            .opacity(viewModel.calendarNameInput(for: .period).isEmpty ? 0.15 : 1)
                         }
                     }
                     .listRowBackground(Color.bgSecondary)
@@ -76,7 +76,7 @@ struct AppleCalendarSettingView: View {
                                     .font(.regular_18)
                                     .foregroundColor(.textPrimary)
                             )
-                            .opacity(viewModel.calendarName(for: .pill).isEmpty ? 0.15 : 1)
+                            .opacity(viewModel.calendarNameInput(for: .pill).isEmpty ? 0.15 : 1)
                         }
                     }
                     .listRowBackground(Color.bgSecondary)
@@ -102,7 +102,7 @@ struct AppleCalendarSettingView: View {
                                     .font(.regular_18)
                                     .foregroundColor(.textPrimary)
                             )
-                            .opacity(viewModel.calendarName(for: .love).isEmpty ? 0.15 : 1)
+                            .opacity(viewModel.calendarNameInput(for: .love).isEmpty ? 0.15 : 1)
                         }
                     }
                     .listRowBackground(Color.bgSecondary)
@@ -136,7 +136,7 @@ struct AppleCalendarSettingView: View {
 
     private func calendarNameBinding(_ type: EventType) -> Binding<String> {
         Binding(
-            get: { viewModel.calendarName(for: type) },
+            get: { viewModel.calendarNameInput(for: type) },
             set: { value in
                 Task { await viewModel.setCalendarName(type, value) }
             }
