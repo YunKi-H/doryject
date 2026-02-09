@@ -63,7 +63,12 @@ final class AppleCalendarSettingViewModel {
     
     func setCalendarName(_ type: EventType, _ name: String) async {
         guard supportedTypes.contains(type) else { return }
-        settings.appleCalendar.calendarNames[type] = name
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            settings.appleCalendar.calendarNames[type] = nil
+        } else {
+            settings.appleCalendar.calendarNames[type] = trimmed
+        }
         repo.save(settings)
         if settings.appleCalendar.isEnabled && isEventEnabled(type) {
             await ensureCalendar(for: type)
@@ -77,6 +82,15 @@ final class AppleCalendarSettingViewModel {
 
     func calendarName(for type: EventType) -> String {
         settings.appleCalendar.calendarNames[type] ?? AppleCalendarSettings.defaultCalendarNames[type, default: "BloodyDay"]
+    }
+
+    func calendarNameInput(for type: EventType) -> String {
+        let stored = settings.appleCalendar.calendarNames[type]
+        let fallback = AppleCalendarSettings.defaultCalendarNames[type, default: "BloodyDay"]
+        if let stored, stored != fallback {
+            return stored
+        }
+        return ""
     }
 
     func calendarIdentifier(for type: EventType) -> String? {
