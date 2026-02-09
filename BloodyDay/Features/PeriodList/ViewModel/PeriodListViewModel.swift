@@ -66,8 +66,8 @@ final class PeriodListViewModel {
     }
     
     var lastPeriodRangeDisplay: String {
-        guard let last = summaries.last else { return "기록 없음" }
-        return "\(format(last.start)) - \(format(last.end))"
+        guard let lastStart = summaries.last?.start else { return "기록 없음" }
+        return format(lastStart)
     }
     
     var averagePeriodDisplay: String {
