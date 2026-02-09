@@ -58,7 +58,11 @@ final class PeriodListViewModel {
     
     var lastPeriodStartDisplay: String {
         guard let lastStart = summaries.last?.start else { return "-" }
-        return format(lastStart)
+        let calendar = Calendar.current
+        let today = Date().startOfDay
+        let start = lastStart.startOfDay
+        let days = calendar.dateComponents([.day], from: start, to: today).day ?? 0
+        return "\(max(days, 0))일 전"
     }
     
     var lastPeriodRangeDisplay: String {

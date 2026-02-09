@@ -20,7 +20,7 @@ struct PeriodListView: View {
                 Section {
                     VStack(alignment: .leading, spacing: 4) {
                         HStack {
-                            Text("마지막 생리일")
+                            Text("마지막 생리 시작일")
                                 .font(.regular_18)
                             Spacer()
                             Text(viewModel.lastPeriodStartDisplay)
