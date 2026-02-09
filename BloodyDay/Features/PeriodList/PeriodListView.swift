@@ -28,7 +28,7 @@ struct PeriodListView: View {
                         }
                         .foregroundStyle(.textPrimary)
                         
-                        Text(viewModel.lastPeriodRangeDisplay)
+                        Text(viewModel.lastPeriodStartDateDisplay)
                             .font(.regular_14)
                             .foregroundStyle(.textSecondary40)
                     }

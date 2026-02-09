@@ -65,7 +65,7 @@ final class PeriodListViewModel {
         return "\(max(days, 0))일 전"
     }
     
-    var lastPeriodRangeDisplay: String {
+    var lastPeriodStartDateDisplay: String {
         guard let lastStart = summaries.last?.start else { return "기록 없음" }
         return format(lastStart)
     }
