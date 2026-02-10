@@ -87,4 +87,24 @@ final class PeriodListViewModel {
     func format(_ date: Date) -> String {
         formatter.string(from: date)
     }
+
+    func rangeDisplay(start: Date, end: Date) -> String {
+        let calendar = Calendar.current
+        let startComp = calendar.dateComponents([.year, .month, .day], from: start)
+        let endComp = calendar.dateComponents([.year, .month, .day], from: end)
+        let startText = format(start)
+
+        let endText: String
+        if startComp.year == endComp.year {
+            if startComp.month == endComp.month {
+                endText = "\(endComp.day ?? 0)일"
+            } else {
+                endText = "\(endComp.month ?? 0)월 \(endComp.day ?? 0)일"
+            }
+        } else {
+            endText = format(end)
+        }
+
+        return "\(startText) - \(endText)"
+    }
 }

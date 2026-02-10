@@ -59,7 +59,7 @@ struct PeriodListView: View {
                 Section {
                     ForEach(summaries) { summary in
                         VStack(alignment: .leading, spacing: 6) {
-                            Text("\(viewModel.format(summary.start)) - \(viewModel.format(summary.end))")
+                            Text(viewModel.rangeDisplay(start: summary.start, end: summary.end))
                                 .font(.semibold_18)
                                 .foregroundStyle(.textPrimary)
                                 .padding(.leading, 5)
