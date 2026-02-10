@@ -58,12 +58,16 @@ final class PeriodListViewModel {
     
     var lastPeriodStartDisplay: String {
         guard let lastStart = summaries.last?.start else { return "-" }
-        return format(lastStart)
+        let calendar = Calendar.current
+        let today = Date().startOfDay
+        let start = lastStart.startOfDay
+        let days = calendar.dateComponents([.day], from: start, to: today).day ?? 0
+        return "\(max(days, 0))일 전"
     }
     
-    var lastPeriodRangeDisplay: String {
-        guard let last = summaries.last else { return "기록 없음" }
-        return "\(format(last.start)) - \(format(last.end))"
+    var lastPeriodStartDateDisplay: String {
+        guard let lastStart = summaries.last?.start else { return "기록 없음" }
+        return format(lastStart)
     }
     
     var averagePeriodDisplay: String {
@@ -82,5 +86,25 @@ final class PeriodListViewModel {
     
     func format(_ date: Date) -> String {
         formatter.string(from: date)
+    }
+
+    func rangeDisplay(start: Date, end: Date) -> String {
+        let calendar = Calendar.current
+        let startComp = calendar.dateComponents([.year, .month, .day], from: start)
+        let endComp = calendar.dateComponents([.year, .month, .day], from: end)
+        let startText = format(start)
+
+        let endText: String
+        if startComp.year == endComp.year {
+            if startComp.month == endComp.month {
+                endText = "\(endComp.day ?? 0)일"
+            } else {
+                endText = "\(endComp.month ?? 0)월 \(endComp.day ?? 0)일"
+            }
+        } else {
+            endText = format(end)
+        }
+
+        return "\(startText) - \(endText)"
     }
 }

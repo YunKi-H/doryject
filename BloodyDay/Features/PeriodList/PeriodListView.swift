@@ -10,6 +10,7 @@ import SwiftUI
 struct PeriodListView: View {
     @State private var editSheetIsPresented: Bool = false
     @State private var settingSheetIsPresented: Bool = false
+    @State private var editSheetAnchorDate: Date = .now
     @Bindable var viewModel: PeriodListViewModel
     @Bindable var periodSettingViewModel: PeriodSettingViewModel
     
@@ -20,7 +21,7 @@ struct PeriodListView: View {
                 Section {
                     VStack(alignment: .leading, spacing: 4) {
                         HStack {
-                            Text("마지막 생리일")
+                            Text("마지막 생리 시작일")
                                 .font(.regular_18)
                             Spacer()
                             Text(viewModel.lastPeriodStartDisplay)
@@ -28,7 +29,7 @@ struct PeriodListView: View {
                         }
                         .foregroundStyle(.textPrimary)
                         
-                        Text(viewModel.lastPeriodRangeDisplay)
+                        Text(viewModel.lastPeriodStartDateDisplay)
                             .font(.regular_14)
                             .foregroundStyle(.textSecondary40)
                     }
@@ -59,7 +60,7 @@ struct PeriodListView: View {
                 Section {
                     ForEach(summaries) { summary in
                         VStack(alignment: .leading, spacing: 6) {
-                            Text("\(viewModel.format(summary.start)) - \(viewModel.format(summary.end))")
+                            Text(viewModel.rangeDisplay(start: summary.start, end: summary.end))
                                 .font(.semibold_18)
                                 .foregroundStyle(.textPrimary)
                                 .padding(.leading, 5)
@@ -67,10 +68,10 @@ struct PeriodListView: View {
                             HStack(spacing: 6) {
                                 HStack(spacing: 4) {
                                     Text("생리 기간")
-                                        .font(.medium_14)
+                                        .font(.regular_14)
                                         .foregroundStyle(.textSecondary40)
                                     Text("\(summary.lengthDays)일")
-                                        .font(.semibold_14)
+                                        .font(.medium_14)
                                         .foregroundStyle(.textSecondary50)
                                 }
                                 .padding(.init(top: 4.5, leading: 8, bottom: 4.5, trailing: 8))
@@ -81,10 +82,10 @@ struct PeriodListView: View {
                                 
                                 HStack(spacing: 4) {
                                     Text("생리 주기")
-                                        .font(.medium_14)
+                                        .font(.regular_14)
                                         .foregroundStyle(.textSecondary40)
                                     Text(summary.cycleDays.map { "\($0)일" } ?? "-")
-                                        .font(.semibold_14)
+                                        .font(.medium_14)
                                         .foregroundStyle(.textSecondary50)
                                 }
                                 .padding(.init(top: 4.5, leading: 8, bottom: 4.5, trailing: 8))
@@ -93,6 +94,11 @@ struct PeriodListView: View {
                                         .fill(Color.component)
                                 }
                             }
+                        }
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            editSheetAnchorDate = summary.start
+                            editSheetIsPresented = true
                         }
                         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                             Button(role: .destructive) {
@@ -109,6 +115,7 @@ struct PeriodListView: View {
                             }
                             
                             Button {
+                                editSheetAnchorDate = summary.start
                                 editSheetIsPresented = true
                             } label: {
                                 VStack {
@@ -131,6 +138,7 @@ struct PeriodListView: View {
             
             HStack(spacing: 0) {
                 Button {
+                    editSheetAnchorDate = .now
                     editSheetIsPresented = true
                 } label: {
                     Image(systemName: "calendar.badge.plus")
@@ -160,7 +168,7 @@ struct PeriodListView: View {
             viewModel.refresh()
         }
         .sheet(isPresented: $editSheetIsPresented) {
-            PeriodEditSheetView(viewModel: viewModel)
+            PeriodEditSheetView(viewModel: viewModel, initialDate: editSheetAnchorDate)
         }
         .sheet(isPresented: $settingSheetIsPresented) {
             NavigationStack {
