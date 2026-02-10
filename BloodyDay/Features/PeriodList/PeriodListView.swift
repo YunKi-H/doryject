@@ -10,6 +10,7 @@ import SwiftUI
 struct PeriodListView: View {
     @State private var editSheetIsPresented: Bool = false
     @State private var settingSheetIsPresented: Bool = false
+    @State private var editSheetAnchorDate: Date = .now
     @Bindable var viewModel: PeriodListViewModel
     @Bindable var periodSettingViewModel: PeriodSettingViewModel
     
@@ -94,6 +95,11 @@ struct PeriodListView: View {
                                 }
                             }
                         }
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            editSheetAnchorDate = summary.start
+                            editSheetIsPresented = true
+                        }
                         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                             Button(role: .destructive) {
                                 viewModel.delete(summary: summary)
@@ -109,6 +115,7 @@ struct PeriodListView: View {
                             }
                             
                             Button {
+                                editSheetAnchorDate = summary.start
                                 editSheetIsPresented = true
                             } label: {
                                 VStack {
@@ -131,6 +138,7 @@ struct PeriodListView: View {
             
             HStack(spacing: 0) {
                 Button {
+                    editSheetAnchorDate = .now
                     editSheetIsPresented = true
                 } label: {
                     Image(systemName: "calendar.badge.plus")
@@ -160,7 +168,7 @@ struct PeriodListView: View {
             viewModel.refresh()
         }
         .sheet(isPresented: $editSheetIsPresented) {
-            PeriodEditSheetView(viewModel: viewModel)
+            PeriodEditSheetView(viewModel: viewModel, initialDate: editSheetAnchorDate)
         }
         .sheet(isPresented: $settingSheetIsPresented) {
             NavigationStack {

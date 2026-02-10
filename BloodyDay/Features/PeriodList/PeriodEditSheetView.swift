@@ -13,13 +13,18 @@ struct PeriodEditSheetView: View {
     
     @State private var months: [MonthInfo] = []
     @State private var selectionMonth: Date?
-    @State private var selectedDate: Date = .now
+    @State private var selectedDate: Date
     @State private var currentIndex: Int = 0
     @State private var selectedPeriodDates: Set<Date> = []
     @State private var originalPeriodDates: Set<Date> = []
     @State private var datePickerPresented: Bool = false
     @State private var newDate: Date = .now
     @State private var discardPopoverPresented: Bool = false
+
+    init(viewModel: PeriodListViewModel, initialDate: Date = .now) {
+        self.viewModel = viewModel
+        self._selectedDate = State(initialValue: initialDate.startOfDay)
+    }
     
     var body: some View {
         NavigationStack {
