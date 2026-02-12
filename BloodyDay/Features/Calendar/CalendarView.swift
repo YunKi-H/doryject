@@ -52,14 +52,16 @@ struct CalendarView: View {
                     }
                     .padding(.horizontal, 20)
                     
-                    ForEach(0...rows, id: \.self) { r in
-                        let cellHeight = geo.size.height / CGFloat(rows)
-                        let y = CGFloat(r) * cellHeight
-                        
+                    VStack(spacing: 0) {
+                        ForEach(0..<rows, id: \.self) { _ in
+                            Rectangle()
+                                .fill(.mainNeutral8)
+                                .frame(height: 1)
+                            Spacer(minLength: 0)
+                        }
                         Rectangle()
                             .fill(.mainNeutral8)
                             .frame(height: 1)
-                            .position(x: geo.size.width / 2, y: y) // 경계선
                     }
                 }
             }
