@@ -105,6 +105,7 @@ struct NotificationSettingView: View {
             .contentMargins(.top, 14)
             .scrollContentBackground(.hidden)
             .animation(.easeInOut(duration: 0.2), value: notifications.periodReminderEnabled)
+            .disabled(isSystemNotificationOff)
         }
         .background {
             Color.bgPrimary
