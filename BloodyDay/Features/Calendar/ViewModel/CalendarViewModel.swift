@@ -67,7 +67,11 @@ extension CalendarViewModel {
                 eventRepository.save(new)
             }
         } else {
-            eventRepository.delete(type: type, on: date)
+            if type == .period {
+                deletePeriodEvents(startingAt: date)
+            } else {
+                eventRepository.delete(type: type, on: date)
+            }
         }
         let anchorMonth = months.indices.contains(currentIndex) ? months[currentIndex].monthDate : date
         bootstrapMonths(anchor: anchorMonth)
@@ -344,6 +348,19 @@ extension CalendarViewModel {
         for day in datesToAdd {
             let new = UserEvent(id: .init(), date: day, type: .period)
             eventRepository.save(new)
+        }
+    }
+
+    private func deletePeriodEvents(startingAt date: Date) {
+        let calendar = Calendar.current
+        let periodDates = Set(eventRepository.events(of: .period).map { $0.date.startOfDay })
+        var cursor = date.startOfDay
+        guard periodDates.contains(cursor) else { return }
+
+        while periodDates.contains(cursor) {
+            eventRepository.delete(type: .period, on: cursor)
+            guard let next = calendar.date(byAdding: .day, value: 1, to: cursor) else { break }
+            cursor = next
         }
     }
     
