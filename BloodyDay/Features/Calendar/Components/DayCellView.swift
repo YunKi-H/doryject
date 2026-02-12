@@ -75,7 +75,9 @@ struct DayCellView: View {
                         Text("\(count)")
                             .font(.regular_11)
                             .foregroundStyle(.textTertiary)
+                            .lineLimit(1)
                     }
+                    .fixedSize(horizontal: true, vertical: false)
                 }
             }
             .padding(.init(top: 0, leading: 6, bottom: 10, trailing: 6))
