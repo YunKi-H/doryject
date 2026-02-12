@@ -84,6 +84,7 @@ struct DayCellView: View {
             .opacity(day.date.isInSameMonth(as: monthDate) ? 1 : 0.3)
         }
         .frame(maxWidth: .infinity)
+        .contentShape(Rectangle())
         .onTapGesture { onTap(day.date) }
     }
 }
