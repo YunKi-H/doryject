@@ -48,7 +48,7 @@ struct DayCellView: View {
                                 .foregroundStyle(isToday ? .mainNeutral : .bgSecondary)
                                 .frame(width: 30, height: 30)
                                 .glassEffect(.clear, in: .circle)
-                                .shadow(radius: 20)
+                                .shadow(color: .mainNeutral8, radius: 2)
                                 .opacity(day.date.isInSameMonth(as: monthDate) ? 1 : 0.3)
                         }
                     }
