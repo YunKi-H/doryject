@@ -48,7 +48,7 @@ struct DayCellView: View {
                                 .foregroundStyle(isToday ? .mainNeutral : .bgSecondary)
                                 .frame(width: 30, height: 30)
                                 .glassEffect(.clear, in: .circle)
-                                .shadow(radius: 20)
+                                .shadow(color: .mainNeutral8, radius: 2)
                                 .opacity(day.date.isInSameMonth(as: monthDate) ? 1 : 0.3)
                         }
                     }
@@ -75,13 +75,16 @@ struct DayCellView: View {
                         Text("\(count)")
                             .font(.regular_11)
                             .foregroundStyle(.textTertiary)
+                            .lineLimit(1)
                     }
+                    .fixedSize(horizontal: true, vertical: false)
                 }
             }
             .padding(.init(top: 0, leading: 6, bottom: 10, trailing: 6))
             .opacity(day.date.isInSameMonth(as: monthDate) ? 1 : 0.3)
         }
         .frame(maxWidth: .infinity)
+        .contentShape(Rectangle())
         .onTapGesture { onTap(day.date) }
     }
 }

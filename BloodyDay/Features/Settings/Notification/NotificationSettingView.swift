@@ -6,10 +6,13 @@
 //
 
 import SwiftUI
+import UserNotifications
+import UIKit
 
 struct NotificationSettingView: View {
     @Bindable var viewModel: NotificationSettingsViewModel
     @State private var activeSheet: NotificationSheet?
+    @State private var isSystemNotificationOff: Bool = false
     
     var body: some View {
         let notifications = viewModel.settings.notifications
@@ -37,19 +40,22 @@ struct NotificationSettingView: View {
                             .labelsHidden()
                     }
                     
-                    HStack {
-                        Text("생리 지연")
-                            .font(.regular_18)
-                            .foregroundStyle(.textPrimary)
-                        Spacer()
-                        Toggle("", isOn: notificationBinding(\.periodDelayedEnabled, sheet: nil))
-                            .labelsHidden()
+                    if notifications.periodReminderEnabled {
+                        HStack {
+                            Text("생리 지연")
+                                .font(.regular_18)
+                                .foregroundStyle(.textPrimary)
+                            Spacer()
+                            Toggle("", isOn: notificationBinding(\.periodDelayedEnabled, sheet: nil))
+                                .labelsHidden()
+                        }
+                        .transition(.asymmetric(insertion: .opacity.combined(with: .move(edge: .top)), removal: .opacity))
                     }
                 }
                 .listRowBackground(Color.bgSecondary)
                 .tint(.mainRed)
                 
-                Section {
+                Section(footer: footerMessage) {
                     HStack {
                         Button {
                             openSheet(.pillReminder, enableKeyPath: \.pillReminderEnabled)
@@ -98,6 +104,8 @@ struct NotificationSettingView: View {
             .listSectionSpacing(14)
             .contentMargins(.top, 14)
             .scrollContentBackground(.hidden)
+            .animation(.easeInOut(duration: 0.2), value: notifications.periodReminderEnabled)
+            .disabled(isSystemNotificationOff)
         }
         .background {
             Color.bgPrimary
@@ -109,6 +117,12 @@ struct NotificationSettingView: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            refreshSystemNotificationState()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+            refreshSystemNotificationState()
+        }
         .sheet(item: $activeSheet) { sheet in
             NavigationStack {
                 switch sheet {
@@ -120,6 +134,29 @@ struct NotificationSettingView: View {
                     PillPurchaseReminderSheet(viewModel: viewModel)
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private var footerMessage: some View {
+        if isSystemNotificationOff {
+            ZStack(alignment: .leading) {
+                RoundedRectangle(cornerRadius: 100)
+                    .fill(.mainRed10)
+                    .frame(height: 40)
+
+                HStack(spacing: 4) {
+                    Image(systemName: "exclamationmark.circle.fill")
+                        .font(.system(size: 14, weight: .regular))
+
+                    Text("푸시 알림을 받으려면 알림 허용이 필요합니다.")
+                        .font(.regular_14)
+                }
+                .foregroundStyle(.mainRed)
+                .padding(.horizontal, 16)
+            }
+            .padding(.top, 14)
+            .listRowInsets(.init(top: 0, leading: 0, bottom: 0, trailing: 0))
         }
     }
 
@@ -152,6 +189,23 @@ struct NotificationSettingView: View {
         let hour = components.hour ?? 0
         let minute = components.minute ?? 0
         return String(format: "%02d:%02d", hour, minute)
+    }
+
+    private func refreshSystemNotificationState() {
+        UNUserNotificationCenter.current().getNotificationSettings { settings in
+            let enabled: Bool
+            switch settings.authorizationStatus {
+            case .authorized, .provisional, .ephemeral:
+                enabled = true
+            case .denied, .notDetermined:
+                enabled = false
+            @unknown default:
+                enabled = false
+            }
+            DispatchQueue.main.async {
+                isSystemNotificationOff = !enabled
+            }
+        }
     }
 }
 

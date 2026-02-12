@@ -104,6 +104,10 @@ struct CalendarMainView: View {
                 .ignoresSafeArea()
         }
         .sheet(isPresented: $isPresentedEventSheet) {
+            let isFutureSelectedDate = viewModel.selectedDate.startOfDay > Date().startOfDay
+            let periodIconColor: Color = isFutureSelectedDate ? .mainNeutral20 : .mainRed
+            let pillIconColor: Color = isFutureSelectedDate ? .mainNeutral20 : .subBlue
+            let loveIconColor: Color = isFutureSelectedDate ? .mainNeutral20 : .subPink
             NavigationStack {
                 Form {
                     Section(header: EmptyView()) {
@@ -112,7 +116,7 @@ struct CalendarMainView: View {
                                 Text("생리")
                             } icon: {
                                 Image(systemName: "drop.fill")
-                                    .foregroundStyle(.mainRed)
+                                    .foregroundStyle(periodIconColor)
                             }
                         }
                         .tint(.mainRed)
@@ -125,7 +129,7 @@ struct CalendarMainView: View {
                                 Text("피임약 복용")
                             } icon: {
                                 Image(.pillHalf)
-                                    .foregroundStyle(.subBlue)
+                                    .foregroundStyle(pillIconColor)
                             }
                         }
                         .tint(.subBlue)
@@ -138,7 +142,7 @@ struct CalendarMainView: View {
                                 Text("사랑한 날")
                             } icon: {
                                 Image(systemName: "heart.fill")
-                                    .foregroundStyle(.subPink)
+                                    .foregroundStyle(loveIconColor)
                             }
                         }
                         .tint(.subPink)
@@ -147,6 +151,7 @@ struct CalendarMainView: View {
                         }
                     }
                     .listRowBackground(Color.bgSecondary)
+                    .disabled(isFutureSelectedDate)
                 }
                 .scrollDisabled(true)
                 .padding(.top, 14)

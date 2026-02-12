@@ -483,6 +483,9 @@ extension CalendarViewModel {
         }
         
         let predictedStart = calendar.date(byAdding: .day, value: avgCycle, to: lastStart)!
+        if target == predictedStart.startOfDay {
+            return .bDay
+        }
         if target >= predictedStart {
             return .delayed(days: max(calendar.dateComponents([.day], from: predictedStart.startOfDay, to: target).day ?? 0, 0))
         }
@@ -586,6 +589,7 @@ extension CalendarViewModel {
 enum CalendarPrimaryStatus: Equatable {
     case countdown(days: Int)
     case ongoing(day: Int)
+    case bDay
     case delayed(days: Int)
     case unknown
     
@@ -595,6 +599,8 @@ enum CalendarPrimaryStatus: Equatable {
             return "B-\(days)"
         case .ongoing(let day):
             return "B+\(day)"
+        case .bDay:
+            return "B-Day"
         case .delayed:
             return "생리 지연"
         case .unknown:

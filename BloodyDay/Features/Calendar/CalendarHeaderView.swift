@@ -105,7 +105,8 @@ struct CalendarHeaderView: View {
             
             Rectangle()
                 .fill(.mainNeutralSecondary.opacity(0.12))
-                .frame(height: 1)
+                .frame(height: 1.2)
+                .offset(y: 0.6)
         }
         .sheet(isPresented: $datePickerPresented) {
             NavigationStack {
