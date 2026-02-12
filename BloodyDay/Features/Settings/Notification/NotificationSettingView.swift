@@ -37,13 +37,16 @@ struct NotificationSettingView: View {
                             .labelsHidden()
                     }
                     
-                    HStack {
-                        Text("생리 지연")
-                            .font(.regular_18)
-                            .foregroundStyle(.textPrimary)
-                        Spacer()
-                        Toggle("", isOn: notificationBinding(\.periodDelayedEnabled, sheet: nil))
-                            .labelsHidden()
+                    if notifications.periodReminderEnabled {
+                        HStack {
+                            Text("생리 지연")
+                                .font(.regular_18)
+                                .foregroundStyle(.textPrimary)
+                            Spacer()
+                            Toggle("", isOn: notificationBinding(\.periodDelayedEnabled, sheet: nil))
+                                .labelsHidden()
+                        }
+                        .transition(.asymmetric(insertion: .opacity.combined(with: .move(edge: .top)), removal: .opacity))
                     }
                 }
                 .listRowBackground(Color.bgSecondary)
@@ -98,6 +101,7 @@ struct NotificationSettingView: View {
             .listSectionSpacing(14)
             .contentMargins(.top, 14)
             .scrollContentBackground(.hidden)
+            .animation(.easeInOut(duration: 0.2), value: notifications.periodReminderEnabled)
         }
         .background {
             Color.bgPrimary
