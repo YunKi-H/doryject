@@ -186,7 +186,9 @@ extension CalendarViewModel {
             userEvents: userEvents
         ) {
             for key in predictedEventsByDay.keys {
-                predictedEventsByDay[key] = predictedEventsByDay[key]?.filter { $0 != .period && $0 != .delayed } ?? []
+                predictedEventsByDay[key] = predictedEventsByDay[key]?.filter {
+                    $0 != .period && $0 != .delayed && $0 != .ovulation && $0 != .fertile
+                } ?? []
             }
             for (key, types) in pillPrediction {
                 var merged = predictedEventsByDay[key, default: []]
@@ -258,30 +260,75 @@ extension CalendarViewModel {
             .filter { $0.type == .pill }
             .map { $0.date.startOfDay }
         guard let anchor = mostRecentPillStart(from: Set(pillDates), calendar: .current) else { return nil }
-        let pillCount = max(settingsRepository?.load().pill.pillCount ?? 0, 0)
-        guard pillCount > 0 else { return nil }
+        let pillSettings = settingsRepository?.load().pill
+        let pillCount = max(pillSettings?.pillCount ?? 0, 0)
+        let breakDays = max(pillSettings?.pillBreakDuration ?? 0, 0)
+        let cycleLength = pillCount + breakDays
+        guard pillCount > 0, cycleLength > 0 else { return nil }
         let calendar = Calendar.current
-        guard let lastPill = calendar.date(byAdding: .day, value: pillCount - 1, to: anchor.startOfDay),
-              let predictedStart = calendar.date(byAdding: .day, value: 3, to: lastPill) else {
-            return nil
-        }
-        let lengthDays = max(periodAutoLengthDays(), 1)
-        guard let endExclusive = calendar.date(byAdding: .day, value: lengthDays, to: predictedStart) else {
+        guard let lastPillInFirstCycle = calendar.date(byAdding: .day, value: pillCount - 1, to: anchor.startOfDay),
+              let firstPredictedStart = calendar.date(byAdding: .day, value: 3, to: lastPillInFirstCycle) else {
             return nil
         }
 
         let normalizedStart = rangeStart.startOfDay
         let normalizedEnd = rangeEndExclusive.startOfDay
         let today = Date().startOfDay
+        let lengthDays = max(periodAutoLengthDays(), 1)
+        let lutealDays = 14
         var predicted: [Date: [EventType]] = [:]
+        var cyclePredictedStart = firstPredictedStart.startOfDay
 
-        for day in Date.dates(from: predictedStart.startOfDay, toExclusive: endExclusive) {
-            guard day >= normalizedStart && day < normalizedEnd else { continue }
-            let type: EventType = day < today ? .delayed : .period
-            predicted[day, default: []].append(type)
+        while true {
+            guard let cycleEndExclusive = calendar.date(byAdding: .day, value: lengthDays, to: cyclePredictedStart) else {
+                break
+            }
+            if cycleEndExclusive > normalizedStart { break }
+            guard let nextCycleStart = calendar.date(byAdding: .day, value: cycleLength, to: cyclePredictedStart) else {
+                break
+            }
+            cyclePredictedStart = nextCycleStart.startOfDay
         }
 
-        return predicted.isEmpty ? nil : predicted
+        while cyclePredictedStart < normalizedEnd {
+            guard let cycleEndExclusive = calendar.date(byAdding: .day, value: lengthDays, to: cyclePredictedStart) else {
+                break
+            }
+
+            for day in Date.dates(from: cyclePredictedStart, toExclusive: cycleEndExclusive) {
+                guard day >= normalizedStart && day < normalizedEnd else { continue }
+                let type: EventType = day < today ? .delayed : .period
+                predicted[day, default: []].append(type)
+            }
+
+            let ovulation = calendar.date(byAdding: .day, value: -lutealDays, to: cyclePredictedStart)!.startOfDay
+            let fertileStart = calendar.date(byAdding: .day, value: -5, to: ovulation)!.startOfDay
+            let fertileEnd = calendar.date(byAdding: .day, value: 1, to: ovulation)!.startOfDay
+
+            for day in Date.dates(from: fertileStart, to: fertileEnd) {
+                guard day >= normalizedStart && day < normalizedEnd else { continue }
+                predicted[day, default: []].append(.fertile)
+            }
+
+            if ovulation >= normalizedStart && ovulation < normalizedEnd {
+                predicted[ovulation, default: []].append(.ovulation)
+            }
+
+            guard let nextCycleStart = calendar.date(byAdding: .day, value: cycleLength, to: cyclePredictedStart) else {
+                break
+            }
+            cyclePredictedStart = nextCycleStart.startOfDay
+        }
+
+        return predicted.mapValues { types in
+            var seen: Set<EventType> = []
+            var unique: [EventType] = []
+            for type in types where !seen.contains(type) {
+                seen.insert(type)
+                unique.append(type)
+            }
+            return unique
+        }
     }
     
     private func buildRangesSplittingByWeeks(
