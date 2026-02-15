@@ -125,16 +125,18 @@ struct DayInfoCardView: View {
         subTextColor: Color,
         backgroundColor: Color
     ) -> some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 4) {
             icon
             Text(text)
                 .font(.regular_16)
                 .lineLimit(1)
+                .minimumScaleFactor(0.8)
                 .foregroundStyle(textColor)
             if let subText {
                 Text(subText)
                     .font(.regular_14)
                     .lineLimit(1)
+                    .minimumScaleFactor(0.8)
                     .foregroundStyle(subTextColor)
             }
         }
