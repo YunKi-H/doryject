@@ -124,7 +124,7 @@ struct AppleCalendarSettingView: View {
         }
         .navigationBarTitleDisplayMode(.inline)
     }
-
+    
     private func eventToggleBinding(_ type: EventType) -> Binding<Bool> {
         Binding(
             get: { viewModel.isEventEnabled(type) },
@@ -133,7 +133,7 @@ struct AppleCalendarSettingView: View {
             }
         )
     }
-
+    
     private func calendarNameBinding(_ type: EventType) -> Binding<String> {
         Binding(
             get: { viewModel.calendarNameInput(for: type) },

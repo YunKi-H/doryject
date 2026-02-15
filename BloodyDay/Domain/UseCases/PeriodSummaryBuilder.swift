@@ -19,11 +19,11 @@ enum PeriodSummaryBuilder {
     static func build(from dates: [Date], calendar: Calendar = .current) -> [PeriodSummary] {
         let normalized = Array(Set(dates.map { $0.startOfDay })).sorted()
         guard !normalized.isEmpty else { return [] }
-
+        
         var segments: [(start: Date, end: Date)] = []
         var currentStart = normalized[0]
         var currentEnd = normalized[0]
-
+        
         for date in normalized.dropFirst() {
             let expectedNext = calendar.date(byAdding: .day, value: 1, to: currentEnd)!
             if calendar.isDate(date, inSameDayAs: expectedNext) {
@@ -35,7 +35,7 @@ enum PeriodSummaryBuilder {
             }
         }
         segments.append((start: currentStart, end: currentEnd))
-
+        
         var summaries: [PeriodSummary] = []
         for idx in segments.indices {
             let start = segments[idx].start
@@ -50,7 +50,7 @@ enum PeriodSummaryBuilder {
                 let cycle = calendar.dateComponents([.day], from: prevStart, to: start).day ?? 0
                 cycleDays = cycle > 0 ? cycle : nil
             }
-
+            
             summaries.append(
                 PeriodSummary(
                     start: start,
@@ -60,7 +60,7 @@ enum PeriodSummaryBuilder {
                 )
             )
         }
-
+        
         return summaries
     }
 }

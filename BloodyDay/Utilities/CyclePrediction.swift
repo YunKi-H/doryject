@@ -40,13 +40,13 @@ enum CyclePrediction {
         var predicted: [Date: [EventType]] = [:]
         let today = Date().startOfDay
         var nextStart = calendar.date(byAdding: .day, value: cycleDays, to: lastStart.startOfDay)!
-
+        
         while true {
             let periodEndExclusive = calendar.date(byAdding: .day, value: periodDays, to: nextStart)!
             let ovulation = calendar.date(byAdding: .day, value: -lutealDays, to: nextStart)!.startOfDay
             let fertileStart = calendar.date(byAdding: .day, value: -5, to: ovulation)!.startOfDay
             let fertileEnd = calendar.date(byAdding: .day, value: 1, to: ovulation)!.startOfDay
-
+            
             if periodEndExclusive <= normalizedRangeStart {
                 nextStart = calendar.date(byAdding: .day, value: cycleDays, to: nextStart)!
                 continue
@@ -54,24 +54,24 @@ enum CyclePrediction {
             if fertileStart >= normalizedRangeEnd {
                 break
             }
-
+            
             for day in Date.dates(from: nextStart, toExclusive: periodEndExclusive) {
                 if day >= normalizedRangeStart && day < normalizedRangeEnd {
                     let periodType: EventType = day < today ? .delayed : .period
                     predicted[day, default: []].append(periodType)
                 }
             }
-
+            
             for day in Date.dates(from: fertileStart, to: fertileEnd) {
                 if day >= normalizedRangeStart && day < normalizedRangeEnd {
                     predicted[day, default: []].append(.fertile)
                 }
             }
-
+            
             if ovulation >= normalizedRangeStart && ovulation < normalizedRangeEnd {
                 predicted[ovulation, default: []].append(.ovulation)
             }
-
+            
             nextStart = calendar.date(byAdding: .day, value: cycleDays, to: nextStart)!
         }
         

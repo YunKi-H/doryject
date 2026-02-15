@@ -13,7 +13,7 @@ final class AppleCalendarSyncService {
     private let calendarClient: AppleCalendarClient
     private let syncStore: AppleCalendarSyncStore
     private let supportedTypes: [EventType] = [.period, .pill, .love]
-
+    
     init(
         settingsRepository: SettingsRepository,
         eventRepository: EventRepository,
@@ -25,14 +25,14 @@ final class AppleCalendarSyncService {
         self.calendarClient = calendarClient
         self.syncStore = syncStore
     }
-
+    
     func syncAll() async {
         var settings = settingsRepository.load()
         guard settings.appleCalendar.isEnabled else { return }
         guard await calendarClient.requestAccess() else { return }
-
+        
         var validIds: Set<UUID> = []
-
+        
         for type in supportedTypes {
             if settings.appleCalendar.eventSyncEnabled[type] == true {
                 if let calendarId = await ensureCalendar(for: type, settings: &settings) {
@@ -67,22 +67,22 @@ final class AppleCalendarSyncService {
                 removeEvents(for: type)
             }
         }
-
+        
         removeOrphanedRecords(validIds: validIds)
     }
-
+    
     func syncUpsert(event: UserEvent) async {
         let settings = settingsRepository.load()
         guard settings.appleCalendar.isEnabled else { return }
         guard supportedTypes.contains(event.type) else { return }
         guard settings.appleCalendar.eventSyncEnabled[event.type] == true else { return }
         guard await calendarClient.requestAccess() else { return }
-
+        
         if event.type == .period {
             await syncAll()
             return
         }
-
+        
         var mutableSettings = settings
         guard let calendarId = await ensureCalendar(for: event.type, settings: &mutableSettings) else { return }
         let title = calendarTitle(for: event.type, settings: settings)
@@ -94,17 +94,17 @@ final class AppleCalendarSyncService {
             title: title
         )
     }
-
+    
     func syncDelete(eventId: UUID, eventType: EventType?) async {
         let settings = settingsRepository.load()
         guard settings.appleCalendar.isEnabled else { return }
         guard await calendarClient.requestAccess() else { return }
-
+        
         if eventType == .period {
             await syncAll()
             return
         }
-
+        
         if let record = syncStore.record(for: eventId) {
             calendarClient.deleteEvent(identifier: record.ekEventIdentifier)
             syncStore.remove(for: eventId)
@@ -112,18 +112,18 @@ final class AppleCalendarSyncService {
             // No record found, nothing to delete.
         }
     }
-
+    
     func syncDelete(events: [UserEvent]) async {
         guard !events.isEmpty else { return }
         let settings = settingsRepository.load()
         guard settings.appleCalendar.isEnabled else { return }
         guard await calendarClient.requestAccess() else { return }
-
+        
         if events.contains(where: { $0.type == .period }) {
             await syncAll()
             return
         }
-
+        
         for event in events {
             if let record = syncStore.record(for: event.id) {
                 calendarClient.deleteEvent(identifier: record.ekEventIdentifier)
@@ -131,7 +131,7 @@ final class AppleCalendarSyncService {
             }
         }
     }
-
+    
     func disableAll(calendarIdentifiers: [EventType: String]) async {
         guard await calendarClient.requestAccess() else { return }
         for identifier in calendarIdentifiers.values {
@@ -139,7 +139,7 @@ final class AppleCalendarSyncService {
         }
         syncStore.removeAll()
     }
-
+    
     func disable(type: EventType, calendarIdentifier: String?) async {
         guard await calendarClient.requestAccess() else { return }
         if let identifier = calendarIdentifier {
@@ -147,13 +147,13 @@ final class AppleCalendarSyncService {
         }
         removeRecords(for: type)
     }
-
+    
     private func ensureCalendar(
         for type: EventType,
         settings: inout UserSettings
     ) async -> String? {
         let name = settings.appleCalendar.calendarNames[type]
-            ?? AppleCalendarSettings.defaultCalendarNames[type, default: "BloodyDay"]
+        ?? AppleCalendarSettings.defaultCalendarNames[type, default: "BloodyDay"]
         let existing = settings.appleCalendar.calendarIdentifiers[type]
         let identifier = calendarClient.createOrFetchCalendar(name: name, existingIdentifier: existing)
         if let identifier {
@@ -162,7 +162,7 @@ final class AppleCalendarSyncService {
         }
         return identifier
     }
-
+    
     private func upsert(
         event: UserEvent,
         type: EventType,
@@ -188,7 +188,7 @@ final class AppleCalendarSyncService {
             syncStore.upsert(record)
         }
     }
-
+    
     private func removeEvents(for type: EventType) {
         let records = syncStore.records().filter { $0.eventType == type }
         for record in records {
@@ -196,26 +196,26 @@ final class AppleCalendarSyncService {
             syncStore.remove(for: record.userEventId)
         }
     }
-
+    
     private func removeRecords(for type: EventType) {
         let records = syncStore.records().filter { $0.eventType == type }
         for record in records {
             syncStore.remove(for: record.userEventId)
         }
     }
-
+    
     private func removeOrphanedRecords(validIds: Set<UUID>) {
         for record in syncStore.records() where !validIds.contains(record.userEventId) {
             calendarClient.deleteEvent(identifier: record.ekEventIdentifier)
             syncStore.remove(for: record.userEventId)
         }
     }
-
+    
     private func calendarTitle(for type: EventType, settings: UserSettings) -> String {
         settings.appleCalendar.calendarNames[type]
-            ?? AppleCalendarSettings.defaultCalendarNames[type, default: "BloodyDay"]
+        ?? AppleCalendarSettings.defaultCalendarNames[type, default: "BloodyDay"]
     }
-
+    
     private func periodSummaryId(start: Date) -> UUID {
         let calendar = Calendar.current
         let comps = calendar.dateComponents([.year, .month, .day], from: start.startOfDay)
@@ -224,7 +224,7 @@ final class AppleCalendarSyncService {
         let uuidString = "00000000-0000-0000-0000-\(suffix)"
         return UUID(uuidString: uuidString) ?? UUID()
     }
-
+    
     private func upsertPeriodSummary(
         _ summary: PeriodSummary,
         calendarIdentifier: String,

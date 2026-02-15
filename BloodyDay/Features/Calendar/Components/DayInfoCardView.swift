@@ -12,7 +12,7 @@ struct DayInfoCardView: View {
     let primaryStatus: CalendarPrimaryStatus
     let secondaryStatus: CalendarSecondaryStatus
     let hasLoveEvent: Bool
-
+    
     private static let dateFormatter: DateFormatter = .periodList
     
     @ViewBuilder
@@ -29,7 +29,7 @@ struct DayInfoCardView: View {
                 .font(.system(size: 14, weight: .regular))
         }
     }
-
+    
     private var secondaryTextColor: Color {
         switch secondaryStatus {
         case .pill(_, _), .pillBreak(_, _):
@@ -40,7 +40,7 @@ struct DayInfoCardView: View {
             return .textSecondary40
         }
     }
-
+    
     private var secondaryBackgroundColor: Color {
         switch secondaryStatus {
         case .pill(_, _), .pillBreak(_, _):
@@ -51,7 +51,7 @@ struct DayInfoCardView: View {
             return .bgPrimary
         }
     }
-
+    
     private var secondarySubTextColor: Color {
         switch secondaryStatus {
         case .pill(_, _), .pillBreak(_, _):
@@ -60,14 +60,14 @@ struct DayInfoCardView: View {
             return .textSecondary40
         }
     }
-
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(Self.dateFormatter.string(from: date))
                 .font(.regular_14)
                 .foregroundStyle(.textTertiary)
                 .padding(.leading, 6)
-
+            
             HStack(spacing: 8) {
                 if primaryStatus != .unknown {
                     statusChip(
@@ -83,7 +83,7 @@ struct DayInfoCardView: View {
                         backgroundColor: .mainRed10
                     )
                 }
-
+                
                 if secondaryStatus != .unknown {
                     statusChip(
                         icon: AnyView(secondaryIcon),
@@ -94,7 +94,7 @@ struct DayInfoCardView: View {
                         backgroundColor: secondaryBackgroundColor
                     )
                 }
-
+                
                 if hasLoveEvent {
                     Image(systemName: "heart.fill")
                         .font(.system(size: 14, weight: .regular))
@@ -104,7 +104,7 @@ struct DayInfoCardView: View {
                             Circle()
                                 .fill(.subPink20)
                         }
-                    .frame(width: 26, height: 26)
+                        .frame(width: 26, height: 26)
                 }
             }
         }
@@ -116,7 +116,7 @@ struct DayInfoCardView: View {
         }
         .padding(EdgeInsets(top: 11, leading: 16, bottom: 9, trailing: 16))
     }
-
+    
     private func statusChip(
         icon: AnyView,
         text: String,

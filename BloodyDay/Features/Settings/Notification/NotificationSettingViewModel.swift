@@ -31,7 +31,7 @@ final class NotificationSettingsViewModel {
         repo.save(settings)
         scheduler.apply(settings: settings, eventRepository: eventRepository)
     }
-
+    
     func refreshSchedules() {
         settings = repo.load()
         scheduler.apply(settings: settings, eventRepository: eventRepository)

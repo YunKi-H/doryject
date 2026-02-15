@@ -80,7 +80,7 @@ struct PillSettingView: View {
         }
         .navigationBarTitleDisplayMode(.inline)
     }
-
+    
     @ViewBuilder
     private var footerMessage: some View {
         if let focused = focusedField {

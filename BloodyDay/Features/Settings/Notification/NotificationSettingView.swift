@@ -136,7 +136,7 @@ struct NotificationSettingView: View {
             }
         }
     }
-
+    
     @ViewBuilder
     private var footerMessage: some View {
         if isSystemNotificationOff {
@@ -144,11 +144,11 @@ struct NotificationSettingView: View {
                 RoundedRectangle(cornerRadius: 100)
                     .fill(.mainRed10)
                     .frame(height: 40)
-
+                
                 HStack(spacing: 4) {
                     Image(systemName: "exclamationmark.circle.fill")
                         .font(.system(size: 14, weight: .regular))
-
+                    
                     Text("푸시 알림을 받으려면 알림 허용이 필요합니다.")
                         .font(.regular_14)
                 }
@@ -159,7 +159,7 @@ struct NotificationSettingView: View {
             .listRowInsets(.init(top: 0, leading: 0, bottom: 0, trailing: 0))
         }
     }
-
+    
     private func notificationBinding(
         _ keyPath: WritableKeyPath<NotificationSettings, Bool>,
         sheet: NotificationSheet?
@@ -174,7 +174,7 @@ struct NotificationSettingView: View {
             }
         )
     }
-
+    
     private func openSheet(
         _ sheet: NotificationSheet,
         enableKeyPath: WritableKeyPath<NotificationSettings, Bool>
@@ -184,13 +184,13 @@ struct NotificationSettingView: View {
         }
         activeSheet = sheet
     }
-
+    
     private func formatTime(_ components: DateComponents) -> String {
         let hour = components.hour ?? 0
         let minute = components.minute ?? 0
         return String(format: "%02d:%02d", hour, minute)
     }
-
+    
     private func refreshSystemNotificationState() {
         UNUserNotificationCenter.current().getNotificationSettings { settings in
             let enabled: Bool

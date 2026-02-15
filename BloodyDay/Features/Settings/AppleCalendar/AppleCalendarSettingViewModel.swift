@@ -15,7 +15,7 @@ final class AppleCalendarSettingViewModel {
     private let syncService: AppleCalendarSyncService
     private(set) var settings: UserSettings
     private let supportedTypes: [EventType] = [.period, .pill, .love]
-
+    
     init(
         repo: SettingsRepository,
         calendarClient: AppleCalendarClient,
@@ -27,7 +27,7 @@ final class AppleCalendarSettingViewModel {
         self.settings = repo.load()
         ensureDefaults()
     }
-
+    
     func setEnabled(_ enabled: Bool) async {
         settings.appleCalendar.isEnabled = enabled
         repo.save(settings)
@@ -75,15 +75,15 @@ final class AppleCalendarSettingViewModel {
             await syncService.syncAll()
         }
     }
-
+    
     func isEventEnabled(_ type: EventType) -> Bool {
         settings.appleCalendar.eventSyncEnabled[type] ?? false
     }
-
+    
     func calendarName(for type: EventType) -> String {
         settings.appleCalendar.calendarNames[type] ?? AppleCalendarSettings.defaultCalendarNames[type, default: "BloodyDay"]
     }
-
+    
     func calendarNameInput(for type: EventType) -> String {
         let stored = settings.appleCalendar.calendarNames[type]
         let fallback = AppleCalendarSettings.defaultCalendarNames[type, default: "BloodyDay"]
@@ -92,18 +92,18 @@ final class AppleCalendarSettingViewModel {
         }
         return ""
     }
-
+    
     func calendarIdentifier(for type: EventType) -> String? {
         settings.appleCalendar.calendarIdentifiers[type]
     }
-
+    
     private func setupCalendarsIfNeeded() async {
         guard await calendarClient.requestAccess() else { return }
         for type in supportedTypes where isEventEnabled(type) {
             await ensureCalendar(for: type)
         }
     }
-
+    
     private func ensureCalendar(for type: EventType) async {
         guard await calendarClient.requestAccess() else { return }
         let name = calendarName(for: type)
@@ -117,7 +117,7 @@ final class AppleCalendarSettingViewModel {
             repo.save(settings)
         }
     }
-
+    
     private func ensureDefaults() {
         if settings.appleCalendar.calendarNames.isEmpty {
             settings.appleCalendar.calendarNames = AppleCalendarSettings.defaultCalendarNames
@@ -127,7 +127,7 @@ final class AppleCalendarSettingViewModel {
         }
         repo.save(settings)
     }
-
+    
     private func ownedCalendarIdentifiers() -> [EventType: String] {
         settings.appleCalendar.calendarIdentifiers.filter { settings.appleCalendar.calendarOwnership[$0.key] == true }
     }

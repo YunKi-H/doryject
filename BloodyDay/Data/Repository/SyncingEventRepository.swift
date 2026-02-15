@@ -12,7 +12,7 @@ final class SyncingEventRepository: EventRepository {
     private let syncService: AppleCalendarSyncService
     private let settingsRepository: SettingsRepository?
     private let notificationScheduler: NotificationScheduler?
-
+    
     init(
         base: EventRepository,
         syncService: AppleCalendarSyncService,
@@ -24,7 +24,7 @@ final class SyncingEventRepository: EventRepository {
         self.settingsRepository = settingsRepository
         self.notificationScheduler = notificationScheduler
     }
-
+    
     func save(_ event: UserEvent) {
         base.save(event)
         if event.type == .period {
@@ -34,7 +34,7 @@ final class SyncingEventRepository: EventRepository {
         }
         refreshNotifications()
     }
-
+    
     func delete(id: UUID) {
         let event = base.allEvents().first(where: { $0.id == id })
         base.delete(id: id)
@@ -45,7 +45,7 @@ final class SyncingEventRepository: EventRepository {
         }
         refreshNotifications()
     }
-
+    
     func delete(type: EventType, on: Date) {
         let target = on.startOfDay
         let events = base.events(of: type).filter { $0.date.startOfDay == target }
@@ -57,19 +57,19 @@ final class SyncingEventRepository: EventRepository {
         }
         refreshNotifications()
     }
-
+    
     func allEvents() -> [UserEvent] {
         base.allEvents()
     }
-
+    
     func events(forMonth month: Date) -> [UserEvent] {
         base.events(forMonth: month)
     }
-
+    
     func events(of type: EventType) -> [UserEvent] {
         base.events(of: type)
     }
-
+    
     private func refreshNotifications() {
         guard let scheduler = notificationScheduler,
               let settingsRepository = settingsRepository else { return }

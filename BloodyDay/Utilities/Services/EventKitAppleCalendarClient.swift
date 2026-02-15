@@ -79,7 +79,7 @@ final class EventKitAppleCalendarClient: AppleCalendarClient {
             return nil
         }
     }
-
+    
     func deleteEvent(identifier: String) {
         guard let event = eventStore.event(withIdentifier: identifier) else { return }
         do {

@@ -98,7 +98,7 @@ struct PillPurchaseReminderSheet: View {
         }
         .navigationBarTitleDisplayMode(.inline)
     }
-
+    
     private func timeFromSettings(_ components: DateComponents, fallbackHour: Int) -> Date {
         let now = Date()
         let hour = components.hour ?? fallbackHour
@@ -110,7 +110,7 @@ struct PillPurchaseReminderSheet: View {
             of: now
         ) ?? now
     }
-
+    
     private func applyChanges() {
         let timeComponents = Calendar.current.dateComponents([.hour, .minute], from: reminderTime)
         viewModel.updateNotifications {
