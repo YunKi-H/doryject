@@ -64,14 +64,14 @@ extension Date {
     }
 
     /// Exclusive upper bound for the calendar grid (start of the day after the last cell)
-    func endOfCalendarGridExclusiveStart(weekStartsOn firstWeekday: Weekday = .sunday) -> Date {
+    func endOfCalendarGridExclusiveStart(weekStartsOn firstWeekday: Weekday = .monday) -> Date {
         var cal = calendar
         cal.firstWeekday = firstWeekday.rawValue
         let startOfCalendarGrid = self.startOfCalendarGrid(weekStartsOn: firstWeekday)
         return cal.date(byAdding: .day, value: 42, to: startOfCalendarGrid)!.startOfDay
     }
 
-    func endOfCalendarGrid(weekStartsOn firstWeekday: Weekday = .sunday) -> Date {
+    func endOfCalendarGrid(weekStartsOn firstWeekday: Weekday = .monday) -> Date {
         // Backward compatible: keep returning the last day's end-of-day
         // but compute via exclusive-start helper minus 1 second.
         let exclusiveStart = endOfCalendarGridExclusiveStart(weekStartsOn: firstWeekday)

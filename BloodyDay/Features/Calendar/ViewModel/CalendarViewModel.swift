@@ -26,7 +26,12 @@ final class CalendarViewModel {
     }
     
     func refresh() {
-        bootstrapMonths(anchor: selectedDate)
+        if months.isEmpty {
+            bootstrapMonths(anchor: selectedDate)
+            return
+        }
+        let keepingMonth = months.indices.contains(currentIndex) ? months[currentIndex].monthDate : selectedDate.startOfMonth
+        recomputeLoadedMonths(keepingMonth: keepingMonth)
     }
     
     func moveSelectedDate(by days: Int) {
@@ -73,8 +78,8 @@ extension CalendarViewModel {
                 eventRepository.delete(type: type, on: date)
             }
         }
-        let anchorMonth = months.indices.contains(currentIndex) ? months[currentIndex].monthDate : date
-        bootstrapMonths(anchor: anchorMonth)
+        let keepingMonth = months.indices.contains(currentIndex) ? months[currentIndex].monthDate : date.startOfMonth
+        recomputeLoadedMonths(keepingMonth: keepingMonth)
     }
 }
 
@@ -92,39 +97,78 @@ extension CalendarViewModel {
         
         if let idx = months.firstIndex(where: { $0.monthDate == start }) {
             currentIndex = idx
-            loadPreviousIfNeeded(viewingIndex: idx)
-            loadNextIfNeeded(viewingIndex: idx)
+            loadPreviousIfNeeded(viewingIndex: currentIndex)
+            loadNextIfNeeded(viewingIndex: currentIndex)
         } else {
             bootstrapMonths(anchor: start)
         }
     }
     
     private func loadPreviousIfNeeded(viewingIndex index: Int) {
-        guard index <= 1, let first = months.first?.monthDate else { return }
-        let prev = makeMonthInfo(for: first.addingMonths(-1))
-        months.insert(prev, at: 0)
-        currentIndex += 1
+        guard months.indices.contains(index), index <= 1, let first = months.first?.monthDate else { return }
+        let prev = first.addingMonths(-1).startOfMonth
+        let monthDates = [prev] + months.map(\.monthDate)
+        let keepingMonth = months[index].monthDate
+        rebuildMonths(monthDates: monthDates, keepingMonth: keepingMonth)
     }
     
     private func loadNextIfNeeded(viewingIndex index: Int) {
-        guard index >= months.count - 2, let last = months.last?.monthDate else { return }
-        let next = makeMonthInfo(for: last.addingMonths(+1))
-        months.append(next)
+        guard months.indices.contains(index), index >= months.count - 2, let last = months.last?.monthDate else { return }
+        let next = last.addingMonths(+1).startOfMonth
+        let monthDates = months.map(\.monthDate) + [next]
+        let keepingMonth = months[index].monthDate
+        rebuildMonths(monthDates: monthDates, keepingMonth: keepingMonth)
     }
     
     private func bootstrapMonths(anchor: Date) {
-        let prev = makeMonthInfo(for: anchor.addingMonths(-1))
-        let current = makeMonthInfo(for: anchor)
-        let next = makeMonthInfo(for: anchor.addingMonths(1))
-        months = [prev, current, next]
-        currentIndex = 1
+        let anchorMonth = anchor.startOfMonth
+        let monthDates = [
+            anchorMonth.addingMonths(-1),
+            anchorMonth,
+            anchorMonth.addingMonths(1)
+        ]
+        rebuildMonths(monthDates: monthDates, keepingMonth: anchorMonth)
     }
-    
-    private func makeMonthInfo(for month: Date) -> MonthInfo {
+
+    private func recomputeLoadedMonths(keepingMonth: Date) {
+        if months.isEmpty {
+            bootstrapMonths(anchor: keepingMonth)
+            return
+        }
+
+        let monthDates = months.map(\.monthDate)
+        rebuildMonths(monthDates: monthDates, keepingMonth: keepingMonth)
+    }
+
+    private func rebuildMonths(monthDates: [Date], keepingMonth: Date) {
+        let normalizedMonthDates = monthDates.map(\.startOfMonth)
+        let calculationEvents = calculationEvents(for: normalizedMonthDates)
+        months = normalizedMonthDates.map { makeMonthInfo(for: $0, userEvents: calculationEvents) }
+
+        if let idx = months.firstIndex(where: { $0.monthDate == keepingMonth.startOfMonth }) {
+            currentIndex = idx
+        } else {
+            currentIndex = min(currentIndex, max(months.count - 1, 0))
+        }
+    }
+
+    private func calculationEvents(for monthDates: [Date]) -> [UserEvent] {
+        guard let firstMonth = monthDates.min(),
+              let lastMonth = monthDates.max() else {
+            return []
+        }
+        let calculationRangeStart = firstMonth.startOfMonth.addingMonths(-1)
+        let calculationRangeEndExclusive = lastMonth.startOfMonth.addingMonths(2)
+        return eventRepository.allEvents().filter {
+            let day = $0.date.startOfDay
+            return day >= calculationRangeStart && day < calculationRangeEndExclusive
+        }
+    }
+
+    private func makeMonthInfo(for month: Date, userEvents: [UserEvent]) -> MonthInfo {
         let monthStart = month.startOfMonth
-        let allEvents = eventRepository.allEvents()
-        let actualPeriodDates = Set(allEvents.filter { $0.type == .period }.map { $0.date.startOfDay })
-        let result = buildDayInfos(for: month, userEvents: allEvents)
+        let actualPeriodDates = Set(userEvents.filter { $0.type == .period }.map { $0.date.startOfDay })
+        let result = buildDayInfos(for: monthStart, userEvents: userEvents)
         let days: [DayInfo] = result.days
         let predictedPeriodDates: Set<Date> = result.predictedPeriodDates
         
@@ -182,8 +226,7 @@ extension CalendarViewModel {
         var predictedEventsByDay = prediction.predictedEventsByDay
         if let pillPrediction = pillBasedPeriodPrediction(
             rangeStart: gridStart,
-            rangeEndExclusive: gridEndExclusive,
-            userEvents: userEvents
+            rangeEndExclusive: gridEndExclusive
         ) {
             for key in predictedEventsByDay.keys {
                 predictedEventsByDay[key] = predictedEventsByDay[key]?.filter {
@@ -253,12 +296,9 @@ extension CalendarViewModel {
 
     private func pillBasedPeriodPrediction(
         rangeStart: Date,
-        rangeEndExclusive: Date,
-        userEvents: [UserEvent]
+        rangeEndExclusive: Date
     ) -> [Date: [EventType]]? {
-        let pillDates = userEvents
-            .filter { $0.type == .pill }
-            .map { $0.date.startOfDay }
+        let pillDates = eventRepository.events(of: .pill).map { $0.date.startOfDay }
         guard let anchor = mostRecentPillStart(from: Set(pillDates), calendar: .current) else { return nil }
         let pillSettings = settingsRepository?.load().pill
         let pillCount = max(pillSettings?.pillCount ?? 0, 0)
