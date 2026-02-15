@@ -35,7 +35,7 @@ struct DayInfoCardView: View {
         case .pill(_, _), .pillBreak(_, _):
             return .subBlue
         case .ovulation, .fertile, .notFertile:
-            return .mainNeutral
+            return .textSecondary40
         case .unknown:
             return .textSecondary40
         }
@@ -46,9 +46,9 @@ struct DayInfoCardView: View {
         case .pill(_, _), .pillBreak(_, _):
             return .subBlue10
         case .ovulation, .fertile, .notFertile:
-            return .textSecondary40
+            return .bgPrimary
         case .unknown:
-            return .textSecondary40
+            return .bgPrimary
         }
     }
 
