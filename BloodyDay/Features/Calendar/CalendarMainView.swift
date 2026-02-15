@@ -95,8 +95,10 @@ struct CalendarMainView: View {
             }
             
             DayInfoCardView(
+                date: viewModel.selectedDate,
                 primaryStatus: viewModel.primaryStatus(for: viewModel.selectedDate),
-                secondaryStatus: viewModel.secondaryStatus(for: viewModel.selectedDate)
+                secondaryStatus: viewModel.secondaryStatus(for: viewModel.selectedDate),
+                hasLoveEvent: viewModel.isEventOnSelectedDate(.love)
             )
         }
         .background {

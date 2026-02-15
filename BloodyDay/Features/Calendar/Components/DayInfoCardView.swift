@@ -8,14 +8,12 @@
 import SwiftUI
 
 struct DayInfoCardView: View {
+    let date: Date
     let primaryStatus: CalendarPrimaryStatus
     let secondaryStatus: CalendarSecondaryStatus
-    
-    private var primaryIcon: some View {
-        return Image(systemName: "drop.fill")
-            .foregroundStyle(.mainRed)
-            .font(.system(size: 14, weight: .regular))
-    }
+    let hasLoveEvent: Bool
+
+    private static let dateFormatter: DateFormatter = .periodList
     
     @ViewBuilder
     private var secondaryIcon: some View {
@@ -32,55 +30,130 @@ struct DayInfoCardView: View {
         }
     }
 
+    private var secondaryTextColor: Color {
+        switch secondaryStatus {
+        case .pill(_, _), .pillBreak(_, _):
+            return .subBlue
+        case .ovulation, .fertile, .notFertile:
+            return .textSecondary40
+        case .unknown:
+            return .textSecondary40
+        }
+    }
+
+    private var secondaryBackgroundColor: Color {
+        switch secondaryStatus {
+        case .pill(_, _), .pillBreak(_, _):
+            return .subBlue10
+        case .ovulation, .fertile, .notFertile:
+            return .bgPrimary
+        case .unknown:
+            return .bgPrimary
+        }
+    }
+
+    private var secondarySubTextColor: Color {
+        switch secondaryStatus {
+        case .pill(_, _), .pillBreak(_, _):
+            return .subBlue30
+        default:
+            return .textSecondary40
+        }
+    }
+
     var body: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(spacing: 3) {
-                    primaryIcon
-                        .frame(width: 20, height: 20)
-                    
-                    Text(primaryStatus.displayText)
-                        .font(.regular_16)
-                        .foregroundStyle(.textPrimary)
-                    
-                    if let subText = primaryStatus.subText {
-                        Text(subText)
-                            .font(.regular_14)
-                            .foregroundStyle(.textSecondary40)
-                    }
+        VStack(alignment: .leading, spacing: 12) {
+            Text(Self.dateFormatter.string(from: date))
+                .font(.regular_14)
+                .foregroundStyle(.textTertiary)
+                .padding(.leading, 6)
+
+            HStack(spacing: 8) {
+                if primaryStatus != .unknown {
+                    statusChip(
+                        icon: AnyView(
+                            Image(systemName: "drop.fill")
+                                .font(.system(size: 14, weight: .regular))
+                                .foregroundStyle(.mainRed)
+                        ),
+                        text: primaryStatus.displayText,
+                        subText: primaryStatus.subText,
+                        textColor: .mainRed,
+                        subTextColor: .mainRed50,
+                        backgroundColor: .mainRed10
+                    )
                 }
-                
-                HStack(spacing: 3) {
-                    secondaryIcon
-                        .frame(width: 20, height: 20)
-                    
-                    Text(secondaryStatus.displayText)
-                        .font(.regular_16)
-                        .foregroundStyle(.textPrimary)
-                    
-                    if let subText = secondaryStatus.subText {
-                        Text(subText)
-                            .font(.regular_14)
-                            .foregroundStyle(.textSecondary40)
-                    }
+
+                if secondaryStatus != .unknown {
+                    statusChip(
+                        icon: AnyView(secondaryIcon),
+                        text: secondaryStatus.displayText,
+                        subText: secondaryStatus.subText,
+                        textColor: secondaryTextColor,
+                        subTextColor: secondarySubTextColor,
+                        backgroundColor: secondaryBackgroundColor
+                    )
+                }
+
+                if hasLoveEvent {
+                    Image(systemName: "heart.fill")
+                        .font(.system(size: 14, weight: .regular))
+                        .foregroundStyle(.subPink)
+                        .frame(width: 26, height: 26)
+                        .background {
+                            Circle()
+                                .fill(.subPink20)
+                        }
+                    .frame(width: 26, height: 26)
                 }
             }
-            .foregroundStyle(.textPrimary)
-            
-            Spacer()
         }
-        .padding(EdgeInsets(top: 16, leading: 20, bottom: 16, trailing: 20))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(EdgeInsets(top: 14, leading: 14, bottom: 14, trailing: 14))
         .background {
-            RoundedRectangle(cornerRadius: 16)
+            RoundedRectangle(cornerRadius: 20)
                 .foregroundStyle(.bgSecondary)
         }
-        .padding(EdgeInsets(top: 11, leading: 16, bottom: 11, trailing: 16))
+        .padding(EdgeInsets(top: 11, leading: 16, bottom: 9, trailing: 16))
+    }
+
+    private func statusChip(
+        icon: AnyView,
+        text: String,
+        subText: String?,
+        textColor: Color,
+        subTextColor: Color,
+        backgroundColor: Color
+    ) -> some View {
+        HStack(spacing: 4) {
+            icon
+            Text(text)
+                .font(.regular_16)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .foregroundStyle(textColor)
+            if let subText {
+                Text(subText)
+                    .font(.regular_14)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                    .foregroundStyle(subTextColor)
+            }
+        }
+        .padding(.horizontal, 10)
+        .frame(height: 26)
+        .background {
+            Capsule(style: .continuous)
+                .fill(backgroundColor)
+        }
     }
 }
 
 #Preview {
     DayInfoCardView(
+        date: .now,
         primaryStatus: .countdown(days: 14),
-        secondaryStatus: .notFertile
+        secondaryStatus: .pill(day: 18, total: 21),
+        hasLoveEvent: true
     )
 }
