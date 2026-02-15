@@ -323,15 +323,18 @@ extension CalendarViewModel {
             guard let cycleEndExclusive = calendar.date(byAdding: .day, value: lengthDays, to: cyclePredictedStart) else {
                 break
             }
-            if cycleEndExclusive > normalizedStart { break }
-            guard let nextCycleStart = calendar.date(byAdding: .day, value: cycleLength, to: cyclePredictedStart) else {
-                break
-            }
-            cyclePredictedStart = nextCycleStart.startOfDay
-        }
+            let ovulation = calendar.date(byAdding: .day, value: -lutealDays, to: cyclePredictedStart)!.startOfDay
+            let fertileStart = calendar.date(byAdding: .day, value: -5, to: ovulation)!.startOfDay
+            let fertileEnd = calendar.date(byAdding: .day, value: 1, to: ovulation)!.startOfDay
 
-        while cyclePredictedStart < normalizedEnd {
-            guard let cycleEndExclusive = calendar.date(byAdding: .day, value: lengthDays, to: cyclePredictedStart) else {
+            if cycleEndExclusive <= normalizedStart {
+                guard let nextCycleStart = calendar.date(byAdding: .day, value: cycleLength, to: cyclePredictedStart) else {
+                    break
+                }
+                cyclePredictedStart = nextCycleStart.startOfDay
+                continue
+            }
+            if fertileStart >= normalizedEnd {
                 break
             }
 
@@ -340,10 +343,6 @@ extension CalendarViewModel {
                 let type: EventType = day < today ? .delayed : .period
                 predicted[day, default: []].append(type)
             }
-
-            let ovulation = calendar.date(byAdding: .day, value: -lutealDays, to: cyclePredictedStart)!.startOfDay
-            let fertileStart = calendar.date(byAdding: .day, value: -5, to: ovulation)!.startOfDay
-            let fertileEnd = calendar.date(byAdding: .day, value: 1, to: ovulation)!.startOfDay
 
             for day in Date.dates(from: fertileStart, to: fertileEnd) {
                 guard day >= normalizedStart && day < normalizedEnd else { continue }
