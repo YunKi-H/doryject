@@ -163,6 +163,10 @@ struct PeriodListView: View {
         .background {
             Color.bgPrimary
                 .ignoresSafeArea()
+            Image(.onBoardingBG)
+                .resizable()
+                .frame(width: 700, height: 700)
+                .offset(x: 18, y: -30)
         }
         .onAppear {
             viewModel.refresh()
