@@ -54,7 +54,7 @@ struct DayCellView: View {
                     }
                 }
                 .padding(.top, 12)
-                
+            
             
             Spacer()
             

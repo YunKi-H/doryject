@@ -30,7 +30,7 @@ final class PeriodSettingViewModel {
         settings.period.averagePeriodDays = period
         repo.save(settings)
     }
-
+    
     func resetAllEvents() {
         guard let eventRepository else { return }
         let events = eventRepository.allEvents()

@@ -110,7 +110,7 @@ struct PeriodReminderSheet: View {
             of: now
         ) ?? now
     }
-
+    
     private func applyChanges() {
         let timeComponents = Calendar.current.dateComponents([.hour, .minute], from: reminderTime)
         viewModel.updateNotifications {

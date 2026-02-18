@@ -11,14 +11,14 @@ final class NoopAppleCalendarClient: AppleCalendarClient {
     func requestAccess() async -> Bool {
         true
     }
-
+    
     func createOrFetchCalendar(name: String, existingIdentifier: String?) -> String? {
         existingIdentifier ?? UUID().uuidString
     }
-
+    
     func removeCalendar(identifier: String) {
     }
-
+    
     func upsertEvent(
         event: UserEvent,
         calendarIdentifier: String,
@@ -28,7 +28,7 @@ final class NoopAppleCalendarClient: AppleCalendarClient {
     ) -> String? {
         existingEventIdentifier ?? UUID().uuidString
     }
-
+    
     func deleteEvent(identifier: String) {
     }
 }

@@ -14,13 +14,13 @@ struct AppleCalendarSettings: Codable {
     var calendarIdentifiers: [EventType: String] = [:]
     var calendarOwnership: [EventType: Bool] = [:]
     var lastSyncedAt: Date? = nil
-
+    
     static let defaultEventSyncEnabled: [EventType: Bool] = [
         .period: false,
         .pill: false,
         .love: false
     ]
-
+    
     static let defaultCalendarNames: [EventType: String] = [
         .period: "🩸B-Day",
         .pill: "💊피임약 복용",

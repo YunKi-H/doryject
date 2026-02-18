@@ -25,34 +25,23 @@ final class PeriodListViewModel {
         let events = eventRepository.events(of: .period)
         summaries = PeriodSummaryBuilder.build(from: events.map { $0.date })
     }
-
+    
     func periodDates() -> Set<Date> {
         Set(eventRepository.events(of: .period).map { $0.date.startOfDay })
     }
-
+    
     func applyPeriodDates(_ dates: Set<Date>) {
-        let existing = periodDates()
-        let toAdd = dates.subtracting(existing)
-        let toRemove = existing.subtracting(dates)
-
-        for day in toAdd {
-            let new = UserEvent(id: .init(), date: day.startOfDay, type: .period)
-            eventRepository.save(new)
-        }
-
-        for day in toRemove {
-            eventRepository.delete(type: .period, on: day.startOfDay)
-        }
-
+        let normalized = Set(dates.map(\.startOfDay))
+        eventRepository.replace(type: .period, on: normalized)
         refresh()
     }
-
+    
     func delete(summary: PeriodSummary) {
         let start = summary.start.startOfDay
         let end = summary.end.startOfDay
-        for day in Date.dates(from: start, to: end) {
-            eventRepository.delete(type: .period, on: day)
-        }
+        let toRemove = Set(Date.dates(from: start, to: end).map(\.startOfDay))
+        let remaining = periodDates().subtracting(toRemove)
+        eventRepository.replace(type: .period, on: remaining)
         refresh()
     }
     
@@ -87,13 +76,13 @@ final class PeriodListViewModel {
     func format(_ date: Date) -> String {
         formatter.string(from: date)
     }
-
+    
     func rangeDisplay(start: Date, end: Date) -> String {
         let calendar = Calendar.current
         let startComp = calendar.dateComponents([.year, .month, .day], from: start)
         let endComp = calendar.dateComponents([.year, .month, .day], from: end)
         let startText = format(start)
-
+        
         let endText: String
         if startComp.year == endComp.year {
             if startComp.month == endComp.month {
@@ -104,7 +93,7 @@ final class PeriodListViewModel {
         } else {
             endText = format(end)
         }
-
+        
         return "\(startText) - \(endText)"
     }
 }

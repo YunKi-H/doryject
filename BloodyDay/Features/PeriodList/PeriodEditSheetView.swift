@@ -20,7 +20,7 @@ struct PeriodEditSheetView: View {
     @State private var datePickerPresented: Bool = false
     @State private var newDate: Date = .now
     @State private var discardPopoverPresented: Bool = false
-
+    
     init(viewModel: PeriodListViewModel, initialDate: Date = .now) {
         self.viewModel = viewModel
         self._selectedDate = State(initialValue: initialDate.startOfDay)
@@ -135,7 +135,7 @@ struct PeriodEditSheetView: View {
                                 .multilineTextAlignment(.center)
                                 .padding(EdgeInsets(top: 8, leading: 8, bottom: 24, trailing: 8))
                                 .padding(EdgeInsets(top: 14, leading: 14, bottom: 0, trailing: 14))
-
+                            
                             Button("취소하기") {
                                 dismiss()
                             }
@@ -173,7 +173,7 @@ struct PeriodEditSheetView: View {
             .navigationBarTitleDisplayMode(.inline)
         }
     }
-
+    
     private var headerView: some View {
         VStack(spacing: 0) {
             HStack(alignment: .top, spacing: 10) {
@@ -232,7 +232,7 @@ struct PeriodEditSheetView: View {
                 .frame(height: 1)
         }
     }
-
+    
     private func selectDate(_ date: Date) {
         if !selectedDate.isInSameMonth(as: date) {
             setCurrentMonth(to: date)
@@ -242,7 +242,7 @@ struct PeriodEditSheetView: View {
             selectionMonth = date.startOfMonth
         }
     }
-
+    
     private func togglePeriod(on date: Date) {
         selectDate(date)
         let normalized = date.startOfDay
@@ -253,12 +253,12 @@ struct PeriodEditSheetView: View {
         }
         refreshMonths()
     }
-
+    
     private func refreshMonths() {
         let monthDates = months.map(\.monthDate)
         months = monthDates.map { makeMonthInfo(for: $0) }
     }
-
+    
     private func setCurrentMonth(to month: Date) {
         let start = month.startOfMonth
         if let idx = months.firstIndex(where: { $0.monthDate == start }) {
@@ -270,20 +270,20 @@ struct PeriodEditSheetView: View {
         }
         selectionMonth = months.indices.contains(currentIndex) ? months[currentIndex].monthDate : start
     }
-
+    
     private func loadPreviousIfNeeded(viewingIndex index: Int) {
         guard index <= 1, let first = months.first?.monthDate else { return }
         let prev = makeMonthInfo(for: first.addingMonths(-1))
         months.insert(prev, at: 0)
         currentIndex += 1
     }
-
+    
     private func loadNextIfNeeded(viewingIndex index: Int) {
         guard index >= months.count - 2, let last = months.last?.monthDate else { return }
         let next = makeMonthInfo(for: last.addingMonths(+1))
         months.append(next)
     }
-
+    
     private func bootstrapMonths(anchor: Date) {
         let prev = makeMonthInfo(for: anchor.addingMonths(-1))
         let current = makeMonthInfo(for: anchor)
@@ -291,7 +291,7 @@ struct PeriodEditSheetView: View {
         months = [prev, current, next]
         currentIndex = 1
     }
-
+    
     private func makeMonthInfo(for month: Date) -> MonthInfo {
         let monthStart = month.startOfMonth
         let days = buildDayInfos(for: month)
@@ -309,7 +309,7 @@ struct PeriodEditSheetView: View {
             ovulationRanges: []
         )
     }
-
+    
     private func buildDayInfos(for month: Date) -> [DayInfo] {
         let gridStart = month.startOfCalendarGrid()
         let gridEndExclusive = month.endOfCalendarGridExclusiveStart()
@@ -320,7 +320,7 @@ struct PeriodEditSheetView: View {
             return DayInfo(date: date)
         }
     }
-
+    
     private func buildRangesSplittingByWeeks(
         days: [DayInfo],
         hasEvent: (DayInfo) -> Bool,
@@ -329,11 +329,11 @@ struct PeriodEditSheetView: View {
         var ranges: [DateInterval] = []
         var currentStart: Date? = nil
         var lastIndex: Int? = nil
-
+        
         for idx in days.indices {
             let day = days[idx]
             let isOn = hasEvent(day)
-
+            
             if isOn {
                 if currentStart == nil {
                     currentStart = day.date
@@ -353,15 +353,15 @@ struct PeriodEditSheetView: View {
                 lastIndex = nil
             }
         }
-
+        
         if let li = lastIndex, let start = currentStart {
             let endDate = days[li].date
             ranges.append(DateInterval(start: start, end: endDate))
         }
-
+        
         return ranges
     }
-
+    
     private var hasChanges: Bool {
         selectedPeriodDates != originalPeriodDates
     }

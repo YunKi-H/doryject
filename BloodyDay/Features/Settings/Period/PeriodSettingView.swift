@@ -32,8 +32,8 @@ struct PeriodSettingView: View {
                 .listRowBackground(Color.bgSecondary)
                 .tint(.mainRed)
                 
-            if !autoCalculate {
-                Section {
+                if !autoCalculate {
+                    Section {
                         Button {
                             withAnimation {
                                 toggleGapPicker = false
@@ -93,25 +93,25 @@ struct PeriodSettingView: View {
                             .pickerStyle(.wheel)
                             .frame(height: 140)
                         }
+                    }
+                    .listRowBackground(Color.bgSecondary)
+                    .tint(.mainRed)
+                }
+                
+                Section {
+                    Button(role: .destructive) {
+                        resetAlertPresented = true
+                    } label: {
+                        Text("모든 이벤트 기록 삭제")
+                            .font(.regular_18)
+                            .foregroundStyle(.mainRed)
+                    }
                 }
                 .listRowBackground(Color.bgSecondary)
-                .tint(.mainRed)
             }
-
-            Section {
-                Button(role: .destructive) {
-                    resetAlertPresented = true
-                } label: {
-                    Text("모든 이벤트 기록 삭제")
-                        .font(.regular_18)
-                        .foregroundStyle(.mainRed)
-                }
-            }
-            .listRowBackground(Color.bgSecondary)
-        }
-        .listSectionSpacing(14)
-        .contentMargins(.top, 14)
-        .scrollContentBackground(.hidden)
+            .listSectionSpacing(14)
+            .contentMargins(.top, 14)
+            .scrollContentBackground(.hidden)
             .background {
                 Color.bgPrimary
                     .ignoresSafeArea()
@@ -122,16 +122,16 @@ struct PeriodSettingView: View {
                         .font(.semibold_18)
                 }
             }
-        .navigationBarTitleDisplayMode(.inline)
-        .alert("모든 이벤트 기록을 삭제할까요?", isPresented: $resetAlertPresented) {
-            Button("취소", role: .cancel) {}
-            Button("삭제", role: .destructive) {
-                viewModel.resetAllEvents()
+            .navigationBarTitleDisplayMode(.inline)
+            .alert("모든 이벤트 기록을 삭제할까요?", isPresented: $resetAlertPresented) {
+                Button("취소", role: .cancel) {}
+                Button("삭제", role: .destructive) {
+                    viewModel.resetAllEvents()
+                }
+            } message: {
+                Text("삭제된 기록은 복구할 수 없습니다.")
             }
-        } message: {
-            Text("삭제된 기록은 복구할 수 없습니다.")
         }
-    }
         .onAppear {
             let period = viewModel.settings.period
             autoCalculate = period.autoCyclePredictionEnabled

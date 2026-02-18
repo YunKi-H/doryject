@@ -12,7 +12,7 @@ final class SyncingEventRepository: EventRepository {
     private let syncService: AppleCalendarSyncService
     private let settingsRepository: SettingsRepository?
     private let notificationScheduler: NotificationScheduler?
-
+    
     init(
         base: EventRepository,
         syncService: AppleCalendarSyncService,
@@ -24,8 +24,9 @@ final class SyncingEventRepository: EventRepository {
         self.settingsRepository = settingsRepository
         self.notificationScheduler = notificationScheduler
     }
-
+    
     func save(_ event: UserEvent) {
+        enablePillIfNeeded(for: event)
         base.save(event)
         if event.type == .period {
             Task { await syncService.syncAll() }
@@ -34,7 +35,7 @@ final class SyncingEventRepository: EventRepository {
         }
         refreshNotifications()
     }
-
+    
     func delete(id: UUID) {
         let event = base.allEvents().first(where: { $0.id == id })
         base.delete(id: id)
@@ -45,7 +46,7 @@ final class SyncingEventRepository: EventRepository {
         }
         refreshNotifications()
     }
-
+    
     func delete(type: EventType, on: Date) {
         let target = on.startOfDay
         let events = base.events(of: type).filter { $0.date.startOfDay == target }
@@ -57,23 +58,49 @@ final class SyncingEventRepository: EventRepository {
         }
         refreshNotifications()
     }
-
+    
+    func replace(type: EventType, on dates: Set<Date>) {
+        if type == .pill, !dates.isEmpty {
+            enablePillIfNeeded()
+        }
+        base.replace(type: type, on: dates)
+        Task { await syncService.syncAll() }
+        refreshNotifications()
+    }
+    
     func allEvents() -> [UserEvent] {
         base.allEvents()
     }
-
+    
     func events(forMonth month: Date) -> [UserEvent] {
         base.events(forMonth: month)
     }
-
+    
     func events(of type: EventType) -> [UserEvent] {
         base.events(of: type)
     }
-
+    
     private func refreshNotifications() {
         guard let scheduler = notificationScheduler,
               let settingsRepository = settingsRepository else { return }
         let settings = settingsRepository.load()
         scheduler.apply(settings: settings, eventRepository: base)
+    }
+    
+    private func enablePillIfNeeded(for event: UserEvent) {
+        guard event.type == .pill,
+              let settingsRepository else { return }
+        var settings = settingsRepository.load()
+        guard settings.pill.pillEnabled == false else { return }
+        settings.pill.pillEnabled = true
+        settingsRepository.save(settings)
+    }
+    
+    private func enablePillIfNeeded() {
+        guard let settingsRepository else { return }
+        var settings = settingsRepository.load()
+        guard settings.pill.pillEnabled == false else { return }
+        settings.pill.pillEnabled = true
+        settingsRepository.save(settings)
     }
 }
