@@ -226,6 +226,7 @@ final class UserNotificationScheduler: NotificationScheduler {
         eventRepository: EventRepository
     ) -> Date? {
         let pillSettings = settings.pill
+        guard pillSettings.pillEnabled else { return nil }
         let pillCount = max(pillSettings.pillCount, 0)
         let breakDays = max(pillSettings.pillBreakDuration, 0)
         let cycleLength = pillCount + breakDays
@@ -250,6 +251,7 @@ final class UserNotificationScheduler: NotificationScheduler {
         eventRepository: EventRepository
     ) -> (anchor: Date, cycleLength: Int, pillCount: Int, breakDays: Int)? {
         let pillSettings = settings.pill
+        guard pillSettings.pillEnabled else { return nil }
         let pillCount = max(pillSettings.pillCount, 0)
         let breakDays = max(pillSettings.pillBreakDuration, 0)
         let cycleLength = pillCount + breakDays

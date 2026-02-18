@@ -27,11 +27,18 @@ struct PillSettingView: View {
     var body: some View {
         List {
             Section {
+                Toggle(isOn: pillBinding(\.pillEnabled)) {
+                    Text("경구 피임약 복용")
+                        .font(.regular_18)
+                        .foregroundStyle(.textPrimary)
+                }
+
                 Toggle(isOn: pillBinding(\.pillAutoRecordEnabled)) {
                     Text("캘린더에 복용일 자동 기록")
                         .font(.regular_18)
                         .foregroundStyle(.textPrimary)
                 }
+                .disabled(!viewModel.settings.pill.pillEnabled)
             }
             .listRowBackground(Color.bgSecondary)
             .tint(.subBlue)

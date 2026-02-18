@@ -298,6 +298,7 @@ extension CalendarViewModel {
         rangeStart: Date,
         rangeEndExclusive: Date
     ) -> [Date: [EventType]]? {
+        guard isPillEnabled else { return nil }
         let pillDates = eventRepository.events(of: .pill).map { $0.date.startOfDay }
         guard let anchor = mostRecentPillStart(from: Set(pillDates), calendar: .current) else { return nil }
         let pillSettings = settingsRepository?.load().pill
@@ -451,7 +452,12 @@ extension CalendarViewModel {
     }
     
     private var shouldAutoRecordPill: Bool {
-        settingsRepository?.load().pill.pillAutoRecordEnabled == true
+        guard let pillSettings = settingsRepository?.load().pill else { return false }
+        return pillSettings.pillEnabled && pillSettings.pillAutoRecordEnabled
+    }
+
+    private var isPillEnabled: Bool {
+        settingsRepository?.load().pill.pillEnabled == true
     }
     
     private func addPillEvents(startingAt date: Date) {
@@ -488,6 +494,7 @@ extension CalendarViewModel {
         pillDates: Set<Date>
     ) -> Set<Date> {
         guard let pillSettings = settingsRepository?.load().pill,
+              pillSettings.pillEnabled,
               pillSettings.pillAutoRecordEnabled else { return [] }
         let pillCount = max(pillSettings.pillCount, 0)
         let breakDays = max(pillSettings.pillBreakDuration, 0)
@@ -584,18 +591,19 @@ extension CalendarViewModel {
         if eventRepository.allEvents().isEmpty {
             return .unknown
         }
+        let shouldShowPillStatus = isPillEnabled
         guard let dayInfo = months
             .flatMap(\.days)
             .first(where: { $0.date.isSameDay(as: date) }) else {
             return .notFertile
         }
         
-        if let pillSequence = dayInfo.pillSequence {
+        if shouldShowPillStatus, let pillSequence = dayInfo.pillSequence {
             let total = settingsRepository?.load().pill.pillCount
             return .pill(day: pillSequence, total: total)
         }
-        
-        if let breakInfo = pillBreakInfo(for: date) {
+
+        if shouldShowPillStatus, let breakInfo = pillBreakInfo(for: date) {
             return .pillBreak(day: breakInfo.day, total: breakInfo.total)
         }
         
@@ -654,6 +662,7 @@ extension CalendarViewModel {
     
     private func pillBreakInfo(for date: Date) -> (day: Int, total: Int)? {
         guard let pillSettings = settingsRepository?.load().pill else { return nil }
+        guard pillSettings.pillEnabled else { return nil }
         let pillCount = max(pillSettings.pillCount, 0)
         let breakDays = max(pillSettings.pillBreakDuration, 0)
         let cycleLength = pillCount + breakDays
