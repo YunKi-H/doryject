@@ -59,6 +59,15 @@ final class SyncingEventRepository: EventRepository {
         refreshNotifications()
     }
     
+    func replace(type: EventType, on dates: Set<Date>) {
+        if type == .pill, !dates.isEmpty {
+            enablePillIfNeeded()
+        }
+        base.replace(type: type, on: dates)
+        Task { await syncService.syncAll() }
+        refreshNotifications()
+    }
+    
     func allEvents() -> [UserEvent] {
         base.allEvents()
     }
@@ -77,10 +86,18 @@ final class SyncingEventRepository: EventRepository {
         let settings = settingsRepository.load()
         scheduler.apply(settings: settings, eventRepository: base)
     }
-
+    
     private func enablePillIfNeeded(for event: UserEvent) {
         guard event.type == .pill,
               let settingsRepository else { return }
+        var settings = settingsRepository.load()
+        guard settings.pill.pillEnabled == false else { return }
+        settings.pill.pillEnabled = true
+        settingsRepository.save(settings)
+    }
+    
+    private func enablePillIfNeeded() {
+        guard let settingsRepository else { return }
         var settings = settingsRepository.load()
         guard settings.pill.pillEnabled == false else { return }
         settings.pill.pillEnabled = true

@@ -68,6 +68,41 @@ final class SwiftDataEventRepository: EventRepository {
         }
     }
     
+    func replace(type: EventType, on dates: Set<Date>) {
+        let rawValue = type.rawValue
+        let normalizedDates = Set(dates.map(\.startOfDay))
+        do {
+            let descriptor = FetchDescriptor<UserEvent>(
+                predicate: #Predicate { $0.typeRaw == rawValue }
+            )
+            let existing = try context.fetch(descriptor)
+            let existingKeys = Set(existing.map(\.uniqueKey))
+            let targetKeys = Set(normalizedDates.map {
+                UserEvent.makeUniqueKey(date: $0, type: type, calendar: calendar)
+            })
+            
+            var changed = false
+            for event in existing where !targetKeys.contains(event.uniqueKey) {
+                context.delete(event)
+                changed = true
+            }
+            
+            for day in normalizedDates {
+                let key = UserEvent.makeUniqueKey(date: day, type: type, calendar: calendar)
+                if !existingKeys.contains(key) {
+                    context.insert(UserEvent(date: day, type: type, calendar: calendar))
+                    changed = true
+                }
+            }
+            
+            if changed {
+                try context.save()
+            }
+        } catch {
+            assertionFailure("SwiftData replace failed: \(error)")
+        }
+    }
+    
     func allEvents() -> [UserEvent] {
         let descriptor = FetchDescriptor<UserEvent>(sortBy: [
             .init(\UserEvent.date, order: .forward)

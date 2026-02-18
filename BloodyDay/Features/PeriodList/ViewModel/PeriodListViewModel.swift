@@ -31,28 +31,17 @@ final class PeriodListViewModel {
     }
     
     func applyPeriodDates(_ dates: Set<Date>) {
-        let existing = periodDates()
-        let toAdd = dates.subtracting(existing)
-        let toRemove = existing.subtracting(dates)
-        
-        for day in toAdd {
-            let new = UserEvent(id: .init(), date: day.startOfDay, type: .period)
-            eventRepository.save(new)
-        }
-        
-        for day in toRemove {
-            eventRepository.delete(type: .period, on: day.startOfDay)
-        }
-        
+        let normalized = Set(dates.map(\.startOfDay))
+        eventRepository.replace(type: .period, on: normalized)
         refresh()
     }
     
     func delete(summary: PeriodSummary) {
         let start = summary.start.startOfDay
         let end = summary.end.startOfDay
-        for day in Date.dates(from: start, to: end) {
-            eventRepository.delete(type: .period, on: day)
-        }
+        let toRemove = Set(Date.dates(from: start, to: end).map(\.startOfDay))
+        let remaining = periodDates().subtracting(toRemove)
+        eventRepository.replace(type: .period, on: remaining)
         refresh()
     }
     
