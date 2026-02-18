@@ -110,11 +110,12 @@ struct PeriodEditSheetView: View {
                                 .tint(.mainRed)
                                 .buttonStyle(.glassProminent)
                             }
-                        }
                 }
-                .presentationDetents([.height(320)])
-                .presentationDragIndicator(.visible)
             }
+            .appGradientOverlay()
+            .presentationDetents([.height(320)])
+            .presentationDragIndicator(.visible)
+        }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {

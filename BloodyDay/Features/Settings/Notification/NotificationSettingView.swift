@@ -111,6 +111,7 @@ struct NotificationSettingView: View {
             Color.bgPrimary
                 .ignoresSafeArea()
         }
+        .appGradientOverlay()
         .toolbar {
             ToolbarItem(placement: .title) {
                 Text("알림")
@@ -134,6 +135,7 @@ struct NotificationSettingView: View {
                     PillPurchaseReminderSheet(viewModel: viewModel)
                 }
             }
+            .appGradientOverlay(sheet.gradientStyle)
         }
     }
     
@@ -215,6 +217,15 @@ private enum NotificationSheet: Int, Identifiable {
     case pillPurchaseReminder
     
     var id: Int { rawValue }
+
+    var gradientStyle: AppGradientOverlayStyle {
+        switch self {
+        case .periodReminder:
+            return .default
+        case .pillReminder, .pillPurchaseReminder:
+            return .blue
+        }
+    }
 }
 
 private func dayLabel(_ daysBefore: Int) -> String {

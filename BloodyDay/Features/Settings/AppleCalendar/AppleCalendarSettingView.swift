@@ -117,6 +117,7 @@ struct AppleCalendarSettingView: View {
             Color.bgPrimary
                 .ignoresSafeArea()
         }
+        .appGradientOverlay()
         .toolbar {
             ToolbarItem(placement: .title) {
                 Text("Apple Calendar")

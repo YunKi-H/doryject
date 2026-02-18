@@ -144,6 +144,7 @@ struct CalendarHeaderView: View {
                         }
                     }
             }
+            .appGradientOverlay()
             .presentationDetents([.height(320)])
             .presentationDragIndicator(.visible)
         }

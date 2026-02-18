@@ -80,6 +80,7 @@ struct PillSettingView: View {
             Color.bgPrimary
                 .ignoresSafeArea()
         }
+        .appGradientOverlay(.blue)
         .toolbar {
             ToolbarItem(placement: .title) {
                 Text("피임약")

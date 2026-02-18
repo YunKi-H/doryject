@@ -116,6 +116,7 @@ struct PeriodSettingView: View {
                 Color.bgPrimary
                     .ignoresSafeArea()
             }
+            .appGradientOverlay()
             .toolbar {
                 ToolbarItem(placement: .title) {
                     Text("생리 주기 설정")
