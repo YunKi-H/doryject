@@ -86,6 +86,9 @@ struct PillSettingView: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            viewModel.reload()
+        }
     }
     
     @ViewBuilder

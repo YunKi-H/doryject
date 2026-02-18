@@ -22,4 +22,8 @@ final class PillSettingsViewModel {
         update(&settings.pill)
         repo.save(settings)
     }
+
+    func reload() {
+        settings = repo.load()
+    }
 }
