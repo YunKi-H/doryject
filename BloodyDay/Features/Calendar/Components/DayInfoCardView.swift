@@ -35,9 +35,9 @@ struct DayInfoCardView: View {
         case .pill(_, _), .pillBreak(_, _):
             return .subBlue
         case .ovulation, .fertile, .notFertile:
-            return .textSecondary40
+            return .textPrimary
         case .unknown:
-            return .textSecondary40
+            return .textPrimary
         }
     }
     
@@ -56,6 +56,8 @@ struct DayInfoCardView: View {
         switch secondaryStatus {
         case .pill(_, _), .pillBreak(_, _):
             return .subBlue30
+        case .ovulation, .fertile, .notFertile:
+            return .textSecondary40
         default:
             return .textSecondary40
         }
