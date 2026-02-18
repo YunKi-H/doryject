@@ -168,11 +168,13 @@ struct PeriodListView: View {
                 .frame(width: 700, height: 700)
                 .offset(x: 18, y: -30)
         }
+        .appGradientOverlay()
         .onAppear {
             viewModel.refresh()
         }
         .sheet(isPresented: $editSheetIsPresented) {
             PeriodEditSheetView(viewModel: viewModel, initialDate: editSheetAnchorDate)
+                .appGradientOverlay()
         }
         .sheet(isPresented: $settingSheetIsPresented) {
             NavigationStack {
@@ -188,6 +190,7 @@ struct PeriodListView: View {
                         }
                     }
             }
+            .appGradientOverlay()
         }
     }
 }
