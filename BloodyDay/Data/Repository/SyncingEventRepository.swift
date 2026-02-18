@@ -26,6 +26,7 @@ final class SyncingEventRepository: EventRepository {
     }
     
     func save(_ event: UserEvent) {
+        enablePillIfNeeded(for: event)
         base.save(event)
         if event.type == .period {
             Task { await syncService.syncAll() }
@@ -75,5 +76,14 @@ final class SyncingEventRepository: EventRepository {
               let settingsRepository = settingsRepository else { return }
         let settings = settingsRepository.load()
         scheduler.apply(settings: settings, eventRepository: base)
+    }
+
+    private func enablePillIfNeeded(for event: UserEvent) {
+        guard event.type == .pill,
+              let settingsRepository else { return }
+        var settings = settingsRepository.load()
+        guard settings.pill.pillEnabled == false else { return }
+        settings.pill.pillEnabled = true
+        settingsRepository.save(settings)
     }
 }
