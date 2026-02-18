@@ -74,7 +74,7 @@ struct CalendarHeaderView: View {
                     NavigationLink {
                         PillSettingView(viewModel: pillViewModel)
                     } label: {
-                        Label("피임약 설정", image: .pillHalf)
+                        Label("피임약 설정", image: .pillSettingIcon)
                     }
                     
                     NavigationLink {
