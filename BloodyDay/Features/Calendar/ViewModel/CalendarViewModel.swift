@@ -257,7 +257,7 @@ extension CalendarViewModel {
         }
         
         let calendar = Calendar.current
-        let pillDates = Set(userEvents.filter { $0.type == .pill }.map { $0.date.startOfDay })
+        let pillDates = Set(eventRepository.events(of: .pill).map { $0.date.startOfDay })
         let predictedPillDates = predictedPillDates(
             rangeStart: gridStart,
             rangeEndExclusive: gridEndExclusive,
@@ -273,22 +273,29 @@ extension CalendarViewModel {
             }
         }
         let allPillDates = pillDates.union(predictedPillDates)
-        var pillStreak = 0
-        var cursor = calendar.date(byAdding: .day, value: -1, to: gridStart.startOfDay)!
-        while allPillDates.contains(cursor) {
-            pillStreak += 1
-            cursor = calendar.date(byAdding: .day, value: -1, to: cursor)!
-        }
-        
+        let pillSettings = settingsRepository?.load().pill
+        let pillCount = max(pillSettings?.pillCount ?? 0, 0)
+        let breakDays = max(pillSettings?.pillBreakDuration ?? 0, 0)
+        let cycleLength = pillCount + breakDays
+        let pillAnchor = mostRecentPillStart(from: pillDates, calendar: .current)
+
         for i in days.indices {
             let dayDate = days[i].date.startOfDay
-            if allPillDates.contains(dayDate) {
-                pillStreak += 1
-                days[i].pillSequence = pillStreak
-            } else {
-                pillStreak = 0
+            guard allPillDates.contains(dayDate),
+                  let pillAnchor,
+                  cycleLength > 0,
+                  pillCount > 0 else {
                 days[i].pillSequence = nil
+                continue
             }
+
+            let daysFromAnchor = calendar.dateComponents([.day], from: pillAnchor.startOfDay, to: dayDate).day ?? -1
+            guard daysFromAnchor >= 0 else {
+                days[i].pillSequence = nil
+                continue
+            }
+            let indexInCycle = daysFromAnchor % cycleLength
+            days[i].pillSequence = indexInCycle < pillCount ? indexInCycle + 1 : nil
         }
         
         return (days, predictedPeriodDates)
