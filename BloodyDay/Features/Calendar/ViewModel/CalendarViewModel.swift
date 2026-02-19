@@ -396,11 +396,15 @@ extension CalendarViewModel {
                     currentStart = day.date
                     lastIndex = idx
                 } else {
-                    if let li = lastIndex, li % columns == columns - 1 {
-                        // 주 경계에서 끊기
-                        let endDate = days[li].date
-                        ranges.append(DateInterval(start: currentStart!, end: endDate))
-                        currentStart = day.date
+                    if let li = lastIndex, let start = currentStart {
+                        let lastDate = days[li].date
+                        let shouldSplitAtWeekBoundary = li % columns == columns - 1
+                        let shouldSplitAtMonthBoundary = !day.date.isInSameMonth(as: lastDate)
+                        if shouldSplitAtWeekBoundary || shouldSplitAtMonthBoundary {
+                            let endDate = lastDate
+                            ranges.append(DateInterval(start: start, end: endDate))
+                            currentStart = day.date
+                        }
                     }
                     lastIndex = idx
                 }

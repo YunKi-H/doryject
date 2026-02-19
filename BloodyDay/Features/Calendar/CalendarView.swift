@@ -24,11 +24,12 @@ struct CalendarView: View {
                             ranges: month.periodRanges,
                             predictedRanges: month.predictedPeriodRanges,
                             days: month.days,
+                            monthDate: month.monthDate,
                             geo: geo
                         )
-                        DelayedCapsuleLayer(ranges: month.delayedRanges, days: month.days, geo: geo)
-                        FertileCapsuleLayer(ranges: month.fertileRanges, days: month.days, geo: geo)
-                        OvulationCapsuleLayer(ranges: month.ovulationRanges, days: month.days, geo: geo)
+                        DelayedCapsuleLayer(ranges: month.delayedRanges, days: month.days, monthDate: month.monthDate, geo: geo)
+                        FertileCapsuleLayer(ranges: month.fertileRanges, days: month.days, monthDate: month.monthDate, geo: geo)
+                        OvulationCapsuleLayer(ranges: month.ovulationRanges, days: month.days, monthDate: month.monthDate, geo: geo)
                     }
                     .padding(.horizontal, 20)
                     

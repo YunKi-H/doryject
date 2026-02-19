@@ -13,6 +13,7 @@ struct CapsuleSegment: View {
     let height: CGFloat
     let horizontalPadding: CGFloat
     let days: [DayInfo]
+    let monthDate: Date
     let geo: GeometryProxy
     
     private let columns = 7
@@ -37,6 +38,7 @@ struct CapsuleSegment: View {
                 .fill(color)
                 .frame(width: endX - startX, height: height)
                 .position(x: (startX + endX) / 2, y: y)
+                .opacity(range.start.isInSameMonth(as: monthDate) ? 1 : 0.3)
         }
     }
 }
@@ -47,6 +49,7 @@ struct GlassCapsuleSegment: View {
     let height: CGFloat
     let horizontalPadding: CGFloat
     let days: [DayInfo]
+    let monthDate: Date
     let geo: GeometryProxy
     
     private let columns = 7
@@ -72,6 +75,7 @@ struct GlassCapsuleSegment: View {
                 .glassEffect(.regular)
                 .frame(width: endX - startX, height: height)
                 .position(x: (startX + endX) / 2, y: y)
+                .opacity(range.start.isInSameMonth(as: monthDate) ? 1 : 0.3)
         }
     }
 }
