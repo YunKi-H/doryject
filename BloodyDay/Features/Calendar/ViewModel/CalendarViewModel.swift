@@ -600,12 +600,9 @@ extension CalendarViewModel {
             return .ongoing(day: max(dayIndex, 1))
         }
         
-        guard let avgCycle = effectiveAverageCycleDays(from: summaries),
-              let lastStart = summaries.last?.start.startOfDay else {
+        guard let predictedStart = expectedPeriodStartDate(from: summaries) else {
             return .unknown
         }
-        
-        let predictedStart = calendar.date(byAdding: .day, value: avgCycle, to: lastStart)!
         if target == predictedStart.startOfDay {
             return .bDay
         }
@@ -615,6 +612,32 @@ extension CalendarViewModel {
         
         let daysUntil = calendar.dateComponents([.day], from: target, to: predictedStart).day ?? 0
         return .countdown(days: max(daysUntil, 0))
+    }
+
+    private func expectedPeriodStartDate(from summaries: [PeriodSummary]) -> Date? {
+        if let pillStart = pillExpectedStartDate() {
+            return pillStart
+        }
+        guard let avgCycle = effectiveAverageCycleDays(from: summaries),
+              let lastStart = summaries.last?.start.startOfDay else {
+            return nil
+        }
+        return Calendar.current.date(byAdding: .day, value: avgCycle, to: lastStart)?.startOfDay
+    }
+
+    private func pillExpectedStartDate() -> Date? {
+        guard isPillEnabled else { return nil }
+        let calendar = Calendar.current
+        let pillDates = Set(eventRepository.events(of: .pill).map { $0.date.startOfDay })
+        guard let anchor = mostRecentPillStart(from: pillDates, calendar: calendar),
+              let pillSettings = settingsRepository?.load().pill else { return nil }
+        let pillCount = max(pillSettings.pillCount, 0)
+        guard pillCount > 0 else { return nil }
+        guard let lastPillInCycle = calendar.date(byAdding: .day, value: pillCount - 1, to: anchor.startOfDay),
+              let expectedStart = calendar.date(byAdding: .day, value: 3, to: lastPillInCycle) else {
+            return nil
+        }
+        return expectedStart.startOfDay
     }
     
     private func calculateSecondaryStatus(for date: Date) -> CalendarSecondaryStatus {
