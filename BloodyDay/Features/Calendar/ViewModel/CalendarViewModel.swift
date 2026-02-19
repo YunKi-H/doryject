@@ -637,13 +637,19 @@ extension CalendarViewModel {
               let lastStart = summaries.last?.start.startOfDay else {
             return nil
         }
-        return Calendar.current.date(byAdding: .day, value: avgCycle, to: lastStart)?.startOfDay
+        guard let firstExpected = Calendar.current.date(byAdding: .day, value: avgCycle, to: lastStart)?.startOfDay else {
+            return nil
+        }
+        return cycleAlignedExpectedStartDate(
+            target: target.startOfDay,
+            firstExpected: firstExpected,
+            cycleLength: avgCycle
+        )
     }
 
     private func pillExpectedStartDate(for target: Date) -> Date? {
         guard isPillEnabled else { return nil }
         let calendar = Calendar.current
-        let today = Date().startOfDay
         let pillDates = Set(eventRepository.events(of: .pill).map { $0.date.startOfDay })
         guard let anchor = mostRecentPillStart(from: pillDates, calendar: calendar),
               let pillSettings = settingsRepository?.load().pill else { return nil }
@@ -658,17 +664,34 @@ extension CalendarViewModel {
             return nil
         }
         let first = firstExpectedStart.startOfDay
-        if normalizedTarget <= first {
-            return first
-        }
-        let daysFromFirst = calendar.dateComponents([.day], from: first, to: normalizedTarget).day ?? 0
-        let cycleOffset = daysFromFirst / cycleLength
-        guard let cycleStart = calendar.date(byAdding: .day, value: cycleOffset * cycleLength, to: first)?.startOfDay else {
-            return first
-        }
+        return cycleAlignedExpectedStartDate(
+            target: normalizedTarget,
+            firstExpected: first,
+            cycleLength: cycleLength
+        )
+    }
+
+    private func cycleAlignedExpectedStartDate(
+        target: Date,
+        firstExpected: Date,
+        cycleLength: Int
+    ) -> Date? {
+        let calendar = Calendar.current
+        let today = Date().startOfDay
         let predictedLength = max(periodAutoLengthDays(), 1)
+        guard cycleLength > 0 else { return firstExpected.startOfDay }
+        
+        if target <= firstExpected.startOfDay {
+            return firstExpected.startOfDay
+        }
+        
+        let daysFromFirst = calendar.dateComponents([.day], from: firstExpected.startOfDay, to: target.startOfDay).day ?? 0
+        let cycleOffset = daysFromFirst / cycleLength
+        guard let cycleStart = calendar.date(byAdding: .day, value: cycleOffset * cycleLength, to: firstExpected.startOfDay)?.startOfDay else {
+            return firstExpected.startOfDay
+        }
         let cycleEndExclusive = calendar.date(byAdding: .day, value: predictedLength, to: cycleStart.startOfDay)!
-        if normalizedTarget > today && normalizedTarget >= cycleEndExclusive {
+        if target > today && target >= cycleEndExclusive {
             return calendar.date(byAdding: .day, value: cycleLength, to: cycleStart)?.startOfDay
         }
         return cycleStart
