@@ -24,12 +24,11 @@ struct CalendarView: View {
                             ranges: month.periodRanges,
                             predictedRanges: month.predictedPeriodRanges,
                             days: month.days,
-                            monthDate: month.monthDate,
                             geo: geo
                         )
-                        DelayedCapsuleLayer(ranges: month.delayedRanges, days: month.days, monthDate: month.monthDate, geo: geo)
-                        FertileCapsuleLayer(ranges: month.fertileRanges, days: month.days, monthDate: month.monthDate, geo: geo)
-                        OvulationCapsuleLayer(ranges: month.ovulationRanges, days: month.days, monthDate: month.monthDate, geo: geo)
+                        DelayedCapsuleLayer(ranges: month.delayedRanges, days: month.days, geo: geo)
+                        FertileCapsuleLayer(ranges: month.fertileRanges, days: month.days, geo: geo)
+                        OvulationCapsuleLayer(ranges: month.ovulationRanges, days: month.days, geo: geo)
                     }
                     .padding(.horizontal, 20)
                     
@@ -82,12 +81,44 @@ struct CalendarView: View {
         month: .init(
             monthDate: .now,
             days: days,
-            periodRanges: [DateInterval(start: Calendar.current.date(byAdding: .day, value: 3, to: baseDate)!, end: Calendar.current.date(byAdding: .day, value: 5, to: baseDate)!)],
+            periodRanges: [
+                CalendarRangeInfo(
+                    range: DateInterval(
+                        start: Calendar.current.date(byAdding: .day, value: 3, to: baseDate)!,
+                        end: Calendar.current.date(byAdding: .day, value: 5, to: baseDate)!
+                    ),
+                    opacity: 1
+                )
+            ],
             predictedPeriodRanges: [],
             predictedPeriodDates: [],
-            delayedRanges: [DateInterval(start: Calendar.current.date(byAdding: .day, value: 3, to: baseDate)!, end: Calendar.current.date(byAdding: .day, value: 5, to: baseDate)!)],
-            fertileRanges: [DateInterval(start: Calendar.current.date(byAdding: .day, value: 14, to: baseDate)!, end: Calendar.current.date(byAdding: .day, value: 19, to: baseDate)!)],
-            ovulationRanges: [DateInterval(start: Calendar.current.date(byAdding: .day, value: 15, to: baseDate)!, end: Calendar.current.date(byAdding: .day, value: 18, to: baseDate)!)]
+            delayedRanges: [
+                CalendarRangeInfo(
+                    range: DateInterval(
+                        start: Calendar.current.date(byAdding: .day, value: 3, to: baseDate)!,
+                        end: Calendar.current.date(byAdding: .day, value: 5, to: baseDate)!
+                    ),
+                    opacity: 1
+                )
+            ],
+            fertileRanges: [
+                CalendarRangeInfo(
+                    range: DateInterval(
+                        start: Calendar.current.date(byAdding: .day, value: 14, to: baseDate)!,
+                        end: Calendar.current.date(byAdding: .day, value: 19, to: baseDate)!
+                    ),
+                    opacity: 1
+                )
+            ],
+            ovulationRanges: [
+                CalendarRangeInfo(
+                    range: DateInterval(
+                        start: Calendar.current.date(byAdding: .day, value: 15, to: baseDate)!,
+                        end: Calendar.current.date(byAdding: .day, value: 18, to: baseDate)!
+                    ),
+                    opacity: 1
+                )
+            ]
         ),
         selectedDate: .now,
         onSelectDate: { _ in }

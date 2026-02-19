@@ -172,18 +172,27 @@ extension CalendarViewModel {
         let days: [DayInfo] = result.days
         let predictedPeriodDates: Set<Date> = result.predictedPeriodDates
         
-        let periodRanges: [DateInterval] = buildRangesSplittingByWeeks(days: days) { day in
+        let periodRanges: [CalendarRangeInfo] = buildStyledRangesSplittingByWeeks(days: days, monthDate: monthStart) { day in
             actualPeriodDates.contains(day.date.startOfDay)
         }
-        let predictedPeriodRanges: [DateInterval] = buildRangesSplittingByWeeks(days: days) { day in
+        let predictedPeriodRanges: [CalendarRangeInfo] = buildStyledRangesSplittingByWeeks(days: days, monthDate: monthStart) { day in
             predictedPeriodDates.contains(day.date.startOfDay)
         }
-        let delayedRanges: [DateInterval] = []
-        let fertileRanges: [DateInterval] = buildRangesSplittingByWeeks(days: days) { day in
+        let delayedRanges: [CalendarRangeInfo] = buildStyledRangesSplittingByWeeks(days: days, monthDate: monthStart) { day in
+            day.events.contains { $0.type == .delayed }
+        }
+        let fertileRanges: [CalendarRangeInfo] = buildStyledRangesSplittingByWeeks(days: days, monthDate: monthStart) { day in
             day.events.contains { $0.type == .fertile }
         }
-        let ovulationRanges: [DateInterval] = buildRangesSplittingByWeeks(days: days) { day in
+        let rawOvulationRanges: [CalendarRangeInfo] = buildStyledRangesSplittingByWeeks(days: days, monthDate: monthStart) { day in
             day.events.contains { $0.type == .ovulation }
+        }
+        let ovulationRanges: [CalendarRangeInfo] = rawOvulationRanges.map { ovulation in
+            let ovulationDate = ovulation.range.start.startOfDay
+            guard let fertileOpacity = fertileOpacity(containing: ovulationDate, fertileRanges: fertileRanges) else {
+                return ovulation
+            }
+            return CalendarRangeInfo(range: ovulation.range, opacity: fertileOpacity)
         }
         
         return MonthInfo(
@@ -378,51 +387,63 @@ extension CalendarViewModel {
         }
     }
     
-    private func buildRangesSplittingByWeeks(
+    private func buildStyledRangesSplittingByWeeks(
         days: [DayInfo],
+        monthDate: Date,
         hasEvent: (DayInfo) -> Bool,
         columns: Int = 7
-    ) -> [DateInterval] {
-        var ranges: [DateInterval] = []
-        var currentStart: Date? = nil
-        var lastIndex: Int? = nil
-        
-        for idx in days.indices {
-            let day = days[idx]
-            let isOn = hasEvent(day)
-            
-            if isOn {
-                if currentStart == nil {
-                    currentStart = day.date
-                    lastIndex = idx
-                } else {
-                    if let li = lastIndex, let start = currentStart {
-                        let lastDate = days[li].date
-                        let shouldSplitAtWeekBoundary = li % columns == columns - 1
-                        let shouldSplitAtMonthBoundary = !day.date.isInSameMonth(as: lastDate)
-                        if shouldSplitAtWeekBoundary || shouldSplitAtMonthBoundary {
-                            let endDate = lastDate
-                            ranges.append(DateInterval(start: start, end: endDate))
-                            currentStart = day.date
-                        }
-                    }
-                    lastIndex = idx
-                }
-            } else if let li = lastIndex, let start = currentStart {
-                // 연속 구간 종료
-                let endDate = days[li].date
-                ranges.append(DateInterval(start: start, end: endDate))
-                currentStart = nil
-                lastIndex = nil
+    ) -> [CalendarRangeInfo] {
+        var ranges: [CalendarRangeInfo] = []
+        var idx = 0
+
+        while idx < days.count {
+            guard hasEvent(days[idx]) else {
+                idx += 1
+                continue
             }
+
+            let runStartIndex = idx
+            var runEndIndex = idx
+            while runEndIndex + 1 < days.count && hasEvent(days[runEndIndex + 1]) {
+                runEndIndex += 1
+            }
+
+            let runOpacity = opacityForRun(
+                runStartDate: days[runStartIndex].date,
+                runEndDate: days[runEndIndex].date,
+                monthDate: monthDate
+            )
+
+            var segmentStartIndex = runStartIndex
+            while segmentStartIndex <= runEndIndex {
+                let rowEndIndex = ((segmentStartIndex / columns) * columns) + (columns - 1)
+                let segmentEndIndex = min(runEndIndex, rowEndIndex)
+                ranges.append(
+                    CalendarRangeInfo(
+                        range: DateInterval(start: days[segmentStartIndex].date, end: days[segmentEndIndex].date),
+                        opacity: runOpacity
+                    )
+                )
+                segmentStartIndex = segmentEndIndex + 1
+            }
+
+            idx = runEndIndex + 1
         }
-        
-        if let li = lastIndex, let start = currentStart {
-            let endDate = days[li].date
-            ranges.append(DateInterval(start: start, end: endDate))
-        }
-        
+
         return ranges
+    }
+
+    private func opacityForRun(runStartDate: Date, runEndDate: Date, monthDate: Date) -> Double {
+        let isOutsideCurrentMonth =
+            !runStartDate.isInSameMonth(as: monthDate) &&
+            !runEndDate.isInSameMonth(as: monthDate)
+        return isOutsideCurrentMonth ? 0.3 : 1
+    }
+
+    private func fertileOpacity(containing date: Date, fertileRanges: [CalendarRangeInfo]) -> Double? {
+        fertileRanges.first {
+            date >= $0.range.start.startOfDay && date <= $0.range.end.startOfDay
+        }?.opacity
     }
     
     private func addPeriodEvents(startingAt date: Date) {

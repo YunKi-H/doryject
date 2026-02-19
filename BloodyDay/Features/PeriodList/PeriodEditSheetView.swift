@@ -296,9 +296,9 @@ struct PeriodEditSheetView: View {
     private func makeMonthInfo(for month: Date) -> MonthInfo {
         let monthStart = month.startOfMonth
         let days = buildDayInfos(for: month)
-        let periodRanges: [DateInterval] = buildRangesSplittingByWeeks(days: days) { day in
+        let periodRanges: [CalendarRangeInfo] = buildRangesSplittingByWeeks(days: days) { day in
             day.events.contains { $0.type == .period }
-        }
+        }.map { CalendarRangeInfo(range: $0, opacity: 1) }
         return MonthInfo(
             monthDate: monthStart,
             days: days,
