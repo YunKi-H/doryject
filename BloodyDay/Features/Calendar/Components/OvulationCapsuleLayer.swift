@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct OvulationCapsuleLayer: View {
-    let ranges: [DateInterval]
+    let ranges: [CalendarRangeInfo]
     let days: [DayInfo]
     let geo: GeometryProxy
     
@@ -17,7 +17,15 @@ struct OvulationCapsuleLayer: View {
     
     var body: some View {
         ForEach(ranges, id: \.self) { range in
-            CapsuleSegment(range: range, color: .mainNeutral8, height: 20, horizontalPadding: 6, days: days, geo: geo)
+            CapsuleSegment(
+                range: range.range,
+                color: .mainNeutral8,
+                height: 20,
+                horizontalPadding: 6,
+                days: days,
+                opacity: range.opacity,
+                geo: geo
+            )
         }
     }
 }

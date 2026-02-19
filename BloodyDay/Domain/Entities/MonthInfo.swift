@@ -7,14 +7,19 @@
 
 import Foundation
 
+struct CalendarRangeInfo: Equatable, Hashable {
+    let range: DateInterval
+    let opacity: Double
+}
+
 struct MonthInfo: Identifiable, Equatable {
     var id: Date { monthDate }
     let monthDate: Date
     let days: [DayInfo]
-    let periodRanges: [DateInterval]
-    let predictedPeriodRanges: [DateInterval]
+    let periodRanges: [CalendarRangeInfo]
+    let predictedPeriodRanges: [CalendarRangeInfo]
     let predictedPeriodDates: Set<Date>
-    let delayedRanges: [DateInterval]
-    let fertileRanges: [DateInterval]
-    let ovulationRanges: [DateInterval]
+    let delayedRanges: [CalendarRangeInfo]
+    let fertileRanges: [CalendarRangeInfo]
+    let ovulationRanges: [CalendarRangeInfo]
 }

@@ -81,12 +81,44 @@ struct CalendarView: View {
         month: .init(
             monthDate: .now,
             days: days,
-            periodRanges: [DateInterval(start: Calendar.current.date(byAdding: .day, value: 3, to: baseDate)!, end: Calendar.current.date(byAdding: .day, value: 5, to: baseDate)!)],
+            periodRanges: [
+                CalendarRangeInfo(
+                    range: DateInterval(
+                        start: Calendar.current.date(byAdding: .day, value: 3, to: baseDate)!,
+                        end: Calendar.current.date(byAdding: .day, value: 5, to: baseDate)!
+                    ),
+                    opacity: 1
+                )
+            ],
             predictedPeriodRanges: [],
             predictedPeriodDates: [],
-            delayedRanges: [DateInterval(start: Calendar.current.date(byAdding: .day, value: 3, to: baseDate)!, end: Calendar.current.date(byAdding: .day, value: 5, to: baseDate)!)],
-            fertileRanges: [DateInterval(start: Calendar.current.date(byAdding: .day, value: 14, to: baseDate)!, end: Calendar.current.date(byAdding: .day, value: 19, to: baseDate)!)],
-            ovulationRanges: [DateInterval(start: Calendar.current.date(byAdding: .day, value: 15, to: baseDate)!, end: Calendar.current.date(byAdding: .day, value: 18, to: baseDate)!)]
+            delayedRanges: [
+                CalendarRangeInfo(
+                    range: DateInterval(
+                        start: Calendar.current.date(byAdding: .day, value: 3, to: baseDate)!,
+                        end: Calendar.current.date(byAdding: .day, value: 5, to: baseDate)!
+                    ),
+                    opacity: 1
+                )
+            ],
+            fertileRanges: [
+                CalendarRangeInfo(
+                    range: DateInterval(
+                        start: Calendar.current.date(byAdding: .day, value: 14, to: baseDate)!,
+                        end: Calendar.current.date(byAdding: .day, value: 19, to: baseDate)!
+                    ),
+                    opacity: 1
+                )
+            ],
+            ovulationRanges: [
+                CalendarRangeInfo(
+                    range: DateInterval(
+                        start: Calendar.current.date(byAdding: .day, value: 15, to: baseDate)!,
+                        end: Calendar.current.date(byAdding: .day, value: 18, to: baseDate)!
+                    ),
+                    opacity: 1
+                )
+            ]
         ),
         selectedDate: .now,
         onSelectDate: { _ in }

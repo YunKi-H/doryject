@@ -296,7 +296,7 @@ struct PeriodEditSheetView: View {
     private func makeMonthInfo(for month: Date) -> MonthInfo {
         let monthStart = month.startOfMonth
         let days = buildDayInfos(for: month)
-        let periodRanges: [DateInterval] = buildRangesSplittingByWeeks(days: days) { day in
+        let periodRanges: [CalendarRangeInfo] = buildStyledRangesSplittingByWeeks(days: days, monthDate: monthStart) { day in
             day.events.contains { $0.type == .period }
         }
         return MonthInfo(
@@ -322,45 +322,57 @@ struct PeriodEditSheetView: View {
         }
     }
     
-    private func buildRangesSplittingByWeeks(
+    private func buildStyledRangesSplittingByWeeks(
         days: [DayInfo],
+        monthDate: Date,
         hasEvent: (DayInfo) -> Bool,
         columns: Int = 7
-    ) -> [DateInterval] {
-        var ranges: [DateInterval] = []
-        var currentStart: Date? = nil
-        var lastIndex: Int? = nil
-        
-        for idx in days.indices {
-            let day = days[idx]
-            let isOn = hasEvent(day)
-            
-            if isOn {
-                if currentStart == nil {
-                    currentStart = day.date
-                    lastIndex = idx
-                } else {
-                    if let li = lastIndex, li % columns == columns - 1 {
-                        let endDate = days[li].date
-                        ranges.append(DateInterval(start: currentStart!, end: endDate))
-                        currentStart = day.date
-                    }
-                    lastIndex = idx
-                }
-            } else if let li = lastIndex, let start = currentStart {
-                let endDate = days[li].date
-                ranges.append(DateInterval(start: start, end: endDate))
-                currentStart = nil
-                lastIndex = nil
+    ) -> [CalendarRangeInfo] {
+        var ranges: [CalendarRangeInfo] = []
+        var idx = 0
+
+        while idx < days.count {
+            guard hasEvent(days[idx]) else {
+                idx += 1
+                continue
             }
+
+            let runStartIndex = idx
+            var runEndIndex = idx
+            while runEndIndex + 1 < days.count && hasEvent(days[runEndIndex + 1]) {
+                runEndIndex += 1
+            }
+
+            let runOpacity = opacityForRun(
+                runStartDate: days[runStartIndex].date,
+                runEndDate: days[runEndIndex].date,
+                monthDate: monthDate
+            )
+
+            var segmentStartIndex = runStartIndex
+            while segmentStartIndex <= runEndIndex {
+                let rowEndIndex = ((segmentStartIndex / columns) * columns) + (columns - 1)
+                let segmentEndIndex = min(runEndIndex, rowEndIndex)
+                ranges.append(
+                    CalendarRangeInfo(
+                        range: DateInterval(start: days[segmentStartIndex].date, end: days[segmentEndIndex].date),
+                        opacity: runOpacity
+                    )
+                )
+                segmentStartIndex = segmentEndIndex + 1
+            }
+
+            idx = runEndIndex + 1
         }
-        
-        if let li = lastIndex, let start = currentStart {
-            let endDate = days[li].date
-            ranges.append(DateInterval(start: start, end: endDate))
-        }
-        
+
         return ranges
+    }
+
+    private func opacityForRun(runStartDate: Date, runEndDate: Date, monthDate: Date) -> Double {
+        let isOutsideCurrentMonth =
+            !runStartDate.isInSameMonth(as: monthDate) &&
+            !runEndDate.isInSameMonth(as: monthDate)
+        return isOutsideCurrentMonth ? 0.3 : 1
     }
     
     private var hasChanges: Bool {

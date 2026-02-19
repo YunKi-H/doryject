@@ -46,7 +46,7 @@ final class PeriodListViewModel {
     }
     
     var lastPeriodStartDisplay: String {
-        guard let lastStart = summaries.last?.start else { return "-" }
+        guard let lastStart = summaries.map(\.start).max() else { return "-" }
         let calendar = Calendar.current
         let today = Date().startOfDay
         let start = lastStart.startOfDay
@@ -55,7 +55,7 @@ final class PeriodListViewModel {
     }
     
     var lastPeriodStartDateDisplay: String {
-        guard let lastStart = summaries.last?.start else { return "기록 없음" }
+        guard let lastStart = summaries.map(\.start).max() else { return "기록 없음" }
         return format(lastStart)
     }
     

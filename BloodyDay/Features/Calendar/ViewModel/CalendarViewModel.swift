@@ -172,18 +172,25 @@ extension CalendarViewModel {
         let days: [DayInfo] = result.days
         let predictedPeriodDates: Set<Date> = result.predictedPeriodDates
         
-        let periodRanges: [DateInterval] = buildRangesSplittingByWeeks(days: days) { day in
+        let periodRanges: [CalendarRangeInfo] = buildStyledRangesSplittingByWeeks(days: days, monthDate: monthStart) { day in
             actualPeriodDates.contains(day.date.startOfDay)
         }
-        let predictedPeriodRanges: [DateInterval] = buildRangesSplittingByWeeks(days: days) { day in
+        let predictedPeriodRanges: [CalendarRangeInfo] = buildStyledRangesSplittingByWeeks(days: days, monthDate: monthStart) { day in
             predictedPeriodDates.contains(day.date.startOfDay)
         }
-        let delayedRanges: [DateInterval] = []
-        let fertileRanges: [DateInterval] = buildRangesSplittingByWeeks(days: days) { day in
+        let delayedRanges: [CalendarRangeInfo] = []
+        let fertileRanges: [CalendarRangeInfo] = buildStyledRangesSplittingByWeeks(days: days, monthDate: monthStart) { day in
             day.events.contains { $0.type == .fertile }
         }
-        let ovulationRanges: [DateInterval] = buildRangesSplittingByWeeks(days: days) { day in
+        let rawOvulationRanges: [CalendarRangeInfo] = buildStyledRangesSplittingByWeeks(days: days, monthDate: monthStart) { day in
             day.events.contains { $0.type == .ovulation }
+        }
+        let ovulationRanges: [CalendarRangeInfo] = rawOvulationRanges.map { ovulation in
+            let ovulationDate = ovulation.range.start.startOfDay
+            guard let fertileOpacity = fertileOpacity(containing: ovulationDate, fertileRanges: fertileRanges) else {
+                return ovulation
+            }
+            return CalendarRangeInfo(range: ovulation.range, opacity: fertileOpacity)
         }
         
         return MonthInfo(
@@ -378,47 +385,63 @@ extension CalendarViewModel {
         }
     }
     
-    private func buildRangesSplittingByWeeks(
+    private func buildStyledRangesSplittingByWeeks(
         days: [DayInfo],
+        monthDate: Date,
         hasEvent: (DayInfo) -> Bool,
         columns: Int = 7
-    ) -> [DateInterval] {
-        var ranges: [DateInterval] = []
-        var currentStart: Date? = nil
-        var lastIndex: Int? = nil
-        
-        for idx in days.indices {
-            let day = days[idx]
-            let isOn = hasEvent(day)
-            
-            if isOn {
-                if currentStart == nil {
-                    currentStart = day.date
-                    lastIndex = idx
-                } else {
-                    if let li = lastIndex, li % columns == columns - 1 {
-                        // 주 경계에서 끊기
-                        let endDate = days[li].date
-                        ranges.append(DateInterval(start: currentStart!, end: endDate))
-                        currentStart = day.date
-                    }
-                    lastIndex = idx
-                }
-            } else if let li = lastIndex, let start = currentStart {
-                // 연속 구간 종료
-                let endDate = days[li].date
-                ranges.append(DateInterval(start: start, end: endDate))
-                currentStart = nil
-                lastIndex = nil
+    ) -> [CalendarRangeInfo] {
+        var ranges: [CalendarRangeInfo] = []
+        var idx = 0
+
+        while idx < days.count {
+            guard hasEvent(days[idx]) else {
+                idx += 1
+                continue
             }
+
+            let runStartIndex = idx
+            var runEndIndex = idx
+            while runEndIndex + 1 < days.count && hasEvent(days[runEndIndex + 1]) {
+                runEndIndex += 1
+            }
+
+            let runOpacity = opacityForRun(
+                runStartDate: days[runStartIndex].date,
+                runEndDate: days[runEndIndex].date,
+                monthDate: monthDate
+            )
+
+            var segmentStartIndex = runStartIndex
+            while segmentStartIndex <= runEndIndex {
+                let rowEndIndex = ((segmentStartIndex / columns) * columns) + (columns - 1)
+                let segmentEndIndex = min(runEndIndex, rowEndIndex)
+                ranges.append(
+                    CalendarRangeInfo(
+                        range: DateInterval(start: days[segmentStartIndex].date, end: days[segmentEndIndex].date),
+                        opacity: runOpacity
+                    )
+                )
+                segmentStartIndex = segmentEndIndex + 1
+            }
+
+            idx = runEndIndex + 1
         }
-        
-        if let li = lastIndex, let start = currentStart {
-            let endDate = days[li].date
-            ranges.append(DateInterval(start: start, end: endDate))
-        }
-        
+
         return ranges
+    }
+
+    private func opacityForRun(runStartDate: Date, runEndDate: Date, monthDate: Date) -> Double {
+        let isOutsideCurrentMonth =
+            !runStartDate.isInSameMonth(as: monthDate) &&
+            !runEndDate.isInSameMonth(as: monthDate)
+        return isOutsideCurrentMonth ? 0.3 : 1
+    }
+
+    private func fertileOpacity(containing date: Date, fertileRanges: [CalendarRangeInfo]) -> Double? {
+        fertileRanges.first {
+            date >= $0.range.start.startOfDay && date <= $0.range.end.startOfDay
+        }?.opacity
     }
     
     private func addPeriodEvents(startingAt date: Date) {
@@ -571,27 +594,107 @@ extension CalendarViewModel {
         let summaries = actualPeriodSummaries()
         let calendar = Calendar.current
         let target = date.startOfDay
+        let today = Date().startOfDay
         
         if let ongoing = summaries.first(where: { $0.start.startOfDay <= target && target <= $0.end.startOfDay }) {
+            if target == ongoing.start.startOfDay {
+                return .bDay
+            }
             let dayIndex = (calendar.dateComponents([.day], from: ongoing.start.startOfDay, to: target).day ?? 0) + 1
             return .ongoing(day: max(dayIndex, 1))
         }
-        
-        guard let avgCycle = effectiveAverageCycleDays(from: summaries),
-              let lastStart = summaries.last?.start.startOfDay else {
+
+        if let latestStart = summaries.map({ $0.start.startOfDay }).max(), target < latestStart {
             return .unknown
         }
         
-        let predictedStart = calendar.date(byAdding: .day, value: avgCycle, to: lastStart)!
+        guard let predictedStart = expectedPeriodStartDate(for: target, from: summaries) else {
+            return .unknown
+        }
+        let predictedLength = max(periodAutoLengthDays(), 1)
+        let predictedEndExclusive = calendar.date(byAdding: .day, value: predictedLength, to: predictedStart.startOfDay)!
+
         if target == predictedStart.startOfDay {
             return .bDay
         }
-        if target >= predictedStart {
+        if target > predictedStart.startOfDay && target < predictedEndExclusive {
+            let dayIndex = (calendar.dateComponents([.day], from: predictedStart.startOfDay, to: target).day ?? 0) + 1
+            return .ongoing(day: max(dayIndex, 1))
+        }
+        if target >= predictedStart && target <= today {
             return .delayed(days: max(calendar.dateComponents([.day], from: predictedStart.startOfDay, to: target).day ?? 0, 0))
         }
         
         let daysUntil = calendar.dateComponents([.day], from: target, to: predictedStart).day ?? 0
         return .countdown(days: max(daysUntil, 0))
+    }
+
+    private func expectedPeriodStartDate(for target: Date, from summaries: [PeriodSummary]) -> Date? {
+        if let pillStart = pillExpectedStartDate(for: target) {
+            return pillStart
+        }
+        guard let avgCycle = effectiveAverageCycleDays(from: summaries),
+              let lastStart = summaries.map({ $0.start.startOfDay }).max() else {
+            return nil
+        }
+        guard let firstExpected = Calendar.current.date(byAdding: .day, value: avgCycle, to: lastStart)?.startOfDay else {
+            return nil
+        }
+        return cycleAlignedExpectedStartDate(
+            target: target.startOfDay,
+            firstExpected: firstExpected,
+            cycleLength: avgCycle
+        )
+    }
+
+    private func pillExpectedStartDate(for target: Date) -> Date? {
+        guard isPillEnabled else { return nil }
+        let calendar = Calendar.current
+        let pillDates = Set(eventRepository.events(of: .pill).map { $0.date.startOfDay })
+        guard let anchor = mostRecentPillStart(from: pillDates, calendar: calendar),
+              let pillSettings = settingsRepository?.load().pill else { return nil }
+        let pillCount = max(pillSettings.pillCount, 0)
+        let breakDays = max(pillSettings.pillBreakDuration, 0)
+        let cycleLength = pillCount + breakDays
+        guard pillCount > 0, cycleLength > 0 else { return nil }
+        let normalizedTarget = target.startOfDay
+        guard normalizedTarget >= anchor.startOfDay else { return nil }
+        guard let lastPillInCycle = calendar.date(byAdding: .day, value: pillCount - 1, to: anchor.startOfDay),
+              let firstExpectedStart = calendar.date(byAdding: .day, value: 3, to: lastPillInCycle) else {
+            return nil
+        }
+        let first = firstExpectedStart.startOfDay
+        return cycleAlignedExpectedStartDate(
+            target: normalizedTarget,
+            firstExpected: first,
+            cycleLength: cycleLength
+        )
+    }
+
+    private func cycleAlignedExpectedStartDate(
+        target: Date,
+        firstExpected: Date,
+        cycleLength: Int
+    ) -> Date? {
+        let calendar = Calendar.current
+        let today = Date().startOfDay
+        let predictedLength = max(periodAutoLengthDays(), 1)
+        guard cycleLength > 0 else { return firstExpected.startOfDay }
+        
+        if target <= firstExpected.startOfDay {
+            return firstExpected.startOfDay
+        }
+        
+        let daysFromFirst = calendar.dateComponents([.day], from: firstExpected.startOfDay, to: target.startOfDay).day ?? 0
+        let cycleOffset = daysFromFirst / cycleLength
+        guard let cycleStart = calendar.date(byAdding: .day, value: cycleOffset * cycleLength, to: firstExpected.startOfDay)?.startOfDay else {
+            return firstExpected.startOfDay
+        }
+        let cycleEndExclusive = calendar.date(byAdding: .day, value: predictedLength, to: cycleStart.startOfDay)!
+        if target > today && target >= cycleEndExclusive {
+            return calendar.date(byAdding: .day, value: cycleLength, to: cycleStart)?.startOfDay
+        }
+        return cycleStart
     }
     
     private func calculateSecondaryStatus(for date: Date) -> CalendarSecondaryStatus {
