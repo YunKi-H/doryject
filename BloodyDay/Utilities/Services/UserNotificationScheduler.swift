@@ -168,7 +168,7 @@ final class UserNotificationScheduler: NotificationScheduler {
     ) -> Date? {
         let periodEvents = eventRepository.events(of: .period).map { $0.date }
         let summaries = PeriodSummaryBuilder.build(from: periodEvents)
-        guard let last = summaries.last else { return nil }
+        guard let lastStart = summaries.map(\.start).max() else { return nil }
         
         let settingsPeriod = settings.period
         let cycleDays: Int?
@@ -179,7 +179,7 @@ final class UserNotificationScheduler: NotificationScheduler {
             cycleDays = averageCycleDays(from: summaries)
         }
         guard let cycle = cycleDays, cycle > 0 else { return nil }
-        return calendar.date(byAdding: .day, value: cycle, to: last.start.startOfDay)
+        return calendar.date(byAdding: .day, value: cycle, to: lastStart.startOfDay)
     }
     
     private func nextPeriodStarts(

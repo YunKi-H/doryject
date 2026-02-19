@@ -604,7 +604,7 @@ extension CalendarViewModel {
             return .ongoing(day: max(dayIndex, 1))
         }
 
-        if let latestStart = summaries.last?.start.startOfDay, target < latestStart {
+        if let latestStart = summaries.map({ $0.start.startOfDay }).max(), target < latestStart {
             return .unknown
         }
         
@@ -634,7 +634,7 @@ extension CalendarViewModel {
             return pillStart
         }
         guard let avgCycle = effectiveAverageCycleDays(from: summaries),
-              let lastStart = summaries.last?.start.startOfDay else {
+              let lastStart = summaries.map({ $0.start.startOfDay }).max() else {
             return nil
         }
         guard let firstExpected = Calendar.current.date(byAdding: .day, value: avgCycle, to: lastStart)?.startOfDay else {
