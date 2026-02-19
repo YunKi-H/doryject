@@ -178,9 +178,7 @@ extension CalendarViewModel {
         let predictedPeriodRanges: [CalendarRangeInfo] = buildStyledRangesSplittingByWeeks(days: days, monthDate: monthStart) { day in
             predictedPeriodDates.contains(day.date.startOfDay)
         }
-        let delayedRanges: [CalendarRangeInfo] = buildStyledRangesSplittingByWeeks(days: days, monthDate: monthStart) { day in
-            day.events.contains { $0.type == .delayed }
-        }
+        let delayedRanges: [CalendarRangeInfo] = []
         let fertileRanges: [CalendarRangeInfo] = buildStyledRangesSplittingByWeeks(days: days, monthDate: monthStart) { day in
             day.events.contains { $0.type == .fertile }
         }
