@@ -597,8 +597,15 @@ extension CalendarViewModel {
         let today = Date().startOfDay
         
         if let ongoing = summaries.first(where: { $0.start.startOfDay <= target && target <= $0.end.startOfDay }) {
+            if target == ongoing.start.startOfDay {
+                return .bDay
+            }
             let dayIndex = (calendar.dateComponents([.day], from: ongoing.start.startOfDay, to: target).day ?? 0) + 1
             return .ongoing(day: max(dayIndex, 1))
+        }
+
+        if let latestStart = summaries.last?.start.startOfDay, target < latestStart {
+            return .unknown
         }
         
         guard let predictedStart = expectedPeriodStartDate(for: target, from: summaries) else {
