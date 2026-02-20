@@ -98,15 +98,17 @@ enum PeriodForecastCalculator {
         from pillDates: Set<Date>,
         calendar: Calendar = .current
     ) -> Date? {
-        guard let cycle = groupedPillCycles(
-            pillDates: pillDates,
-            pillCount: 9999,
-            breakDays: 0,
-            calendar: calendar
-        ).last else {
-            return nil
+        guard pillDates.isEmpty == false else { return nil }
+        let sorted = pillDates.map(\.startOfDay).sorted()
+        for date in sorted.reversed() {
+            guard let previous = calendar.date(byAdding: .day, value: -1, to: date.startOfDay)?.startOfDay else {
+                continue
+            }
+            if pillDates.contains(previous) == false {
+                return date.startOfDay
+            }
         }
-        return cycle.first
+        return sorted.first?.startOfDay
     }
     
     static func pillSequenceMap(
