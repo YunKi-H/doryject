@@ -17,6 +17,8 @@ final class UserNotificationScheduler: NotificationScheduler {
     func apply(settings: UserSettings, eventRepository: EventRepository) {
         center.requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in }
         center.removePendingNotificationRequests(withIdentifiers: Self.identifiers)
+        let now = Date()
+        let today = now.startOfDay
         
         let notificationSettings = settings.notifications
         if notificationSettings.periodReminderEnabled {
@@ -24,7 +26,8 @@ final class UserNotificationScheduler: NotificationScheduler {
             let starts = nextPeriodStarts(
                 settings: settings,
                 eventRepository: eventRepository,
-                count: maxScheduledOccurrences
+                count: maxScheduledOccurrences,
+                today: today
             )
             var idIndex = 0
             for start in starts {
@@ -32,7 +35,7 @@ final class UserNotificationScheduler: NotificationScheduler {
                     guard idIndex < Self.periodReminderIds.count else { break }
                     guard let reminderBase = calendar.date(byAdding: .day, value: -offset, to: start),
                           let reminderDate = combineDate(reminderBase, time: notificationSettings.periodReminderTime),
-                          reminderDate > Date() else {
+                          reminderDate > now else {
                         continue
                     }
                     let body = periodReminderBody(daysBefore: offset)
@@ -50,19 +53,18 @@ final class UserNotificationScheduler: NotificationScheduler {
            let context = periodPredictionContext(
             settings: settings,
             eventRepository: eventRepository,
-            target: Date().startOfDay
+            target: today
            ),
            let currentExpectedStart = PeriodForecastCalculator.expectedStartDate(
-            target: Date().startOfDay,
-            today: Date().startOfDay,
+            target: today,
+            today: today,
             context: context,
             calendar: calendar
            ) {
-            let today = Date().startOfDay
             if today > currentExpectedStart.startOfDay {
                 let scheduled = nextOccurrences(
                     time: notificationSettings.periodReminderTime,
-                    from: Date(),
+                    from: now,
                     count: maxScheduledOccurrences
                 )
                 for (index, date) in scheduled.enumerated() {
@@ -86,7 +88,8 @@ final class UserNotificationScheduler: NotificationScheduler {
                 settings: settings,
                 eventRepository: eventRepository,
                 time: notificationSettings.pillReminderTime,
-                count: maxScheduledOccurrences
+                count: maxScheduledOccurrences,
+                now: now
             )
             for (index, reminder) in reminders.enumerated() {
                 guard index < Self.pillReminderIds.count else { break }
@@ -103,12 +106,14 @@ final class UserNotificationScheduler: NotificationScheduler {
             let nextStarts = nextPillStartDates(
                 settings: settings,
                 eventRepository: eventRepository,
-                count: maxScheduledOccurrences
+                count: maxScheduledOccurrences,
+                today: today
             )
             let reminders = nextPillPurchaseReminderDates(
                 nextStarts: nextStarts,
                 daysBefore: max(notificationSettings.pillPurchaseReminderDaysBefore, 0),
-                time: notificationSettings.pillPurchaseReminderTime
+                time: notificationSettings.pillPurchaseReminderTime,
+                now: now
             )
             for (index, reminder) in reminders.enumerated() {
                 guard index < Self.pillPurchaseReminderIds.count else { break }
@@ -175,10 +180,10 @@ final class UserNotificationScheduler: NotificationScheduler {
     private func nextPeriodStarts(
         settings: UserSettings,
         eventRepository: EventRepository,
-        count: Int
+        count: Int,
+        today: Date
     ) -> [Date] {
         guard count > 0 else { return [] }
-        let today = Date().startOfDay
         guard let context = periodPredictionContext(
             settings: settings,
             eventRepository: eventRepository,
@@ -231,7 +236,8 @@ final class UserNotificationScheduler: NotificationScheduler {
     
     private func nextPillStartDate(
         settings: UserSettings,
-        eventRepository: EventRepository
+        eventRepository: EventRepository,
+        today: Date
     ) -> Date? {
         let pillSettings = settings.pill
         guard pillSettings.pillEnabled else { return nil }
@@ -243,7 +249,6 @@ final class UserNotificationScheduler: NotificationScheduler {
         let pillDates = Set(eventRepository.events(of: .pill).map { $0.date.startOfDay })
         guard let anchor = PeriodForecastCalculator.mostRecentPillStart(from: pillDates, calendar: calendar) else { return nil }
         
-        let today = Date().startOfDay
         var nextStart = anchor.startOfDay
         while nextStart <= today {
             guard let candidate = calendar.date(byAdding: .day, value: cycleLength, to: nextStart) else {
@@ -273,10 +278,15 @@ final class UserNotificationScheduler: NotificationScheduler {
     private func nextPillStartDates(
         settings: UserSettings,
         eventRepository: EventRepository,
-        count: Int
+        count: Int,
+        today: Date
     ) -> [Date] {
         guard count > 0 else { return [] }
-        guard let first = nextPillStartDate(settings: settings, eventRepository: eventRepository) else {
+        guard let first = nextPillStartDate(
+            settings: settings,
+            eventRepository: eventRepository,
+            today: today
+        ) else {
             return []
         }
         let pillSettings = settings.pill
@@ -298,9 +308,9 @@ final class UserNotificationScheduler: NotificationScheduler {
     private func nextPillPurchaseReminderDates(
         nextStarts: [Date],
         daysBefore: Int,
-        time: DateComponents
+        time: DateComponents,
+        now: Date
     ) -> [Date] {
-        let now = Date()
         var reminders: [Date] = []
         for start in nextStarts {
             guard let base = calendar.date(byAdding: .day, value: -daysBefore, to: start.startOfDay),
@@ -318,12 +328,12 @@ final class UserNotificationScheduler: NotificationScheduler {
         settings: UserSettings,
         eventRepository: EventRepository,
         time: DateComponents,
-        count: Int
+        count: Int,
+        now: Date
     ) -> [Date] {
         guard count > 0 else { return [] }
         guard let info = pillScheduleInfo(settings: settings, eventRepository: eventRepository) else { return [] }
         
-        let now = Date()
         let today = now.startOfDay
         var reminders: [Date] = []
         var dayOffset = 0
