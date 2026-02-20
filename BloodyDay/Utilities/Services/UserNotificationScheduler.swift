@@ -47,9 +47,15 @@ final class UserNotificationScheduler: NotificationScheduler {
             }
         }
         if notificationSettings.periodDelayedEnabled,
-           let nextPeriodStart = nextPeriodStart(settings: settings, eventRepository: eventRepository) {
+           let context = periodPredictionContext(settings: settings, eventRepository: eventRepository),
+           let currentExpectedStart = cycleAlignedExpectedStartDate(
+               target: Date().startOfDay,
+               firstExpected: context.firstExpected,
+               cycleLength: context.cycleLength,
+               predictedLength: context.predictedLength
+           ) {
             let today = Date().startOfDay
-            if today > nextPeriodStart.startOfDay {
+            if today > currentExpectedStart.startOfDay {
                 let scheduled = nextOccurrences(
                     time: notificationSettings.periodReminderTime,
                     from: Date(),
@@ -58,7 +64,7 @@ final class UserNotificationScheduler: NotificationScheduler {
                 for (index, date) in scheduled.enumerated() {
                     guard index < Self.periodDelayedIds.count else { break }
                     let daysDelayed = max(
-                        calendar.dateComponents([.day], from: nextPeriodStart.startOfDay, to: date.startOfDay).day ?? 0,
+                        calendar.dateComponents([.day], from: currentExpectedStart.startOfDay, to: date.startOfDay).day ?? 0,
                         0
                     )
                     scheduleOnce(
@@ -162,45 +168,124 @@ final class UserNotificationScheduler: NotificationScheduler {
         return results
     }
     
-    private func nextPeriodStart(
-        settings: UserSettings,
-        eventRepository: EventRepository
-    ) -> Date? {
-        let periodEvents = eventRepository.events(of: .period).map { $0.date }
-        let summaries = PeriodSummaryBuilder.build(from: periodEvents)
-        guard let lastStart = summaries.map(\.start).max() else { return nil }
-        
-        let settingsPeriod = settings.period
-        let cycleDays: Int?
-        if settingsPeriod.autoCyclePredictionEnabled == false,
-           let manual = settingsPeriod.averageCycleDays {
-            cycleDays = manual
-        } else {
-            cycleDays = averageCycleDays(from: summaries)
-        }
-        guard let cycle = cycleDays, cycle > 0 else { return nil }
-        return calendar.date(byAdding: .day, value: cycle, to: lastStart.startOfDay)
-    }
-    
     private func nextPeriodStarts(
         settings: UserSettings,
         eventRepository: EventRepository,
         count: Int
     ) -> [Date] {
         guard count > 0 else { return [] }
-        guard let first = nextPeriodStart(settings: settings, eventRepository: eventRepository) else { return [] }
-        let periodEvents = eventRepository.events(of: .period).map { $0.date }
-        let summaries = PeriodSummaryBuilder.build(from: periodEvents)
-        guard let cycle = cycleLengthDays(settings: settings, summaries: summaries) else { return [] }
+        guard let context = periodPredictionContext(settings: settings, eventRepository: eventRepository) else {
+            return []
+        }
+
+        let today = Date().startOfDay
+        guard var next = cycleAlignedExpectedStartDate(
+            target: today,
+            firstExpected: context.firstExpected,
+            cycleLength: context.cycleLength,
+            predictedLength: context.predictedLength
+        )?.startOfDay else {
+            return []
+        }
+        while next < today {
+            guard let following = calendar.date(byAdding: .day, value: context.cycleLength, to: next) else { return [] }
+            next = following.startOfDay
+        }
         
         var results: [Date] = []
-        var next = first.startOfDay
         for _ in 0..<count {
             results.append(next)
-            guard let following = calendar.date(byAdding: .day, value: cycle, to: next) else { break }
-            next = following
+            guard let following = calendar.date(byAdding: .day, value: context.cycleLength, to: next) else { break }
+            next = following.startOfDay
         }
         return results
+    }
+
+    private func periodPredictionContext(
+        settings: UserSettings,
+        eventRepository: EventRepository
+    ) -> (firstExpected: Date, cycleLength: Int, predictedLength: Int)? {
+        let predictedLength = max(predictedPeriodLengthDays(settings: settings, eventRepository: eventRepository) ?? 5, 1)
+
+        if let pill = pillPredictionContext(settings: settings, eventRepository: eventRepository) {
+            return (pill.firstExpected, pill.cycleLength, predictedLength)
+        }
+
+        let periodEvents = eventRepository.events(of: .period).map { $0.date }
+        let summaries = PeriodSummaryBuilder.build(from: periodEvents)
+        guard let lastStart = summaries.map(\.start).max()?.startOfDay,
+              let cycle = cycleLengthDays(settings: settings, summaries: summaries),
+              cycle > 0,
+              let firstExpected = calendar.date(byAdding: .day, value: cycle, to: lastStart)?.startOfDay else {
+            return nil
+        }
+        return (firstExpected, cycle, predictedLength)
+    }
+
+    private func pillPredictionContext(
+        settings: UserSettings,
+        eventRepository: EventRepository
+    ) -> (firstExpected: Date, cycleLength: Int)? {
+        let pillSettings = settings.pill
+        guard pillSettings.pillEnabled else { return nil }
+
+        let pillCount = max(pillSettings.pillCount, 0)
+        let breakDays = max(pillSettings.pillBreakDuration, 0)
+        let cycleLength = pillCount + breakDays
+        guard pillCount > 0, cycleLength > 0 else { return nil }
+
+        let pillDates = Set(eventRepository.events(of: .pill).map { $0.date.startOfDay })
+        guard let anchor = mostRecentPillStart(from: pillDates) else { return nil }
+        guard let lastPillInCycle = calendar.date(byAdding: .day, value: pillCount - 1, to: anchor.startOfDay),
+              let firstExpected = calendar.date(byAdding: .day, value: 3, to: lastPillInCycle)?.startOfDay else {
+            return nil
+        }
+        return (firstExpected, cycleLength)
+    }
+
+    private func predictedPeriodLengthDays(
+        settings: UserSettings,
+        eventRepository: EventRepository
+    ) -> Int? {
+        let settingsPeriod = settings.period
+        if settingsPeriod.autoCyclePredictionEnabled == false,
+           let manual = settingsPeriod.averagePeriodDays,
+           manual > 0 {
+            return manual
+        }
+
+        let periodEvents = eventRepository.events(of: .period).map { $0.date }
+        let summaries = PeriodSummaryBuilder.build(from: periodEvents)
+        let lengths = summaries.map(\.lengthDays).filter { $0 > 0 }
+        guard !lengths.isEmpty else { return nil }
+        let avg = Double(lengths.reduce(0, +)) / Double(lengths.count)
+        return Int(round(avg))
+    }
+
+    private func cycleAlignedExpectedStartDate(
+        target: Date,
+        firstExpected: Date,
+        cycleLength: Int,
+        predictedLength: Int
+    ) -> Date? {
+        let today = Date().startOfDay
+        guard cycleLength > 0 else { return firstExpected.startOfDay }
+
+        if target <= firstExpected.startOfDay {
+            return firstExpected.startOfDay
+        }
+
+        let daysFromFirst = calendar.dateComponents([.day], from: firstExpected.startOfDay, to: target.startOfDay).day ?? 0
+        let cycleOffset = daysFromFirst / cycleLength
+        guard let cycleStart = calendar.date(byAdding: .day, value: cycleOffset * cycleLength, to: firstExpected.startOfDay)?.startOfDay else {
+            return firstExpected.startOfDay
+        }
+
+        let cycleEndExclusive = calendar.date(byAdding: .day, value: max(predictedLength, 1), to: cycleStart.startOfDay) ?? cycleStart
+        if target > today && target >= cycleEndExclusive {
+            return calendar.date(byAdding: .day, value: cycleLength, to: cycleStart)?.startOfDay
+        }
+        return cycleStart
     }
     
     private func cycleLengthDays(settings: UserSettings, summaries: [PeriodSummary]) -> Int? {
