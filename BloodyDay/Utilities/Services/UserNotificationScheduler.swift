@@ -239,19 +239,20 @@ final class UserNotificationScheduler: NotificationScheduler {
         eventRepository: EventRepository,
         today: Date
     ) -> Date? {
-        let pillSettings = settings.pill
-        guard pillSettings.pillEnabled else { return nil }
-        let pillCount = max(pillSettings.pillCount, 0)
-        let breakDays = max(pillSettings.pillBreakDuration, 0)
-        let cycleLength = pillCount + breakDays
-        guard pillCount > 0, cycleLength > 0 else { return nil }
-        
         let pillDates = Set(eventRepository.events(of: .pill).map { $0.date.startOfDay })
-        guard let anchor = PeriodForecastCalculator.mostRecentPillStart(from: pillDates, calendar: calendar) else { return nil }
+        guard let projection = PeriodForecastCalculator.latestPillCycleProjection(
+            settings: settings,
+            pillDates: pillDates,
+            calendar: calendar
+        ) else { return nil }
         
-        var nextStart = anchor.startOfDay
+        guard let first = calendar.date(byAdding: .day, value: projection.breakDays + 1, to: projection.projectedLastIntakeDate.startOfDay) else {
+            return nil
+        }
+        
+        var nextStart = first.startOfDay
         while nextStart <= today {
-            guard let candidate = calendar.date(byAdding: .day, value: cycleLength, to: nextStart) else {
+            guard let candidate = calendar.date(byAdding: .day, value: projection.cycleLength, to: nextStart) else {
                 return nil
             }
             nextStart = candidate
@@ -262,17 +263,13 @@ final class UserNotificationScheduler: NotificationScheduler {
     private func pillScheduleInfo(
         settings: UserSettings,
         eventRepository: EventRepository
-    ) -> (anchor: Date, cycleLength: Int, pillCount: Int, breakDays: Int)? {
-        let pillSettings = settings.pill
-        guard pillSettings.pillEnabled else { return nil }
-        let pillCount = max(pillSettings.pillCount, 0)
-        let breakDays = max(pillSettings.pillBreakDuration, 0)
-        let cycleLength = pillCount + breakDays
-        guard pillCount > 0, cycleLength > 0 else { return nil }
-        
+    ) -> PillCycleProjection? {
         let pillDates = Set(eventRepository.events(of: .pill).map { $0.date.startOfDay })
-        guard let anchor = PeriodForecastCalculator.mostRecentPillStart(from: pillDates, calendar: calendar) else { return nil }
-        return (anchor, cycleLength, pillCount, breakDays)
+        return PeriodForecastCalculator.latestPillCycleProjection(
+            settings: settings,
+            pillDates: pillDates,
+            calendar: calendar
+        )
     }
     
     private func nextPillStartDates(
@@ -335,24 +332,46 @@ final class UserNotificationScheduler: NotificationScheduler {
         guard let info = pillScheduleInfo(settings: settings, eventRepository: eventRepository) else { return [] }
         
         let today = now.startOfDay
+        let pillDates = Set(eventRepository.events(of: .pill).map { $0.date.startOfDay })
         var reminders: [Date] = []
-        var dayOffset = 0
-        let maxLookahead = max(info.cycleLength * 3, 90)
         
-        while reminders.count < count && dayOffset <= maxLookahead {
-            guard let day = calendar.date(byAdding: .day, value: dayOffset, to: today) else { break }
-            let daysFromAnchor = calendar.dateComponents([.day], from: info.anchor.startOfDay, to: day.startOfDay).day ?? -1
-            if daysFromAnchor >= 0 {
-                let indexInCycle = daysFromAnchor % info.cycleLength
-                if indexInCycle < info.pillCount,
-                   let reminderDate = combineDate(day, time: time),
-                   reminderDate > now {
-                    reminders.append(reminderDate)
-                }
-            }
-            dayOffset += 1
+        func appendReminderIfNeeded(for day: Date) {
+            guard reminders.count < count else { return }
+            guard pillDates.contains(day.startOfDay) == false else { return }
+            guard let reminderDate = combineDate(day, time: time),
+                  reminderDate > now else { return }
+            reminders.append(reminderDate)
         }
         
+        var generatedDays: [Date] = []
+        guard var cycleStart = nextPillStartDate(
+            settings: settings,
+            eventRepository: eventRepository,
+            today: today
+        )?.startOfDay else {
+            return []
+        }
+        
+        let maxCycleLoops = 8
+        var cycleLoop = 0
+        while generatedDays.count < (count * 3), cycleLoop < maxCycleLoops {
+            for intakeOffset in 0..<info.pillCount {
+                if let day = calendar.date(byAdding: .day, value: intakeOffset, to: cycleStart.startOfDay),
+                   day.startOfDay >= today {
+                    generatedDays.append(day.startOfDay)
+                }
+            }
+            guard let nextCycle = calendar.date(byAdding: .day, value: info.cycleLength, to: cycleStart.startOfDay) else {
+                break
+            }
+            cycleStart = nextCycle.startOfDay
+            cycleLoop += 1
+        }
+        
+        for day in generatedDays.sorted() {
+            appendReminderIfNeeded(for: day)
+            if reminders.count >= count { break }
+        }
         return reminders
     }
     
