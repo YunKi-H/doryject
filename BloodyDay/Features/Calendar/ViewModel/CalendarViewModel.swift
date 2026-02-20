@@ -284,8 +284,8 @@ extension CalendarViewModel {
         let pillCount = max(pillSettings?.pillCount ?? 0, 0)
         let breakDays = max(pillSettings?.pillBreakDuration ?? 0, 0)
         let cycleLength = pillCount + breakDays
-        let pillAnchor = mostRecentPillStart(from: pillDates, calendar: .current)
-
+        let pillAnchor = PeriodForecastCalculator.mostRecentPillStart(from: pillDates, calendar: .current)
+        
         for i in days.indices {
             let dayDate = days[i].date.startOfDay
             guard allPillDates.contains(dayDate),
@@ -295,7 +295,7 @@ extension CalendarViewModel {
                 days[i].pillSequence = nil
                 continue
             }
-
+            
             let daysFromAnchor = calendar.dateComponents([.day], from: pillAnchor.startOfDay, to: dayDate).day ?? -1
             guard daysFromAnchor >= 0 else {
                 days[i].pillSequence = nil
@@ -314,7 +314,7 @@ extension CalendarViewModel {
     ) -> [Date: [EventType]]? {
         guard isPillEnabled else { return nil }
         let pillDates = eventRepository.events(of: .pill).map { $0.date.startOfDay }
-        guard let anchor = mostRecentPillStart(from: Set(pillDates), calendar: .current) else { return nil }
+        guard let anchor = PeriodForecastCalculator.mostRecentPillStart(from: Set(pillDates), calendar: .current) else { return nil }
         let pillSettings = settingsRepository?.load().pill
         let pillCount = max(pillSettings?.pillCount ?? 0, 0)
         let breakDays = max(pillSettings?.pillBreakDuration ?? 0, 0)
@@ -329,7 +329,7 @@ extension CalendarViewModel {
         let normalizedStart = rangeStart.startOfDay
         let normalizedEnd = rangeEndExclusive.startOfDay
         let today = Date().startOfDay
-        let lengthDays = max(periodAutoLengthDays(), 1)
+        let lengthDays = predictedPeriodLengthDaysFromCurrentData()
         let lutealDays = 14
         var predicted: [Date: [EventType]] = [:]
         var cyclePredictedStart = firstPredictedStart.startOfDay
@@ -393,25 +393,25 @@ extension CalendarViewModel {
     ) -> [CalendarRangeInfo] {
         var ranges: [CalendarRangeInfo] = []
         var idx = 0
-
+        
         while idx < days.count {
             guard hasEvent(days[idx]) else {
                 idx += 1
                 continue
             }
-
+            
             let runStartIndex = idx
             var runEndIndex = idx
             while runEndIndex + 1 < days.count && hasEvent(days[runEndIndex + 1]) {
                 runEndIndex += 1
             }
-
+            
             let runOpacity = opacityForRun(
                 runStartDate: days[runStartIndex].date,
                 runEndDate: days[runEndIndex].date,
                 monthDate: monthDate
             )
-
+            
             var segmentStartIndex = runStartIndex
             while segmentStartIndex <= runEndIndex {
                 let rowEndIndex = ((segmentStartIndex / columns) * columns) + (columns - 1)
@@ -424,20 +424,20 @@ extension CalendarViewModel {
                 )
                 segmentStartIndex = segmentEndIndex + 1
             }
-
+            
             idx = runEndIndex + 1
         }
-
+        
         return ranges
     }
-
+    
     private func opacityForRun(runStartDate: Date, runEndDate: Date, monthDate: Date) -> Double {
         let isOutsideCurrentMonth =
-            !runStartDate.isInSameMonth(as: monthDate) &&
-            !runEndDate.isInSameMonth(as: monthDate)
+        !runStartDate.isInSameMonth(as: monthDate) &&
+        !runEndDate.isInSameMonth(as: monthDate)
         return isOutsideCurrentMonth ? 0.3 : 1
     }
-
+    
     private func fertileOpacity(containing date: Date, fertileRanges: [CalendarRangeInfo]) -> Double? {
         fertileRanges.first {
             date >= $0.range.start.startOfDay && date <= $0.range.end.startOfDay
@@ -457,7 +457,7 @@ extension CalendarViewModel {
         if isAdjacent {
             datesToAdd = [normalizedDate]
         } else {
-            let lengthDays = max(periodAutoLengthDays(), 1)
+            let lengthDays = predictedPeriodLengthDaysFromCurrentData()
             let endExclusive = calendar.date(byAdding: .day, value: lengthDays, to: normalizedDate)!
             datesToAdd = Date.dates(from: normalizedDate, toExclusive: endExclusive)
         }
@@ -530,7 +530,7 @@ extension CalendarViewModel {
         let breakDays = max(pillSettings.pillBreakDuration, 0)
         let cycleLength = pillCount + breakDays
         guard pillCount > 0, cycleLength > 0 else { return [] }
-        guard let anchor = mostRecentPillStart(from: pillDates, calendar: .current) else { return [] }
+        guard let anchor = PeriodForecastCalculator.mostRecentPillStart(from: pillDates, calendar: .current) else { return [] }
         
         let start = max(rangeStart.startOfDay, anchor.startOfDay)
         var predicted: Set<Date> = []
@@ -547,21 +547,6 @@ extension CalendarViewModel {
             }
         }
         return predicted
-    }
-    
-    private func mostRecentPillStart(
-        from pillDates: Set<Date>,
-        calendar: Calendar
-    ) -> Date? {
-        guard !pillDates.isEmpty else { return nil }
-        let sorted = pillDates.sorted()
-        for date in sorted.reversed() {
-            let previous = calendar.date(byAdding: .day, value: -1, to: date.startOfDay)!
-            if !pillDates.contains(previous) {
-                return date.startOfDay
-            }
-        }
-        return sorted.first?.startOfDay
     }
     
     private func isPillDay(
@@ -603,17 +588,31 @@ extension CalendarViewModel {
             let dayIndex = (calendar.dateComponents([.day], from: ongoing.start.startOfDay, to: target).day ?? 0) + 1
             return .ongoing(day: max(dayIndex, 1))
         }
-
+        
         if let latestStart = summaries.map({ $0.start.startOfDay }).max(), target < latestStart {
             return .unknown
         }
         
-        guard let predictedStart = expectedPeriodStartDate(for: target, from: summaries) else {
+        let settings = settingsRepository?.load() ?? .init()
+        let pillDates = Set(eventRepository.events(of: .pill).map { $0.date.startOfDay })
+        guard let context = PeriodForecastCalculator.predictionContext(
+            target: target,
+            settings: settings,
+            periodSummaries: summaries,
+            pillDates: pillDates,
+            calendar: calendar
+        ),
+              let predictedStart = PeriodForecastCalculator.expectedStartDate(
+                target: target,
+                today: today,
+                context: context,
+                calendar: calendar
+              ) else {
             return .unknown
         }
-        let predictedLength = max(periodAutoLengthDays(), 1)
+        let predictedLength = max(context.predictedLength, 1)
         let predictedEndExclusive = calendar.date(byAdding: .day, value: predictedLength, to: predictedStart.startOfDay)!
-
+        
         if target == predictedStart.startOfDay {
             return .bDay
         }
@@ -627,74 +626,6 @@ extension CalendarViewModel {
         
         let daysUntil = calendar.dateComponents([.day], from: target, to: predictedStart).day ?? 0
         return .countdown(days: max(daysUntil, 0))
-    }
-
-    private func expectedPeriodStartDate(for target: Date, from summaries: [PeriodSummary]) -> Date? {
-        if let pillStart = pillExpectedStartDate(for: target) {
-            return pillStart
-        }
-        guard let avgCycle = effectiveAverageCycleDays(from: summaries),
-              let lastStart = summaries.map({ $0.start.startOfDay }).max() else {
-            return nil
-        }
-        guard let firstExpected = Calendar.current.date(byAdding: .day, value: avgCycle, to: lastStart)?.startOfDay else {
-            return nil
-        }
-        return cycleAlignedExpectedStartDate(
-            target: target.startOfDay,
-            firstExpected: firstExpected,
-            cycleLength: avgCycle
-        )
-    }
-
-    private func pillExpectedStartDate(for target: Date) -> Date? {
-        guard isPillEnabled else { return nil }
-        let calendar = Calendar.current
-        let pillDates = Set(eventRepository.events(of: .pill).map { $0.date.startOfDay })
-        guard let anchor = mostRecentPillStart(from: pillDates, calendar: calendar),
-              let pillSettings = settingsRepository?.load().pill else { return nil }
-        let pillCount = max(pillSettings.pillCount, 0)
-        let breakDays = max(pillSettings.pillBreakDuration, 0)
-        let cycleLength = pillCount + breakDays
-        guard pillCount > 0, cycleLength > 0 else { return nil }
-        let normalizedTarget = target.startOfDay
-        guard normalizedTarget >= anchor.startOfDay else { return nil }
-        guard let lastPillInCycle = calendar.date(byAdding: .day, value: pillCount - 1, to: anchor.startOfDay),
-              let firstExpectedStart = calendar.date(byAdding: .day, value: 3, to: lastPillInCycle) else {
-            return nil
-        }
-        let first = firstExpectedStart.startOfDay
-        return cycleAlignedExpectedStartDate(
-            target: normalizedTarget,
-            firstExpected: first,
-            cycleLength: cycleLength
-        )
-    }
-
-    private func cycleAlignedExpectedStartDate(
-        target: Date,
-        firstExpected: Date,
-        cycleLength: Int
-    ) -> Date? {
-        let calendar = Calendar.current
-        let today = Date().startOfDay
-        let predictedLength = max(periodAutoLengthDays(), 1)
-        guard cycleLength > 0 else { return firstExpected.startOfDay }
-        
-        if target <= firstExpected.startOfDay {
-            return firstExpected.startOfDay
-        }
-        
-        let daysFromFirst = calendar.dateComponents([.day], from: firstExpected.startOfDay, to: target.startOfDay).day ?? 0
-        let cycleOffset = daysFromFirst / cycleLength
-        guard let cycleStart = calendar.date(byAdding: .day, value: cycleOffset * cycleLength, to: firstExpected.startOfDay)?.startOfDay else {
-            return firstExpected.startOfDay
-        }
-        let cycleEndExclusive = calendar.date(byAdding: .day, value: predictedLength, to: cycleStart.startOfDay)!
-        if target > today && target >= cycleEndExclusive {
-            return calendar.date(byAdding: .day, value: cycleLength, to: cycleStart)?.startOfDay
-        }
-        return cycleStart
     }
     
     private func calculateSecondaryStatus(for date: Date) -> CalendarSecondaryStatus {
@@ -732,33 +663,12 @@ extension CalendarViewModel {
         return PeriodSummaryBuilder.build(from: events.map { $0.date })
     }
     
-    private func averageCycleDays(from summaries: [PeriodSummary]) -> Int? {
-        let cycles = summaries.compactMap(\.cycleDays)
-        guard !cycles.isEmpty else { return nil }
-        let avg = Double(cycles.reduce(0, +)) / Double(cycles.count)
-        return Int(round(avg))
-    }
-    
-    private func periodAutoLengthDays() -> Int {
-        let settings = settingsRepository?.load().period
-        if settings?.autoCyclePredictionEnabled == false, let manual = settings?.averagePeriodDays {
-            return manual
-        }
-        let summaries = actualPeriodSummaries()
-        let lengths = summaries.map(\.lengthDays).filter { $0 > 0 }
-        if !lengths.isEmpty {
-            let avg = Double(lengths.reduce(0, +)) / Double(lengths.count)
-            return Int(round(avg))
-        }
-        return 5
-    }
-    
-    private func effectiveAverageCycleDays(from summaries: [PeriodSummary]) -> Int? {
-        let settings = settingsRepository?.load().period
-        if settings?.autoCyclePredictionEnabled == false, let manual = settings?.averageCycleDays {
-            return manual
-        }
-        return averageCycleDays(from: summaries)
+    private func predictedPeriodLengthDaysFromCurrentData() -> Int {
+        let settings = settingsRepository?.load() ?? .init()
+        return PeriodForecastCalculator.predictedPeriodLengthDays(
+            settings: settings,
+            periodSummaries: actualPeriodSummaries()
+        )
     }
     
     private func manualCycleAverages() -> (cycleDays: Int?, periodDays: Int?) {
@@ -778,7 +688,7 @@ extension CalendarViewModel {
         guard pillCount > 0, cycleLength > 0 else { return nil }
         
         let pillDates = Set(eventRepository.events(of: .pill).map { $0.date.startOfDay })
-        guard let anchor = mostRecentPillStart(from: pillDates, calendar: .current) else { return nil }
+        guard let anchor = PeriodForecastCalculator.mostRecentPillStart(from: pillDates, calendar: .current) else { return nil }
         
         let target = date.startOfDay
         guard target >= anchor.startOfDay else { return nil }
@@ -797,7 +707,7 @@ extension CalendarViewModel {
         guard pillCount > 0, breakDays > 0, cycleLength > 0 else { return nil }
         
         let pillDates = Set(eventRepository.events(of: .pill).map { $0.date.startOfDay })
-        guard let anchor = mostRecentPillStart(from: pillDates, calendar: .current) else { return nil }
+        guard let anchor = PeriodForecastCalculator.mostRecentPillStart(from: pillDates, calendar: .current) else { return nil }
         
         let target = date.startOfDay
         guard target >= anchor.startOfDay else { return nil }
