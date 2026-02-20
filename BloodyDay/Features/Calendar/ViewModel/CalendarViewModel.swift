@@ -49,6 +49,11 @@ final class CalendarViewModel {
     }
 }
 
+struct PillDisableConfirmationContext {
+    let remainingCount: Int
+    let datesToDeleteFromSelected: [Date]
+}
+
 // Repository
 extension CalendarViewModel {
     func isEventOnSelectedDate(_ type: EventType) -> Bool {
@@ -79,6 +84,53 @@ extension CalendarViewModel {
             }
         }
         let keepingMonth = months.indices.contains(currentIndex) ? months[currentIndex].monthDate : date.startOfMonth
+        recomputeLoadedMonths(keepingMonth: keepingMonth)
+    }
+
+    func pillDisableConfirmationContextForSelectedDate() -> PillDisableConfirmationContext? {
+        guard isEventOnSelectedDate(.pill),
+              let settings = settingsRepository?.load() else {
+            return nil
+        }
+        let pillSettings = settings.pill
+        guard pillSettings.pillEnabled,
+              pillSettings.pillAutoRecordEnabled else {
+            return nil
+        }
+
+        let pillCount = max(pillSettings.pillCount, 0)
+        guard pillCount > 0 else { return nil }
+
+        let calendar = Calendar.current
+        let selected = selectedDate.startOfDay
+        let pillDates = Set(eventRepository.events(of: .pill).map { $0.date.startOfDay })
+        guard let projection = PeriodForecastCalculator.latestPillCycleProjection(
+            settings: settings,
+            pillDates: pillDates,
+            calendar: calendar
+        ) else { return nil }
+
+        let cycleStart = projection.cycleStart.startOfDay
+        guard let intakeEnd = calendar.date(byAdding: .day, value: pillCount - 1, to: cycleStart)?.startOfDay else {
+            return nil
+        }
+        guard selected >= cycleStart && selected <= intakeEnd else { return nil }
+
+        let remainingCount = max(calendar.dateComponents([.day], from: selected, to: intakeEnd).day ?? 0, 0)
+        guard remainingCount >= 1 else { return nil }
+
+        let datesToDeleteFromSelected = Date.dates(from: selected, to: intakeEnd)
+        return PillDisableConfirmationContext(
+            remainingCount: remainingCount,
+            datesToDeleteFromSelected: datesToDeleteFromSelected
+        )
+    }
+
+    func deletePillEvents(on dates: [Date]) {
+        for date in dates.map(\.startOfDay) {
+            eventRepository.delete(type: .pill, on: date)
+        }
+        let keepingMonth = months.indices.contains(currentIndex) ? months[currentIndex].monthDate : selectedDate.startOfMonth
         recomputeLoadedMonths(keepingMonth: keepingMonth)
     }
 }

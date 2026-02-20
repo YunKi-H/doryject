@@ -20,6 +20,9 @@ struct CalendarMainView: View {
     @State private var period: Bool = false
     @State private var pill: Bool = false
     @State private var love: Bool = false
+    @State private var isPillDisableDialogPresented: Bool = false
+    @State private var pillDisableRemainingCount: Int = 0
+    @State private var pillDisableDatesFromSelected: [Date] = []
     
     var body: some View {
         VStack(spacing: 0) {
@@ -140,8 +143,9 @@ struct CalendarMainView: View {
                             }
                         }
                         .tint(.subBlue)
-                        .onChange(of: pill) { _, newValue in
-                            viewModel.setEvent(.pill, enabled: newValue)
+                        .onChange(of: pill) { oldValue, newValue in
+                            guard oldValue != newValue else { return }
+                            handlePillToggleChange(newValue: newValue)
                         }
                         
                         Toggle(isOn: $love) {
@@ -202,6 +206,22 @@ struct CalendarMainView: View {
                 syncToggleState()
             }
         }
+        .confirmationDialog(
+            "피임약 복용을 중단하시겠습니까?\n아직 예정된 복용이 \(pillDisableRemainingCount)정 남았습니다.",
+            isPresented: $isPillDisableDialogPresented,
+            titleVisibility: .visible
+        ) {
+            Button("오늘만 미복용") {
+                viewModel.setEvent(.pill, enabled: false)
+                clearPillDisableDialogContext()
+                syncToggleState()
+            }
+            Button("복용 중단", role: .destructive) {
+                viewModel.deletePillEvents(on: pillDisableDatesFromSelected)
+                clearPillDisableDialogContext()
+                syncToggleState()
+            }
+        }
     }
     
     private func syncToggleState() {
@@ -209,6 +229,30 @@ struct CalendarMainView: View {
         period = states.period
         pill = states.pill
         love = states.love
+    }
+    
+    private func handlePillToggleChange(newValue: Bool) {
+        if newValue {
+            viewModel.setEvent(.pill, enabled: true)
+            syncToggleState()
+            return
+        }
+        
+        if let context = viewModel.pillDisableConfirmationContextForSelectedDate() {
+            pillDisableRemainingCount = context.remainingCount
+            pillDisableDatesFromSelected = context.datesToDeleteFromSelected
+            isPillDisableDialogPresented = true
+            return
+        }
+        
+        viewModel.setEvent(.pill, enabled: false)
+        syncToggleState()
+    }
+    
+    private func clearPillDisableDialogContext() {
+        isPillDisableDialogPresented = false
+        pillDisableRemainingCount = 0
+        pillDisableDatesFromSelected = []
     }
 }
 
