@@ -143,6 +143,32 @@ enum PeriodForecastCalculator {
         let breakDays = max(pill.pillBreakDuration, 0)
         guard pillCount > 0 else { return nil }
         
+        if pill.pillAutoRecordEnabled {
+            guard let latestCycle = groupedPillCycles(
+                pillDates: pillDates,
+                pillCount: pillCount,
+                breakDays: breakDays,
+                calendar: calendar
+            ).last,
+            let cycleStart = latestCycle.first,
+            let lastIntake = latestCycle.last else {
+                return nil
+            }
+            
+            let intakeCount = min(latestCycle.count, pillCount)
+            let projectedLast = lastIntake.startOfDay
+            
+            return PillCycleProjection(
+                cycleStart: cycleStart.startOfDay,
+                lastIntakeDate: lastIntake.startOfDay,
+                intakeCount: intakeCount,
+                projectedLastIntakeDate: projectedLast,
+                pillCount: pillCount,
+                breakDays: breakDays
+            )
+        }
+        
+        // Auto record OFF: continue current cycle by intake count progression.
         guard let latestCycle = groupedPillCycles(
             pillDates: pillDates,
             pillCount: pillCount,
@@ -153,10 +179,15 @@ enum PeriodForecastCalculator {
         let lastIntake = latestCycle.last else {
             return nil
         }
-        
         let intakeCount = min(latestCycle.count, pillCount)
-        let projectedLast = lastIntake.startOfDay
-        
+        let remaining = max(pillCount - intakeCount, 0)
+        guard let projectedLast = calendar.date(
+                byAdding: .day,
+                value: remaining,
+                to: lastIntake.startOfDay
+              )?.startOfDay else {
+            return nil
+        }
         return PillCycleProjection(
             cycleStart: cycleStart.startOfDay,
             lastIntakeDate: lastIntake.startOfDay,
