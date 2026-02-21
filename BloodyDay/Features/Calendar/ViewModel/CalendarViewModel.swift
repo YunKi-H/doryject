@@ -386,7 +386,7 @@ extension CalendarViewModel {
         let gridStart = month.startOfCalendarGrid()
         let gridEndExclusive = month.endOfCalendarGridExclusiveStart()
         
-        var days: [DayInfo] = Date.dates(from: gridStart, to: gridEndExclusive).map { DayInfo(date: $0) }
+        var days: [DayInfo] = Date.dates(from: gridStart, toExclusive: gridEndExclusive).map { DayInfo(date: $0) }
         
         for i in days.indices {
             let key = days[i].date.startOfDay

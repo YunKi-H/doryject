@@ -110,12 +110,12 @@ struct PeriodEditSheetView: View {
                                 .tint(.mainRed)
                                 .buttonStyle(.glassProminent)
                             }
+                        }
                 }
+                .appGradientOverlay()
+                .presentationDetents([.height(320)])
+                .presentationDragIndicator(.visible)
             }
-            .appGradientOverlay()
-            .presentationDetents([.height(320)])
-            .presentationDragIndicator(.visible)
-        }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
@@ -314,7 +314,7 @@ struct PeriodEditSheetView: View {
     private func buildDayInfos(for month: Date) -> [DayInfo] {
         let gridStart = month.startOfCalendarGrid()
         let gridEndExclusive = month.endOfCalendarGridExclusiveStart()
-        return Date.dates(from: gridStart, to: gridEndExclusive).map { date in
+        return Date.dates(from: gridStart, toExclusive: gridEndExclusive).map { date in
             if selectedPeriodDates.contains(date.startOfDay) {
                 return DayInfo(date: date, events: [DayEvent(type: .period)])
             }
@@ -330,25 +330,25 @@ struct PeriodEditSheetView: View {
     ) -> [CalendarRangeInfo] {
         var ranges: [CalendarRangeInfo] = []
         var idx = 0
-
+        
         while idx < days.count {
             guard hasEvent(days[idx]) else {
                 idx += 1
                 continue
             }
-
+            
             let runStartIndex = idx
             var runEndIndex = idx
             while runEndIndex + 1 < days.count && hasEvent(days[runEndIndex + 1]) {
                 runEndIndex += 1
             }
-
+            
             let runOpacity = opacityForRun(
                 runStartDate: days[runStartIndex].date,
                 runEndDate: days[runEndIndex].date,
                 monthDate: monthDate
             )
-
+            
             var segmentStartIndex = runStartIndex
             while segmentStartIndex <= runEndIndex {
                 let rowEndIndex = ((segmentStartIndex / columns) * columns) + (columns - 1)
@@ -361,17 +361,17 @@ struct PeriodEditSheetView: View {
                 )
                 segmentStartIndex = segmentEndIndex + 1
             }
-
+            
             idx = runEndIndex + 1
         }
-
+        
         return ranges
     }
-
+    
     private func opacityForRun(runStartDate: Date, runEndDate: Date, monthDate: Date) -> Double {
         let isOutsideCurrentMonth =
-            !runStartDate.isInSameMonth(as: monthDate) &&
-            !runEndDate.isInSameMonth(as: monthDate)
+        !runStartDate.isInSameMonth(as: monthDate) &&
+        !runEndDate.isInSameMonth(as: monthDate)
         return isOutsideCurrentMonth ? 0.3 : 1
     }
     
