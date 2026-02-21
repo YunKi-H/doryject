@@ -54,6 +54,14 @@ struct PillDisableConfirmationContext {
     let datesToDeleteFromSelected: [Date]
 }
 
+private struct MonthComputationContext {
+    let eventsByDay: [Date: [DayEvent]]
+    let pillDates: Set<Date>
+    let pillSequenceByDate: [Date: Int]
+    let predictedEventsByDay: [Date: [EventType]]
+    let predictedPeriodDates: Set<Date>
+}
+
 // Repository
 extension CalendarViewModel {
     func isEventOnSelectedDate(_ type: EventType) -> Bool {
@@ -86,7 +94,7 @@ extension CalendarViewModel {
         let keepingMonth = months.indices.contains(currentIndex) ? months[currentIndex].monthDate : date.startOfMonth
         recomputeLoadedMonths(keepingMonth: keepingMonth)
     }
-
+    
     func pillDisableConfirmationContextForSelectedDate() -> PillDisableConfirmationContext? {
         guard isEventOnSelectedDate(.pill),
               let settings = settingsRepository?.load() else {
@@ -97,10 +105,10 @@ extension CalendarViewModel {
               pillSettings.pillAutoRecordEnabled else {
             return nil
         }
-
+        
         let pillCount = max(pillSettings.pillCount, 0)
         guard pillCount > 0 else { return nil }
-
+        
         let calendar = Calendar.current
         let selected = selectedDate.startOfDay
         let pillDates = Set(eventRepository.events(of: .pill).map { $0.date.startOfDay })
@@ -109,23 +117,23 @@ extension CalendarViewModel {
             pillDates: pillDates,
             calendar: calendar
         ) else { return nil }
-
+        
         let cycleStart = projection.cycleStart.startOfDay
         guard let intakeEnd = calendar.date(byAdding: .day, value: pillCount - 1, to: cycleStart)?.startOfDay else {
             return nil
         }
         guard selected >= cycleStart && selected <= intakeEnd else { return nil }
-
+        
         let remainingCount = max(calendar.dateComponents([.day], from: selected, to: intakeEnd).day ?? 0, 0)
         guard remainingCount >= 1 else { return nil }
-
+        
         let datesToDeleteFromSelected = Date.dates(from: selected, to: intakeEnd)
         return PillDisableConfirmationContext(
             remainingCount: remainingCount,
             datesToDeleteFromSelected: datesToDeleteFromSelected
         )
     }
-
+    
     func deletePillEvents(on dates: [Date]) {
         for date in dates.map(\.startOfDay) {
             eventRepository.delete(type: .pill, on: date)
@@ -194,8 +202,14 @@ extension CalendarViewModel {
     
     private func rebuildMonths(monthDates: [Date], keepingMonth: Date) {
         let normalizedMonthDates = monthDates.map(\.startOfMonth)
-        let calculationEvents = calculationEvents(for: normalizedMonthDates)
-        months = normalizedMonthDates.map { makeMonthInfo(for: $0, userEvents: calculationEvents) }
+        guard let bounds = calculationBounds(for: normalizedMonthDates) else {
+            months = []
+            currentIndex = 0
+            return
+        }
+        let calculationEvents = calculationEvents(in: bounds)
+        let context = buildMonthComputationContext(bounds: bounds, userEvents: calculationEvents)
+        months = normalizedMonthDates.map { makeMonthInfo(for: $0, userEvents: calculationEvents, context: context) }
         
         if let idx = months.firstIndex(where: { $0.monthDate == keepingMonth.startOfMonth }) {
             currentIndex = idx
@@ -204,23 +218,131 @@ extension CalendarViewModel {
         }
     }
     
-    private func calculationEvents(for monthDates: [Date]) -> [UserEvent] {
+    private func calculationBounds(for monthDates: [Date]) -> (start: Date, endExclusive: Date)? {
         guard let firstMonth = monthDates.min(),
               let lastMonth = monthDates.max() else {
-            return []
+            return nil
         }
-        let calculationRangeStart = firstMonth.startOfMonth.addingMonths(-1)
-        let calculationRangeEndExclusive = lastMonth.startOfMonth.addingMonths(2)
+        let start = firstMonth.startOfMonth.addingMonths(-1)
+        let endExclusive = lastMonth.startOfMonth.addingMonths(2)
+        return (start: start, endExclusive: endExclusive)
+    }
+    
+    private func calculationEvents(in bounds: (start: Date, endExclusive: Date)) -> [UserEvent] {
         return eventRepository.allEvents().filter {
             let day = $0.date.startOfDay
-            return day >= calculationRangeStart && day < calculationRangeEndExclusive
+            return day >= bounds.start && day < bounds.endExclusive
         }
     }
     
-    private func makeMonthInfo(for month: Date, userEvents: [UserEvent]) -> MonthInfo {
+    private func buildMonthComputationContext(
+        bounds: (start: Date, endExclusive: Date),
+        userEvents: [UserEvent]
+    ) -> MonthComputationContext {
+        let settings = settingsRepository?.load() ?? .init()
+        let today = Date().startOfDay
+        let groupedEvents = Dictionary(grouping: userEvents) { $0.date.startOfDay }
+        let eventsByDay = groupedEvents.mapValues { dayEvents in
+            dayEvents.map { DayEvent(type: $0.type) }
+        }
+        let pillDates = Set(eventRepository.events(of: .pill).map { $0.date.startOfDay })
+        let projection = PeriodForecastCalculator.latestPillCycleProjection(
+            settings: settings,
+            pillDates: pillDates,
+            calendar: .current
+        )
+        let pillCycleRange = projectedPillCycleRangeForFertilitySuppression(
+            settings: settings,
+            projection: projection
+        )
+        let suppressFutureFertilityPrediction = shouldSuppressFutureFertilityPrediction(
+            today: today,
+            pillCycleRange: pillCycleRange
+        )
+        
+        let pillSettings = settings.pill
+        let pillCount = max(pillSettings.pillCount, 0)
+        let breakDays = max(pillSettings.pillBreakDuration, 0)
+        let pillSequenceByDate = PeriodForecastCalculator.pillSequenceMap(
+            pillDates: pillDates,
+            pillCount: pillCount,
+            breakDays: breakDays,
+            calendar: .current
+        )
+        
+        let allPeriodEvents = eventRepository.events(of: .period)
+        let periodSummaries = PeriodSummaryBuilder.build(from: allPeriodEvents.map(\.date))
+        let manualAverages = manualCycleAverages(for: settings)
+        let prediction = CyclePrediction.predictEvents(
+            periodEvents: allPeriodEvents,
+            rangeStart: bounds.start,
+            rangeEndExclusive: bounds.endExclusive,
+            avgCycleDays: manualAverages.cycleDays,
+            avgPeriodDays: manualAverages.periodDays
+        )
+        var predictedEventsByDay = prediction.predictedEventsByDay
+        
+        if let pillPrediction = pillBasedPeriodPrediction(
+            rangeStart: bounds.start,
+            rangeEndExclusive: bounds.endExclusive,
+            settings: settings,
+            projection: projection,
+            today: today,
+            predictedLengthDays: predictedPeriodLengthDays(settings: settings, periodSummaries: periodSummaries)
+        ) {
+            for key in predictedEventsByDay.keys {
+                predictedEventsByDay[key] = predictedEventsByDay[key]?.filter {
+                    $0 != .period && $0 != .delayed && $0 != .ovulation && $0 != .fertile
+                } ?? []
+            }
+            for (key, types) in pillPrediction {
+                var merged = predictedEventsByDay[key, default: []]
+                for type in types where !merged.contains(type) {
+                    merged.append(type)
+                }
+                predictedEventsByDay[key] = merged
+            }
+        }
+        
+        if let pillCycleRange {
+            for key in predictedEventsByDay.keys {
+                var events = predictedEventsByDay[key] ?? []
+                events.removeAll { type in
+                    guard type == .fertile || type == .ovulation else { return false }
+                    return key >= pillCycleRange.start.startOfDay && key < pillCycleRange.end.startOfDay
+                }
+                predictedEventsByDay[key] = events
+            }
+        }
+        
+        if suppressFutureFertilityPrediction {
+            for key in predictedEventsByDay.keys where key > today {
+                var events = predictedEventsByDay[key] ?? []
+                events.removeAll { $0 == .fertile || $0 == .ovulation }
+                predictedEventsByDay[key] = events
+            }
+        }
+        
+        var predictedPeriodDates: Set<Date> = []
+        for (date, types) in predictedEventsByDay where date >= bounds.start && date < bounds.endExclusive {
+            if types.contains(.period) || types.contains(.delayed) {
+                predictedPeriodDates.insert(date.startOfDay)
+            }
+        }
+        
+        return MonthComputationContext(
+            eventsByDay: eventsByDay,
+            pillDates: pillDates,
+            pillSequenceByDate: pillSequenceByDate,
+            predictedEventsByDay: predictedEventsByDay,
+            predictedPeriodDates: predictedPeriodDates
+        )
+    }
+    
+    private func makeMonthInfo(for month: Date, userEvents: [UserEvent], context: MonthComputationContext) -> MonthInfo {
         let monthStart = month.startOfMonth
         let actualPeriodDates = Set(userEvents.filter { $0.type == .period }.map { $0.date.startOfDay })
-        let result = buildDayInfos(for: monthStart, userEvents: userEvents)
+        let result = buildDayInfos(for: monthStart, context: context)
         let days: [DayInfo] = result.days
         let predictedPeriodDates: Set<Date> = result.predictedPeriodDates
         
@@ -259,82 +381,40 @@ extension CalendarViewModel {
     
     private func buildDayInfos(
         for month: Date,
-        userEvents: [UserEvent]
+        context: MonthComputationContext
     ) -> (days: [DayInfo], predictedPeriodDates: Set<Date>) {
         let gridStart = month.startOfCalendarGrid()
         let gridEndExclusive = month.endOfCalendarGridExclusiveStart()
         
-        var days: [DayInfo] = Date.dates(from: gridStart, to: gridEndExclusive).map { DayInfo(date: $0) }
+        var days: [DayInfo] = Date.dates(from: gridStart, toExclusive: gridEndExclusive).map { DayInfo(date: $0) }
         
-        let eventsByDay = Dictionary(grouping: userEvents) { $0.date.startOfDay }
         for i in days.indices {
             let key = days[i].date.startOfDay
-            let dayEvents: [DayEvent] = eventsByDay[key]?.map { DayEvent(type: $0.type) } ?? []
+            let dayEvents: [DayEvent] = context.eventsByDay[key] ?? []
             days[i].events = dayEvents
         }
         
-        let periodEvents = userEvents.filter { $0.type == .period }
-        let manualAverages = manualCycleAverages()
-        let prediction = CyclePrediction.predictEvents(
-            periodEvents: periodEvents,
-            rangeStart: gridStart,
-            rangeEndExclusive: gridEndExclusive,
-            avgCycleDays: manualAverages.cycleDays,
-            avgPeriodDays: manualAverages.periodDays
+        let predictedPeriodDates = Set(
+            context.predictedPeriodDates.filter { $0 >= gridStart && $0 < gridEndExclusive }
         )
-        var predictedEventsByDay = prediction.predictedEventsByDay
-        if let pillPrediction = pillBasedPeriodPrediction(
-            rangeStart: gridStart,
-            rangeEndExclusive: gridEndExclusive
-        ) {
-            for key in predictedEventsByDay.keys {
-                predictedEventsByDay[key] = predictedEventsByDay[key]?.filter {
-                    $0 != .period && $0 != .delayed && $0 != .ovulation && $0 != .fertile
-                } ?? []
-            }
-            for (key, types) in pillPrediction {
-                var merged = predictedEventsByDay[key, default: []]
-                for type in types where !merged.contains(type) {
-                    merged.append(type)
-                }
-                predictedEventsByDay[key] = merged
-            }
-        }
-        
-        var predictedPeriodDates: Set<Date> = []
-        if !predictedEventsByDay.isEmpty {
+        if !context.predictedEventsByDay.isEmpty {
             for i in days.indices {
                 let key = days[i].date.startOfDay
-                guard let predicted = predictedEventsByDay[key] else { continue }
+                guard key >= gridStart && key < gridEndExclusive,
+                      let predicted = context.predictedEventsByDay[key] else { continue }
                 for type in predicted where !days[i].events.contains(where: { $0.type == type }) {
                     days[i].events.append(DayEvent(type: type))
-                    if type == .period || type == .delayed {
-                        predictedPeriodDates.insert(key)
-                    }
                 }
             }
         }
-        
-        let calendar = Calendar.current
-        let pillDates = Set(eventRepository.events(of: .pill).map { $0.date.startOfDay })
-        let allPillDates = pillDates
-        let pillSettings = settingsRepository?.load().pill
-        let pillCount = max(pillSettings?.pillCount ?? 0, 0)
-        let breakDays = max(pillSettings?.pillBreakDuration ?? 0, 0)
-        let sequenceByDate = PeriodForecastCalculator.pillSequenceMap(
-            pillDates: allPillDates,
-            pillCount: pillCount,
-            breakDays: breakDays,
-            calendar: calendar
-        )
         
         for i in days.indices {
             let dayDate = days[i].date.startOfDay
-            guard allPillDates.contains(dayDate) else {
+            guard context.pillDates.contains(dayDate) else {
                 days[i].pillSequence = nil
                 continue
             }
-            days[i].pillSequence = sequenceByDate[dayDate]
+            days[i].pillSequence = context.pillSequenceByDate[dayDate]
         }
         
         return (days, predictedPeriodDates)
@@ -342,21 +422,19 @@ extension CalendarViewModel {
     
     private func pillBasedPeriodPrediction(
         rangeStart: Date,
-        rangeEndExclusive: Date
+        rangeEndExclusive: Date,
+        settings: UserSettings,
+        projection: PillCycleProjection?,
+        today: Date,
+        predictedLengthDays: Int
     ) -> [Date: [EventType]]? {
-        guard isPillEnabled else { return nil }
-        let pillDates = eventRepository.events(of: .pill).map { $0.date.startOfDay }
-        let pillSettings = settingsRepository?.load().pill
-        let pillCount = max(pillSettings?.pillCount ?? 0, 0)
-        let breakDays = max(pillSettings?.pillBreakDuration ?? 0, 0)
+        let pillSettings = settings.pill
+        guard pillSettings.pillEnabled else { return nil }
+        let pillCount = max(pillSettings.pillCount, 0)
+        let breakDays = max(pillSettings.pillBreakDuration, 0)
         let cycleLength = pillCount + breakDays
         guard pillCount > 0, cycleLength > 0 else { return nil }
-        let settings = settingsRepository?.load() ?? .init()
-        guard let projection = PeriodForecastCalculator.latestPillCycleProjection(
-            settings: settings,
-            pillDates: Set(pillDates),
-            calendar: .current
-        ) else { return nil }
+        guard let projection else { return nil }
         let calendar = Calendar.current
         guard let firstPredictedStart = calendar.date(byAdding: .day, value: 3, to: projection.projectedLastIntakeDate),
               firstPredictedStart.startOfDay >= projection.cycleStart.startOfDay else {
@@ -365,8 +443,7 @@ extension CalendarViewModel {
         
         let normalizedStart = rangeStart.startOfDay
         let normalizedEnd = rangeEndExclusive.startOfDay
-        let today = Date().startOfDay
-        let lengthDays = predictedPeriodLengthDaysFromCurrentData()
+        let lengthDays = max(predictedLengthDays, 1)
         let lutealDays = 14
         var predicted: [Date: [EventType]] = [:]
         var cyclePredictedStart = firstPredictedStart.startOfDay
@@ -479,6 +556,45 @@ extension CalendarViewModel {
         fertileRanges.first {
             date >= $0.range.start.startOfDay && date <= $0.range.end.startOfDay
         }?.opacity
+    }
+    
+    private func projectedPillCycleRangeForFertilitySuppression(
+        settings: UserSettings,
+        projection: PillCycleProjection?
+    ) -> DateInterval? {
+        let pillSettings = settings.pill
+        guard pillSettings.pillEnabled else { return nil }
+        
+        let pillCount = max(pillSettings.pillCount, 0)
+        let breakDays = max(pillSettings.pillBreakDuration, 0)
+        let cycleLength = pillCount + breakDays
+        guard cycleLength > 0 else { return nil }
+        
+        let calendar = Calendar.current
+        guard let projection,
+              let cycleEndExclusive = calendar.date(byAdding: .day, value: cycleLength, to: projection.cycleStart.startOfDay) else {
+            return nil
+        }
+        
+        return DateInterval(start: projection.cycleStart.startOfDay, end: cycleEndExclusive.startOfDay)
+    }
+    
+    private func shouldSuppressFutureFertilityPrediction(
+        today: Date,
+        pillCycleRange: DateInterval?
+    ) -> Bool {
+        guard let pillCycleRange else { return false }
+        return today >= pillCycleRange.start.startOfDay && today < pillCycleRange.end.startOfDay
+    }
+    
+    private func predictedPeriodLengthDays(
+        settings: UserSettings,
+        periodSummaries: [PeriodSummary]
+    ) -> Int {
+        return PeriodForecastCalculator.predictedPeriodLengthDays(
+            settings: settings,
+            periodSummaries: periodSummaries
+        )
     }
     
     private func addPeriodEvents(startingAt date: Date) {
@@ -719,12 +835,12 @@ extension CalendarViewModel {
         )
     }
     
-    private func manualCycleAverages() -> (cycleDays: Int?, periodDays: Int?) {
-        guard let settings = settingsRepository?.load().period,
-              settings.autoCyclePredictionEnabled == false else {
+    private func manualCycleAverages(for settings: UserSettings) -> (cycleDays: Int?, periodDays: Int?) {
+        let periodSettings = settings.period
+        guard periodSettings.autoCyclePredictionEnabled == false else {
             return (nil, nil)
         }
-        return (settings.averageCycleDays, settings.averagePeriodDays)
+        return (periodSettings.averageCycleDays, periodSettings.averagePeriodDays)
     }
     
     private func pillInfo(for date: Date) -> (day: Int, total: Int?)? {
