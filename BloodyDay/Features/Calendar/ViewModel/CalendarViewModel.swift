@@ -276,10 +276,14 @@ extension CalendarViewModel {
         let periodEvents = userEvents.filter { $0.type == .period }
         let manualAverages = manualCycleAverages()
         let settings = settingsRepository?.load() ?? .init()
+        let pillSettings = settings.pill
+        let pillDates = Set(eventRepository.events(of: .pill).map { $0.date.startOfDay })
         let pillCycleRange = projectedPillCycleRangeForFertilitySuppression(settings: settings)
         let today = Date().startOfDay
-        let shouldSuppressFutureFertilityPrediction =
-            pillCycleRange.map { today >= $0.start.startOfDay && today < $0.end.startOfDay } ?? false
+        let shouldSuppressFutureFertilityPrediction = shouldSuppressFutureFertilityPrediction(
+            today: today,
+            pillCycleRange: pillCycleRange
+        )
         let prediction = CyclePrediction.predictEvents(
             periodEvents: periodEvents,
             rangeStart: gridStart,
@@ -331,11 +335,9 @@ extension CalendarViewModel {
         }
         
         let calendar = Calendar.current
-        let pillDates = Set(eventRepository.events(of: .pill).map { $0.date.startOfDay })
         let allPillDates = pillDates
-        let pillSettings = settingsRepository?.load().pill
-        let pillCount = max(pillSettings?.pillCount ?? 0, 0)
-        let breakDays = max(pillSettings?.pillBreakDuration ?? 0, 0)
+        let pillCount = max(pillSettings.pillCount, 0)
+        let breakDays = max(pillSettings.pillBreakDuration, 0)
         let sequenceByDate = PeriodForecastCalculator.pillSequenceMap(
             pillDates: allPillDates,
             pillCount: pillCount,
@@ -517,6 +519,14 @@ extension CalendarViewModel {
         }
 
         return DateInterval(start: projection.cycleStart.startOfDay, end: cycleEndExclusive.startOfDay)
+    }
+
+    private func shouldSuppressFutureFertilityPrediction(
+        today: Date,
+        pillCycleRange: DateInterval?
+    ) -> Bool {
+        guard let pillCycleRange else { return false }
+        return today >= pillCycleRange.start.startOfDay && today < pillCycleRange.end.startOfDay
     }
     
     private func addPeriodEvents(startingAt date: Date) {
