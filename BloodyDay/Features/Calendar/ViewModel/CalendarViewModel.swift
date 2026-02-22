@@ -901,35 +901,17 @@ extension CalendarViewModel {
         
         let pillCount = max(pillSettings.pillCount, 0)
         let breakDays = max(pillSettings.pillBreakDuration, 0)
-        let cycleLength = pillCount + breakDays
-        guard pillCount > 0, cycleLength > 0 else { return nil }
+        guard pillCount > 0 else { return nil }
         
         let calendar = Calendar.current
         let pillDates = Set(eventRepository.events(of: .pill).map { $0.date.startOfDay })
-        guard let projection = PeriodForecastCalculator.latestPillCycleProjection(
-            settings: settings,
-            pillDates: pillDates,
-            calendar: calendar
-        ) else { return nil }
-        
         let target = date.startOfDay
         
         if pillSettings.pillAutoRecordEnabled {
-            guard let cycleEndExclusive = calendar.date(byAdding: .day, value: cycleLength, to: projection.cycleStart.startOfDay),
-                  target >= projection.cycleStart.startOfDay,
-                  target < cycleEndExclusive.startOfDay else {
-                return nil
-            }
-            
-            let index = calendar.dateComponents([.day], from: projection.cycleStart.startOfDay, to: target).day ?? -1
-            guard index >= 0 else { return nil }
-            
-            if index < pillCount {
-                return .pill(day: index + 1, total: pillCount)
-            }
-            let breakDay = index - pillCount + 1
-            guard breakDays > 0, breakDay > 0, breakDay <= breakDays else { return nil }
-            return .pillBreak(day: breakDay, total: breakDays)
+            // Auto-record ON creates concrete pill events for scheduled intake days.
+            // Fallback synthesis here can leave stale pill/break labels after users
+            // intentionally stop a cycle early by deleting future pill events.
+            return nil
         }
         
         guard let currentCycle = PillCycleCalculator.latestCycle(
