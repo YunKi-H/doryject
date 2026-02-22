@@ -392,11 +392,66 @@ extension CalendarViewModel {
         }
         
         guard runStartDatesToRemove.isEmpty == false else { return }
+        removePredictedFertilityForRemovedPeriodRuns(
+            predictedEventsByDay: &predictedEventsByDay,
+            removedRunStarts: runStartDatesToRemove,
+            estimatedCycleLength: estimatedCycleLength,
+            calendar: calendar
+        )
+
         for run in runs where runStartDatesToRemove.contains(run.start) {
             for date in run.dates {
                 guard var types = predictedEventsByDay[date] else { continue }
                 types.removeAll { $0 == .period || $0 == .delayed }
                 predictedEventsByDay[date] = types
+            }
+        }
+    }
+
+    private func removePredictedFertilityForRemovedPeriodRuns(
+        predictedEventsByDay: inout [Date: [EventType]],
+        removedRunStarts: Set<Date>,
+        estimatedCycleLength: Int?,
+        calendar: Calendar
+    ) {
+        guard removedRunStarts.isEmpty == false else { return }
+
+        let cycleLength = estimatedCycleLength ?? 0
+        // pill-based path and most common period prediction path both use 14-day luteal assumption here.
+        let lutealDays = 14
+
+        for periodStart in removedRunStarts {
+            let ovulationDate = calendar.date(byAdding: .day, value: -lutealDays, to: periodStart)?.startOfDay
+            if let ovulationDate,
+               var ovulationTypes = predictedEventsByDay[ovulationDate] {
+                ovulationTypes.removeAll { $0 == .ovulation }
+                predictedEventsByDay[ovulationDate] = ovulationTypes
+            }
+
+            if let fertileStart = ovulationDate.flatMap({ calendar.date(byAdding: .day, value: -5, to: $0) })?.startOfDay,
+               let fertileEnd = ovulationDate.flatMap({ calendar.date(byAdding: .day, value: 1, to: $0) })?.startOfDay {
+                for day in Date.dates(from: fertileStart, to: fertileEnd) {
+                    guard var types = predictedEventsByDay[day.startOfDay] else { continue }
+                    types.removeAll { $0 == .fertile }
+                    predictedEventsByDay[day.startOfDay] = types
+                }
+            }
+
+            // Also clear any fertility markers that may belong to the same cycle window but use a shifted
+            // period start after actual input moved the cycle. This keeps orphan fertility capsules from remaining.
+            guard cycleLength > 0,
+                  let nextPeriodStart = calendar.date(byAdding: .day, value: cycleLength, to: periodStart)?.startOfDay else {
+                continue
+            }
+            for date in Array(predictedEventsByDay.keys) {
+                let day = date.startOfDay
+                guard day >= periodStart && day < nextPeriodStart else { continue }
+                guard var types = predictedEventsByDay[date] else { continue }
+                let beforeCount = types.count
+                types.removeAll { $0 == .fertile || $0 == .ovulation }
+                if types.count != beforeCount {
+                    predictedEventsByDay[date] = types
+                }
             }
         }
     }
