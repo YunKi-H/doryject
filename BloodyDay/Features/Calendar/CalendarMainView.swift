@@ -114,10 +114,13 @@ struct CalendarMainView: View {
         }
         .appGradientOverlay()
         .sheet(isPresented: $isPresentedEventSheet) {
-            let isFutureSelectedDate = viewModel.selectedDate.startOfDay > Date().startOfDay
-            let periodIconColor: Color = isFutureSelectedDate ? .mainNeutral20 : .mainRed
-            let pillIconColor: Color = isFutureSelectedDate ? .mainNeutral20 : .subBlue
-            let loveIconColor: Color = isFutureSelectedDate ? .mainNeutral20 : .subPink
+//            let isFutureSelectedDate = viewModel.selectedDate.startOfDay > Date().startOfDay
+//            let periodIconColor: Color = isFutureSelectedDate ? .mainNeutral20 : .mainRed
+//            let pillIconColor: Color = isFutureSelectedDate ? .mainNeutral20 : .subBlue
+//            let loveIconColor: Color = isFutureSelectedDate ? .mainNeutral20 : .subPink
+            let periodIconColor: Color = .mainRed
+            let pillIconColor: Color = .subBlue
+            let loveIconColor: Color = .subPink
             NavigationStack {
                 Form {
                     Section(header: EmptyView()) {
@@ -162,7 +165,7 @@ struct CalendarMainView: View {
                         }
                     }
                     .listRowBackground(Color.bgSecondary)
-                    .disabled(isFutureSelectedDate)
+//                    .disabled(isFutureSelectedDate)
                 }
                 .scrollDisabled(true)
                 .padding(.top, 14)
