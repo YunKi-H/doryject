@@ -265,6 +265,52 @@ enum PeriodForecastCalculator {
             }
         }
     }
+
+    static func validPredictedPeriodStarts(
+        rawStarts: [Date],
+        today: Date,
+        predictedLength: Int,
+        actualPeriodSummaries: [PeriodSummary],
+        estimatedCycleLength: Int?,
+        calendar: Calendar = .current
+    ) -> [Date] {
+        guard rawStarts.isEmpty == false else { return [] }
+
+        var predictedEventsByDay: [Date: [EventType]] = [:]
+        let normalizedToday = today.startOfDay
+        let length = max(predictedLength, 1)
+
+        for start in rawStarts.map(\.startOfDay) {
+            guard let endExclusive = calendar.date(byAdding: .day, value: length, to: start)?.startOfDay else {
+                continue
+            }
+            for day in Date.dates(from: start, toExclusive: endExclusive) {
+                let type: EventType = day < normalizedToday ? .delayed : .period
+                predictedEventsByDay[day.startOfDay, default: []].append(type)
+            }
+        }
+
+        predictedEventsByDay = predictedEventsByDay.mapValues { types in
+            var seen: Set<EventType> = []
+            var unique: [EventType] = []
+            for type in types where !seen.contains(type) {
+                seen.insert(type)
+                unique.append(type)
+            }
+            return unique
+        }
+
+        suppressPredictedCycleArtifactsOverlappingActualPeriods(
+            predictedEventsByDay: &predictedEventsByDay,
+            actualPeriodSummaries: actualPeriodSummaries,
+            estimatedCycleLength: estimatedCycleLength,
+            calendar: calendar
+        )
+
+        return predictedPeriodRuns(from: predictedEventsByDay, calendar: calendar)
+            .map(\.start)
+            .sorted()
+    }
     
     private static func pillPredictionContext(
         target: Date,

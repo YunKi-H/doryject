@@ -50,17 +50,23 @@ final class UserNotificationScheduler: NotificationScheduler {
             }
         }
         if notificationSettings.periodDelayedEnabled,
-           let context = periodPredictionContext(
+           let inputs = periodPredictionInputs(
             settings: settings,
             eventRepository: eventRepository,
             target: today
            ),
-           let currentExpectedStart = PeriodForecastCalculator.expectedStartDate(
+           let currentRawExpectedStart = PeriodForecastCalculator.expectedStartDate(
             target: today,
             today: today,
-            context: context,
+            context: inputs.context,
             calendar: calendar
-           ) {
+           ),
+           let currentExpectedStart = validPredictedPeriodStarts(
+            context: inputs.context,
+            periodSummaries: inputs.summaries,
+            today: today,
+            rawStarts: [currentRawExpectedStart.startOfDay]
+           ).first {
             if today > currentExpectedStart.startOfDay {
                 let scheduled = nextOccurrences(
                     time: notificationSettings.periodReminderTime,
@@ -184,7 +190,7 @@ final class UserNotificationScheduler: NotificationScheduler {
         today: Date
     ) -> [Date] {
         guard count > 0 else { return [] }
-        guard let context = periodPredictionContext(
+        guard let inputs = periodPredictionInputs(
             settings: settings,
             eventRepository: eventRepository,
             target: today
@@ -192,33 +198,44 @@ final class UserNotificationScheduler: NotificationScheduler {
             return []
         }
         
-        guard var next = PeriodForecastCalculator.expectedStartDate(
+        guard let currentOrContaining = PeriodForecastCalculator.expectedStartDate(
             target: today,
             today: today,
-            context: context,
+            context: inputs.context,
             calendar: calendar
         )?.startOfDay else {
             return []
         }
-        while next < today {
-            guard let following = calendar.date(byAdding: .day, value: context.cycleLength, to: next) else { return [] }
-            next = following.startOfDay
+
+        var rawStarts: [Date] = []
+        var cursor = currentOrContaining
+        if let previous = calendar.date(byAdding: .day, value: -inputs.context.cycleLength, to: currentOrContaining)?.startOfDay {
+            rawStarts.append(previous)
         }
-        
-        var results: [Date] = []
-        for _ in 0..<count {
-            results.append(next)
-            guard let following = calendar.date(byAdding: .day, value: context.cycleLength, to: next) else { break }
-            next = following.startOfDay
+        rawStarts.append(cursor)
+
+        for _ in 0..<(count + 4) {
+            guard let following = calendar.date(byAdding: .day, value: inputs.context.cycleLength, to: cursor)?.startOfDay else {
+                break
+            }
+            rawStarts.append(following)
+            cursor = following
         }
-        return results
+
+        let validStarts = validPredictedPeriodStarts(
+            context: inputs.context,
+            periodSummaries: inputs.summaries,
+            today: today,
+            rawStarts: rawStarts
+        )
+        return Array(validStarts.filter { $0 >= today }.prefix(count))
     }
     
-    private func periodPredictionContext(
+    private func periodPredictionInputs(
         settings: UserSettings,
         eventRepository: EventRepository,
         target: Date
-    ) -> PeriodPredictionContext? {
+    ) -> (context: PeriodPredictionContext, summaries: [PeriodSummary])? {
         let periodEvents = eventRepository.events(of: .period).map { $0.date }
         let summaries = PeriodSummaryBuilder.build(from: periodEvents)
         let pillDates = Set(eventRepository.events(of: .pill).map { $0.date.startOfDay })
@@ -231,7 +248,23 @@ final class UserNotificationScheduler: NotificationScheduler {
         ) else {
             return nil
         }
-        return context
+        return (context: context, summaries: summaries)
+    }
+
+    private func validPredictedPeriodStarts(
+        context: PeriodPredictionContext,
+        periodSummaries: [PeriodSummary],
+        today: Date,
+        rawStarts: [Date]
+    ) -> [Date] {
+        PeriodForecastCalculator.validPredictedPeriodStarts(
+            rawStarts: rawStarts,
+            today: today,
+            predictedLength: context.predictedLength,
+            actualPeriodSummaries: periodSummaries,
+            estimatedCycleLength: context.cycleLength,
+            calendar: calendar
+        )
     }
     
     private func nextPillStartDate(
