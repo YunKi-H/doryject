@@ -137,11 +137,11 @@ enum PeriodForecastCalculator {
         guard pillCount > 0 else { return nil }
         
         if pill.pillAutoRecordEnabled {
-            guard let latestCycle = PillCycleCalculator.groupedCycles(
+            guard let latestCycle = PillCycleCalculator.latestCycle(
                 pillDates: pillDates,
                 breakDays: breakDays,
                 calendar: calendar
-            ).last,
+            ),
                   let cycleStart = latestCycle.first,
                   let lastIntake = latestCycle.last else {
                 return nil
@@ -161,11 +161,11 @@ enum PeriodForecastCalculator {
         }
         
         // Auto record OFF: continue current cycle by intake count progression.
-        guard let latestCycle = PillCycleCalculator.groupedCycles(
+        guard let latestCycle = PillCycleCalculator.latestCycle(
             pillDates: pillDates,
             breakDays: breakDays,
             calendar: calendar
-        ).last,
+        ),
               let cycleStart = latestCycle.first,
               let lastIntake = latestCycle.last else {
             return nil

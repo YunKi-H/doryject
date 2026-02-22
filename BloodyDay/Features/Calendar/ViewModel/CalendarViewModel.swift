@@ -112,12 +112,11 @@ extension CalendarViewModel {
         
         let selected = selectedDate.startOfDay
         let pillDates = Set(eventRepository.events(of: .pill).map { $0.date.startOfDay })
-        let cycles = PillCycleCalculator.groupedCycles(
+        guard let currentCycle = PillCycleCalculator.latestCycle(
             pillDates: pillDates,
             breakDays: breakDays,
             calendar: .current
-        )
-        guard let currentCycle = cycles.last,
+        ),
               currentCycle.contains(selected) else { return nil }
         
         let sortedCurrentCycle = currentCycle.map { $0.startOfDay }.sorted()
@@ -669,7 +668,14 @@ extension CalendarViewModel {
         let calendar = Calendar.current
         let start = date.startOfDay
         var pillDates = Set(eventRepository.events(of: .pill).map { $0.date.startOfDay })
-        var cycleDates = cyclePillDates(containing: start, pillDates: pillDates, breakDays: breakDays, calendar: calendar)
+        var cycleDates = Set(
+            PillCycleCalculator.cycle(
+                containing: start,
+                pillDates: pillDates,
+                breakDays: breakDays,
+                calendar: calendar
+            ) ?? [start]
+        )
         guard cycleDates.count < pillCount else {
             if eventRepository.events(of: .pill).contains(where: { $0.date.startOfDay == start }) == false {
                 eventRepository.save(UserEvent(id: .init(), date: start, type: .pill))
@@ -683,32 +689,19 @@ extension CalendarViewModel {
                 let new = UserEvent(id: .init(), date: cursor, type: .pill)
                 eventRepository.save(new)
                 pillDates.insert(cursor)
-                cycleDates = cyclePillDates(containing: start, pillDates: pillDates, breakDays: breakDays, calendar: calendar)
+                cycleDates = Set(
+                    PillCycleCalculator.cycle(
+                        containing: start,
+                        pillDates: pillDates,
+                        breakDays: breakDays,
+                        calendar: calendar
+                    ) ?? [start]
+                )
             }
             guard let next = calendar.date(byAdding: .day, value: 1, to: cursor) else { break }
             cursor = next.startOfDay
         }
     }
-    
-    private func cyclePillDates(
-        containing target: Date,
-        pillDates: Set<Date>,
-        breakDays: Int,
-        calendar: Calendar
-    ) -> Set<Date> {
-        let cycles = PillCycleCalculator.groupedCycles(
-            pillDates: pillDates,
-            breakDays: breakDays,
-            calendar: calendar
-        )
-        
-        let normalizedTarget = target.startOfDay
-        guard let cycle = cycles.first(where: { $0.contains(normalizedTarget) }) else {
-            return [normalizedTarget]
-        }
-        return Set(cycle)
-    }
-    
 }
 
 // DayInfoCard
@@ -939,12 +932,11 @@ extension CalendarViewModel {
             return .pillBreak(day: breakDay, total: breakDays)
         }
         
-        let cycles = PillCycleCalculator.groupedCycles(
+        guard let currentCycle = PillCycleCalculator.latestCycle(
             pillDates: pillDates,
             breakDays: breakDays,
             calendar: calendar
-        )
-        guard let currentCycle = cycles.last,
+        ),
               let cycleStart = currentCycle.first,
               let cycleLastIntake = currentCycle.last,
               target >= cycleStart.startOfDay else {

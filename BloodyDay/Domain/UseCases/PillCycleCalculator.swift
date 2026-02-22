@@ -58,4 +58,30 @@ enum PillCycleCalculator {
         }
         return map
     }
+
+    static func latestCycle(
+        pillDates: Set<Date>,
+        breakDays: Int,
+        calendar: Calendar = .current
+    ) -> [Date]? {
+        groupedCycles(
+            pillDates: pillDates,
+            breakDays: breakDays,
+            calendar: calendar
+        ).last
+    }
+
+    static func cycle(
+        containing target: Date,
+        pillDates: Set<Date>,
+        breakDays: Int,
+        calendar: Calendar = .current
+    ) -> [Date]? {
+        let normalizedTarget = target.startOfDay
+        return groupedCycles(
+            pillDates: pillDates,
+            breakDays: breakDays,
+            calendar: calendar
+        ).first { $0.contains(normalizedTarget) }
+    }
 }
