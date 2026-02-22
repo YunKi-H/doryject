@@ -117,21 +117,12 @@ enum PeriodForecastCalculator {
         breakDays: Int,
         calendar: Calendar = .current
     ) -> [Date: Int] {
-        guard pillCount > 0, !pillDates.isEmpty else { return [:] }
-        let cycles = groupedPillCycles(
+        PillCycleCalculator.sequenceMap(
             pillDates: pillDates,
             pillCount: pillCount,
             breakDays: breakDays,
             calendar: calendar
         )
-        
-        var map: [Date: Int] = [:]
-        for cycle in cycles {
-            for (index, day) in cycle.enumerated() where index < pillCount {
-                map[day] = index + 1
-            }
-        }
-        return map
     }
     
     static func latestPillCycleProjection(
@@ -146,14 +137,13 @@ enum PeriodForecastCalculator {
         guard pillCount > 0 else { return nil }
         
         if pill.pillAutoRecordEnabled {
-            guard let latestCycle = groupedPillCycles(
+            guard let latestCycle = PillCycleCalculator.latestCycle(
                 pillDates: pillDates,
-                pillCount: pillCount,
                 breakDays: breakDays,
                 calendar: calendar
-            ).last,
-            let cycleStart = latestCycle.first,
-            let lastIntake = latestCycle.last else {
+            ),
+                  let cycleStart = latestCycle.first,
+                  let lastIntake = latestCycle.last else {
                 return nil
             }
             
@@ -171,23 +161,22 @@ enum PeriodForecastCalculator {
         }
         
         // Auto record OFF: continue current cycle by intake count progression.
-        guard let latestCycle = groupedPillCycles(
+        guard let latestCycle = PillCycleCalculator.latestCycle(
             pillDates: pillDates,
-            pillCount: pillCount,
             breakDays: breakDays,
             calendar: calendar
-        ).last,
-        let cycleStart = latestCycle.first,
-        let lastIntake = latestCycle.last else {
+        ),
+              let cycleStart = latestCycle.first,
+              let lastIntake = latestCycle.last else {
             return nil
         }
         let intakeCount = min(latestCycle.count, pillCount)
         let remaining = max(pillCount - intakeCount, 0)
         guard let projectedLast = calendar.date(
-                byAdding: .day,
-                value: remaining,
-                to: lastIntake.startOfDay
-              )?.startOfDay else {
+            byAdding: .day,
+            value: remaining,
+            to: lastIntake.startOfDay
+        )?.startOfDay else {
             return nil
         }
         return PillCycleProjection(
@@ -215,6 +204,112 @@ enum PeriodForecastCalculator {
         guard !lengths.isEmpty else { return 5 }
         let avg = Double(lengths.reduce(0, +)) / Double(lengths.count)
         return max(Int(round(avg)), 1)
+    }
+
+    static func suppressPredictedCycleArtifactsOverlappingActualPeriods(
+        predictedEventsByDay: inout [Date: [EventType]],
+        actualPeriodSummaries: [PeriodSummary],
+        estimatedCycleLength: Int?,
+        calendar: Calendar = .current
+    ) {
+        let actualPeriodDates = actualPeriodDateSet(from: actualPeriodSummaries)
+        guard actualPeriodDates.isEmpty == false, predictedEventsByDay.isEmpty == false else { return }
+
+        let runs = predictedPeriodRuns(from: predictedEventsByDay, calendar: calendar)
+        guard runs.isEmpty == false else { return }
+
+        var runStartDatesToRemove: Set<Date> = []
+
+        for run in runs where run.dates.contains(where: { actualPeriodDates.contains($0) }) {
+            runStartDatesToRemove.insert(run.start)
+        }
+
+        let actualStarts = actualPeriodSummaries.map { $0.start.startOfDay }.sorted()
+        if actualStarts.isEmpty == false {
+            let cycle = max(estimatedCycleLength ?? 0, 0)
+            let toleranceDays = max(min(cycle > 0 ? cycle / 2 : 7, 14), 3)
+            var availableRuns = runs.filter { !runStartDatesToRemove.contains($0.start) }
+
+            for actualStart in actualStarts {
+                guard let bestIndex = availableRuns.enumerated()
+                    .map({ (index: $0.offset, run: $0.element) })
+                    .min(by: {
+                        abs((calendar.dateComponents([.day], from: $0.run.start, to: actualStart).day ?? .max))
+                        < abs((calendar.dateComponents([.day], from: $1.run.start, to: actualStart).day ?? .max))
+                    })?.index else {
+                    continue
+                }
+
+                let candidate = availableRuns[bestIndex]
+                let distance = abs(calendar.dateComponents([.day], from: candidate.start, to: actualStart).day ?? .max)
+                guard distance <= toleranceDays else { continue }
+
+                runStartDatesToRemove.insert(candidate.start)
+                availableRuns.remove(at: bestIndex)
+            }
+        }
+
+        guard runStartDatesToRemove.isEmpty == false else { return }
+        removePredictedFertilityForRemovedPeriodRuns(
+            predictedEventsByDay: &predictedEventsByDay,
+            removedRunStarts: runStartDatesToRemove,
+            estimatedCycleLength: estimatedCycleLength,
+            calendar: calendar
+        )
+
+        for run in runs where runStartDatesToRemove.contains(run.start) {
+            for date in run.dates {
+                guard var types = predictedEventsByDay[date] else { continue }
+                types.removeAll { $0 == .period || $0 == .delayed }
+                predictedEventsByDay[date] = types
+            }
+        }
+    }
+
+    static func validPredictedPeriodStarts(
+        rawStarts: [Date],
+        today: Date,
+        predictedLength: Int,
+        actualPeriodSummaries: [PeriodSummary],
+        estimatedCycleLength: Int?,
+        calendar: Calendar = .current
+    ) -> [Date] {
+        guard rawStarts.isEmpty == false else { return [] }
+
+        var predictedEventsByDay: [Date: [EventType]] = [:]
+        let normalizedToday = today.startOfDay
+        let length = max(predictedLength, 1)
+
+        for start in rawStarts.map(\.startOfDay) {
+            guard let endExclusive = calendar.date(byAdding: .day, value: length, to: start)?.startOfDay else {
+                continue
+            }
+            for day in Date.dates(from: start, toExclusive: endExclusive) {
+                let type: EventType = day < normalizedToday ? .delayed : .period
+                predictedEventsByDay[day.startOfDay, default: []].append(type)
+            }
+        }
+
+        predictedEventsByDay = predictedEventsByDay.mapValues { types in
+            var seen: Set<EventType> = []
+            var unique: [EventType] = []
+            for type in types where !seen.contains(type) {
+                seen.insert(type)
+                unique.append(type)
+            }
+            return unique
+        }
+
+        suppressPredictedCycleArtifactsOverlappingActualPeriods(
+            predictedEventsByDay: &predictedEventsByDay,
+            actualPeriodSummaries: actualPeriodSummaries,
+            estimatedCycleLength: estimatedCycleLength,
+            calendar: calendar
+        )
+
+        return predictedPeriodRuns(from: predictedEventsByDay, calendar: calendar)
+            .map(\.start)
+            .sorted()
     }
     
     private static func pillPredictionContext(
@@ -255,33 +350,103 @@ enum PeriodForecastCalculator {
         let value = Int(round(avg))
         return value > 0 ? value : nil
     }
-    
-    private static func groupedPillCycles(
-        pillDates: Set<Date>,
-        pillCount: Int,
-        breakDays: Int,
-        calendar: Calendar
-    ) -> [[Date]] {
-        let sorted = pillDates.map(\.startOfDay).sorted()
-        guard sorted.isEmpty == false, pillCount > 0 else { return [] }
-        
-        let allowedGap = max(breakDays, 0) + 1
-        var cycles: [[Date]] = [[sorted[0]]]
-        
-        for day in sorted.dropFirst() {
-            guard var current = cycles.last else { continue }
-            guard let previous = current.last else { continue }
-            let gap = calendar.dateComponents([.day], from: previous, to: day).day ?? .max
-            
-            let shouldStartNewCycle = current.count >= pillCount || gap > allowedGap
-            if shouldStartNewCycle {
-                cycles.append([day])
-            } else {
-                current.append(day)
-                cycles[cycles.count - 1] = current
+
+    private struct PredictedPeriodRun {
+        let start: Date
+        let dates: [Date]
+    }
+
+    private static func actualPeriodDateSet(from summaries: [PeriodSummary]) -> Set<Date> {
+        var dates: Set<Date> = []
+        for summary in summaries {
+            for day in Date.dates(from: summary.start.startOfDay, to: summary.end.startOfDay) {
+                dates.insert(day.startOfDay)
             }
         }
-        
-        return cycles
+        return dates
     }
+
+    private static func predictedPeriodRuns(
+        from predictedEventsByDay: [Date: [EventType]],
+        calendar: Calendar
+    ) -> [PredictedPeriodRun] {
+        let predictedPeriodLikeDates = predictedEventsByDay.keys
+            .map(\.startOfDay)
+            .filter { key in
+                guard let types = predictedEventsByDay[key] else { return false }
+                return types.contains(.period) || types.contains(.delayed)
+            }
+            .sorted()
+
+        guard predictedPeriodLikeDates.isEmpty == false else { return [] }
+
+        var runs: [PredictedPeriodRun] = []
+        var currentRun: [Date] = []
+        for date in predictedPeriodLikeDates {
+            if let previous = currentRun.last {
+                let gap = calendar.dateComponents([.day], from: previous, to: date).day ?? .max
+                if gap == 1 {
+                    currentRun.append(date)
+                } else {
+                    if let first = currentRun.first {
+                        runs.append(PredictedPeriodRun(start: first, dates: currentRun))
+                    }
+                    currentRun.removeAll(keepingCapacity: true)
+                    currentRun.append(date)
+                }
+            } else {
+                currentRun.append(date)
+            }
+        }
+        if let first = currentRun.first {
+            runs.append(PredictedPeriodRun(start: first, dates: currentRun))
+        }
+        return runs
+    }
+
+    private static func removePredictedFertilityForRemovedPeriodRuns(
+        predictedEventsByDay: inout [Date: [EventType]],
+        removedRunStarts: Set<Date>,
+        estimatedCycleLength: Int?,
+        calendar: Calendar
+    ) {
+        guard removedRunStarts.isEmpty == false else { return }
+
+        let cycleLength = estimatedCycleLength ?? 0
+        let lutealDays = 14
+
+        for periodStart in removedRunStarts {
+            let ovulationDate = calendar.date(byAdding: .day, value: -lutealDays, to: periodStart)?.startOfDay
+            if let ovulationDate,
+               var ovulationTypes = predictedEventsByDay[ovulationDate] {
+                ovulationTypes.removeAll { $0 == .ovulation }
+                predictedEventsByDay[ovulationDate] = ovulationTypes
+            }
+
+            if let fertileStart = ovulationDate.flatMap({ calendar.date(byAdding: .day, value: -5, to: $0) })?.startOfDay,
+               let fertileEnd = ovulationDate.flatMap({ calendar.date(byAdding: .day, value: 1, to: $0) })?.startOfDay {
+                for day in Date.dates(from: fertileStart, to: fertileEnd) {
+                    guard var types = predictedEventsByDay[day.startOfDay] else { continue }
+                    types.removeAll { $0 == .fertile }
+                    predictedEventsByDay[day.startOfDay] = types
+                }
+            }
+
+            guard cycleLength > 0,
+                  let nextPeriodStart = calendar.date(byAdding: .day, value: cycleLength, to: periodStart)?.startOfDay else {
+                continue
+            }
+            for date in Array(predictedEventsByDay.keys) {
+                let day = date.startOfDay
+                guard day >= periodStart && day < nextPeriodStart else { continue }
+                guard var types = predictedEventsByDay[date] else { continue }
+                let beforeCount = types.count
+                types.removeAll { $0 == .fertile || $0 == .ovulation }
+                if types.count != beforeCount {
+                    predictedEventsByDay[date] = types
+                }
+            }
+        }
+    }
+    
 }
