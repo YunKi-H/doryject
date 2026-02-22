@@ -766,7 +766,7 @@ extension CalendarViewModel {
         let calendar = Calendar.current
         let start = date.startOfDay
         var pillDates = Set(eventRepository.events(of: .pill).map { $0.date.startOfDay })
-        var cycleDates = cyclePillDates(containing: start, pillDates: pillDates, pillCount: pillCount, breakDays: breakDays, calendar: calendar)
+        var cycleDates = cyclePillDates(containing: start, pillDates: pillDates, breakDays: breakDays, calendar: calendar)
         guard cycleDates.count < pillCount else {
             if eventRepository.events(of: .pill).contains(where: { $0.date.startOfDay == start }) == false {
                 eventRepository.save(UserEvent(id: .init(), date: start, type: .pill))
@@ -780,7 +780,7 @@ extension CalendarViewModel {
                 let new = UserEvent(id: .init(), date: cursor, type: .pill)
                 eventRepository.save(new)
                 pillDates.insert(cursor)
-                cycleDates = cyclePillDates(containing: start, pillDates: pillDates, pillCount: pillCount, breakDays: breakDays, calendar: calendar)
+                cycleDates = cyclePillDates(containing: start, pillDates: pillDates, breakDays: breakDays, calendar: calendar)
             }
             guard let next = calendar.date(byAdding: .day, value: 1, to: cursor) else { break }
             cursor = next.startOfDay
@@ -790,7 +790,6 @@ extension CalendarViewModel {
     private func cyclePillDates(
         containing target: Date,
         pillDates: Set<Date>,
-        pillCount: Int,
         breakDays: Int,
         calendar: Calendar
     ) -> Set<Date> {
