@@ -117,21 +117,12 @@ enum PeriodForecastCalculator {
         breakDays: Int,
         calendar: Calendar = .current
     ) -> [Date: Int] {
-        guard pillCount > 0, !pillDates.isEmpty else { return [:] }
-        let cycles = groupedPillCycles(
+        PillCycleCalculator.sequenceMap(
             pillDates: pillDates,
             pillCount: pillCount,
             breakDays: breakDays,
             calendar: calendar
         )
-        
-        var map: [Date: Int] = [:]
-        for cycle in cycles {
-            for (index, day) in cycle.enumerated() {
-                map[day] = index + 1
-            }
-        }
-        return map
     }
     
     static func latestPillCycleProjection(
@@ -146,9 +137,8 @@ enum PeriodForecastCalculator {
         guard pillCount > 0 else { return nil }
         
         if pill.pillAutoRecordEnabled {
-            guard let latestCycle = groupedPillCycles(
+            guard let latestCycle = PillCycleCalculator.groupedCycles(
                 pillDates: pillDates,
-                pillCount: pillCount,
                 breakDays: breakDays,
                 calendar: calendar
             ).last,
@@ -171,9 +161,8 @@ enum PeriodForecastCalculator {
         }
         
         // Auto record OFF: continue current cycle by intake count progression.
-        guard let latestCycle = groupedPillCycles(
+        guard let latestCycle = PillCycleCalculator.groupedCycles(
             pillDates: pillDates,
-            pillCount: pillCount,
             breakDays: breakDays,
             calendar: calendar
         ).last,
@@ -256,32 +245,4 @@ enum PeriodForecastCalculator {
         return value > 0 ? value : nil
     }
     
-    private static func groupedPillCycles(
-        pillDates: Set<Date>,
-        pillCount: Int,
-        breakDays: Int,
-        calendar: Calendar
-    ) -> [[Date]] {
-        let sorted = pillDates.map(\.startOfDay).sorted()
-        guard sorted.isEmpty == false, pillCount > 0 else { return [] }
-        
-        let allowedGap = max(breakDays, 0) + 1
-        var cycles: [[Date]] = [[sorted[0]]]
-        
-        for day in sorted.dropFirst() {
-            guard var current = cycles.last else { continue }
-            guard let previous = current.last else { continue }
-            let gap = calendar.dateComponents([.day], from: previous, to: day).day ?? .max
-            
-            let shouldStartNewCycle = gap > allowedGap
-            if shouldStartNewCycle {
-                cycles.append([day])
-            } else {
-                current.append(day)
-                cycles[cycles.count - 1] = current
-            }
-        }
-        
-        return cycles
-    }
 }

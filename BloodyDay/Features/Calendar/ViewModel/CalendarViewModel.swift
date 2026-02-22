@@ -114,14 +114,13 @@ extension CalendarViewModel {
         let pillDates = Set(eventRepository.events(of: .pill).map { $0.date.startOfDay })
         let cycles = groupedPillCycles(
             pillDates: pillDates,
-            pillCount: pillCount,
             breakDays: breakDays,
             calendar: .current
         )
         guard let currentCycle = cycles.last,
               currentCycle.contains(selected) else { return nil }
         
-        let sortedCurrentCycle = currentCycle.map(\.startOfDay).sorted()
+        let sortedCurrentCycle = currentCycle.map { $0.startOfDay }.sorted()
         let futureDates = sortedCurrentCycle.filter { $0 > selected }
         guard futureDates.isEmpty == false else { return nil }
         
@@ -322,10 +321,10 @@ extension CalendarViewModel {
                 predictedEventsByDay[key] = events
             }
         }
-
+        
         let estimatedCycleLength = projection?.cycleLength
-            ?? manualAverages.cycleDays
-            ?? averageCycleLengthDays(from: periodSummaries)
+        ?? manualAverages.cycleDays
+        ?? averageCycleLengthDays(from: periodSummaries)
         suppressPredictedPeriodRunsOverlappingActualPeriods(
             predictedEventsByDay: &predictedEventsByDay,
             actualPeriodDates: actualPeriodDates,
@@ -348,7 +347,7 @@ extension CalendarViewModel {
             predictedPeriodDates: predictedPeriodDates
         )
     }
-
+    
     private func suppressPredictedPeriodRunsOverlappingActualPeriods(
         predictedEventsByDay: inout [Date: [EventType]],
         actualPeriodDates: Set<Date>,
@@ -359,20 +358,20 @@ extension CalendarViewModel {
         let calendar = Calendar.current
         let runs = predictedPeriodRuns(from: predictedEventsByDay, calendar: calendar)
         guard runs.isEmpty == false else { return }
-
+        
         var runStartDatesToRemove: Set<Date> = []
-
+        
         for run in runs where run.dates.contains(where: { actualPeriodDates.contains($0) }) {
             runStartDatesToRemove.insert(run.start)
         }
-
+        
         let actualStarts = actualPeriodSummaries.map { $0.start.startOfDay }.sorted()
         if actualStarts.isEmpty == false {
             let cycle = max(estimatedCycleLength ?? 0, 0)
             let toleranceDays = max(min(cycle > 0 ? cycle / 2 : 7, 14), 3)
             var availableRuns = runs
                 .filter { !runStartDatesToRemove.contains($0.start) }
-
+            
             for actualStart in actualStarts {
                 guard let bestIndex = availableRuns.enumerated()
                     .map({ (index: $0.offset, run: $0.element) })
@@ -382,16 +381,16 @@ extension CalendarViewModel {
                     })?.index else {
                     continue
                 }
-
+                
                 let candidate = availableRuns[bestIndex]
                 let distance = abs(calendar.dateComponents([.day], from: candidate.start, to: actualStart).day ?? .max)
                 guard distance <= toleranceDays else { continue }
-
+                
                 runStartDatesToRemove.insert(candidate.start)
                 availableRuns.remove(at: bestIndex)
             }
         }
-
+        
         guard runStartDatesToRemove.isEmpty == false else { return }
         for run in runs where runStartDatesToRemove.contains(run.start) {
             for date in run.dates {
@@ -401,12 +400,12 @@ extension CalendarViewModel {
             }
         }
     }
-
+    
     private struct PredictedPeriodRun {
         let start: Date
         let dates: [Date]
     }
-
+    
     private func predictedPeriodRuns(
         from predictedEventsByDay: [Date: [EventType]],
         calendar: Calendar
@@ -418,9 +417,9 @@ extension CalendarViewModel {
                 return types.contains(.period) || types.contains(.delayed)
             }
             .sorted()
-
+        
         guard predictedPeriodLikeDates.isEmpty == false else { return [] }
-
+        
         var runs: [PredictedPeriodRun] = []
         var currentRun: [Date] = []
         for date in predictedPeriodLikeDates {
@@ -444,7 +443,7 @@ extension CalendarViewModel {
         }
         return runs
     }
-
+    
     private func averageCycleLengthDays(from summaries: [PeriodSummary]) -> Int? {
         let cycleDays = summaries.compactMap(\.cycleDays).filter { $0 > 0 }
         guard cycleDays.isEmpty == false else { return nil }
@@ -797,7 +796,6 @@ extension CalendarViewModel {
     ) -> Set<Date> {
         let cycles = groupedPillCycles(
             pillDates: pillDates,
-            pillCount: pillCount,
             breakDays: breakDays,
             calendar: calendar
         )
@@ -811,32 +809,14 @@ extension CalendarViewModel {
     
     private func groupedPillCycles(
         pillDates: Set<Date>,
-        pillCount: Int,
         breakDays: Int,
         calendar: Calendar
     ) -> [[Date]] {
-        _ = pillCount
-        let sorted = pillDates.map(\.startOfDay).sorted()
-        guard sorted.isEmpty == false else { return [] }
-        
-        let allowedGap = max(breakDays, 0) + 1
-        var cycles: [[Date]] = [[sorted[0]]]
-        
-        for day in sorted.dropFirst() {
-            guard var current = cycles.last else { continue }
-            guard let previous = current.last else { continue }
-            let gap = calendar.dateComponents([.day], from: previous, to: day).day ?? .max
-            
-            let shouldStartNewCycle = gap > allowedGap
-            if shouldStartNewCycle {
-                cycles.append([day])
-            } else {
-                current.append(day)
-                cycles[cycles.count - 1] = current
-            }
-        }
-        
-        return cycles
+        return PillCycleCalculator.groupedCycles(
+            pillDates: pillDates,
+            breakDays: breakDays,
+            calendar: calendar
+        )
     }
 }
 
@@ -1007,7 +987,6 @@ extension CalendarViewModel {
         let pillDates = Set(eventRepository.events(of: .pill).map { $0.date.startOfDay })
         let cycles = groupedPillCycles(
             pillDates: pillDates,
-            pillCount: pillCount,
             breakDays: breakDays,
             calendar: calendar
         )
@@ -1071,7 +1050,6 @@ extension CalendarViewModel {
         
         let cycles = groupedPillCycles(
             pillDates: pillDates,
-            pillCount: pillCount,
             breakDays: breakDays,
             calendar: calendar
         )
