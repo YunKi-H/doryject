@@ -127,7 +127,7 @@ enum PeriodForecastCalculator {
         
         var map: [Date: Int] = [:]
         for cycle in cycles {
-            for (index, day) in cycle.enumerated() where index < pillCount {
+            for (index, day) in cycle.enumerated() {
                 map[day] = index + 1
             }
         }
@@ -152,8 +152,8 @@ enum PeriodForecastCalculator {
                 breakDays: breakDays,
                 calendar: calendar
             ).last,
-            let cycleStart = latestCycle.first,
-            let lastIntake = latestCycle.last else {
+                  let cycleStart = latestCycle.first,
+                  let lastIntake = latestCycle.last else {
                 return nil
             }
             
@@ -177,17 +177,17 @@ enum PeriodForecastCalculator {
             breakDays: breakDays,
             calendar: calendar
         ).last,
-        let cycleStart = latestCycle.first,
-        let lastIntake = latestCycle.last else {
+              let cycleStart = latestCycle.first,
+              let lastIntake = latestCycle.last else {
             return nil
         }
         let intakeCount = min(latestCycle.count, pillCount)
         let remaining = max(pillCount - intakeCount, 0)
         guard let projectedLast = calendar.date(
-                byAdding: .day,
-                value: remaining,
-                to: lastIntake.startOfDay
-              )?.startOfDay else {
+            byAdding: .day,
+            value: remaining,
+            to: lastIntake.startOfDay
+        )?.startOfDay else {
             return nil
         }
         return PillCycleProjection(
@@ -273,7 +273,7 @@ enum PeriodForecastCalculator {
             guard let previous = current.last else { continue }
             let gap = calendar.dateComponents([.day], from: previous, to: day).day ?? .max
             
-            let shouldStartNewCycle = current.count >= pillCount || gap > allowedGap
+            let shouldStartNewCycle = gap > allowedGap
             if shouldStartNewCycle {
                 cycles.append([day])
             } else {

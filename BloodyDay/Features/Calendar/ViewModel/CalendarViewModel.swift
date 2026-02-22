@@ -107,27 +107,26 @@ extension CalendarViewModel {
         }
         
         let pillCount = max(pillSettings.pillCount, 0)
+        let breakDays = max(pillSettings.pillBreakDuration, 0)
         guard pillCount > 0 else { return nil }
         
-        let calendar = Calendar.current
         let selected = selectedDate.startOfDay
         let pillDates = Set(eventRepository.events(of: .pill).map { $0.date.startOfDay })
-        guard let projection = PeriodForecastCalculator.latestPillCycleProjection(
-            settings: settings,
+        let cycles = groupedPillCycles(
             pillDates: pillDates,
-            calendar: calendar
-        ) else { return nil }
+            pillCount: pillCount,
+            breakDays: breakDays,
+            calendar: .current
+        )
+        guard let currentCycle = cycles.last,
+              currentCycle.contains(selected) else { return nil }
         
-        let cycleStart = projection.cycleStart.startOfDay
-        guard let intakeEnd = calendar.date(byAdding: .day, value: pillCount - 1, to: cycleStart)?.startOfDay else {
-            return nil
-        }
-        guard selected >= cycleStart && selected <= intakeEnd else { return nil }
+        let sortedCurrentCycle = currentCycle.map(\.startOfDay).sorted()
+        let futureDates = sortedCurrentCycle.filter { $0 > selected }
+        guard futureDates.isEmpty == false else { return nil }
         
-        let remainingCount = max(calendar.dateComponents([.day], from: selected, to: intakeEnd).day ?? 0, 0)
-        guard remainingCount >= 1 else { return nil }
-        
-        let datesToDeleteFromSelected = Date.dates(from: selected, to: intakeEnd)
+        let datesToDeleteFromSelected = sortedCurrentCycle.filter { $0 >= selected }
+        let remainingCount = futureDates.count
         return PillDisableConfirmationContext(
             remainingCount: remainingCount,
             datesToDeleteFromSelected: datesToDeleteFromSelected
@@ -701,6 +700,7 @@ extension CalendarViewModel {
         breakDays: Int,
         calendar: Calendar
     ) -> [[Date]] {
+        _ = pillCount
         let sorted = pillDates.map(\.startOfDay).sorted()
         guard sorted.isEmpty == false else { return [] }
         
@@ -712,7 +712,7 @@ extension CalendarViewModel {
             guard let previous = current.last else { continue }
             let gap = calendar.dateComponents([.day], from: previous, to: day).day ?? .max
             
-            let shouldStartNewCycle = current.count >= pillCount || gap > allowedGap
+            let shouldStartNewCycle = gap > allowedGap
             if shouldStartNewCycle {
                 cycles.append([day])
             } else {
