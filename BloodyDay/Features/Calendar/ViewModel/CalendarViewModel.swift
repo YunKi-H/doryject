@@ -323,9 +323,14 @@ extension CalendarViewModel {
             }
         }
 
+        let estimatedCycleLength = projection?.cycleLength
+            ?? manualAverages.cycleDays
+            ?? averageCycleLengthDays(from: periodSummaries)
         suppressPredictedPeriodRunsOverlappingActualPeriods(
             predictedEventsByDay: &predictedEventsByDay,
-            actualPeriodDates: actualPeriodDates
+            actualPeriodDates: actualPeriodDates,
+            actualPeriodSummaries: periodSummaries,
+            estimatedCycleLength: estimatedCycleLength
         )
         
         var predictedPeriodDates: Set<Date> = []
@@ -346,10 +351,66 @@ extension CalendarViewModel {
 
     private func suppressPredictedPeriodRunsOverlappingActualPeriods(
         predictedEventsByDay: inout [Date: [EventType]],
-        actualPeriodDates: Set<Date>
+        actualPeriodDates: Set<Date>,
+        actualPeriodSummaries: [PeriodSummary],
+        estimatedCycleLength: Int?
     ) {
         guard actualPeriodDates.isEmpty == false, predictedEventsByDay.isEmpty == false else { return }
+        let calendar = Calendar.current
+        let runs = predictedPeriodRuns(from: predictedEventsByDay, calendar: calendar)
+        guard runs.isEmpty == false else { return }
 
+        var runStartDatesToRemove: Set<Date> = []
+
+        for run in runs where run.dates.contains(where: { actualPeriodDates.contains($0) }) {
+            runStartDatesToRemove.insert(run.start)
+        }
+
+        let actualStarts = actualPeriodSummaries.map { $0.start.startOfDay }.sorted()
+        if actualStarts.isEmpty == false {
+            let cycle = max(estimatedCycleLength ?? 0, 0)
+            let toleranceDays = max(min(cycle > 0 ? cycle / 2 : 7, 14), 3)
+            var availableRuns = runs
+                .filter { !runStartDatesToRemove.contains($0.start) }
+
+            for actualStart in actualStarts {
+                guard let bestIndex = availableRuns.enumerated()
+                    .map({ (index: $0.offset, run: $0.element) })
+                    .min(by: {
+                        abs((calendar.dateComponents([.day], from: $0.run.start, to: actualStart).day ?? .max))
+                        < abs((calendar.dateComponents([.day], from: $1.run.start, to: actualStart).day ?? .max))
+                    })?.index else {
+                    continue
+                }
+
+                let candidate = availableRuns[bestIndex]
+                let distance = abs(calendar.dateComponents([.day], from: candidate.start, to: actualStart).day ?? .max)
+                guard distance <= toleranceDays else { continue }
+
+                runStartDatesToRemove.insert(candidate.start)
+                availableRuns.remove(at: bestIndex)
+            }
+        }
+
+        guard runStartDatesToRemove.isEmpty == false else { return }
+        for run in runs where runStartDatesToRemove.contains(run.start) {
+            for date in run.dates {
+                guard var types = predictedEventsByDay[date] else { continue }
+                types.removeAll { $0 == .period || $0 == .delayed }
+                predictedEventsByDay[date] = types
+            }
+        }
+    }
+
+    private struct PredictedPeriodRun {
+        let start: Date
+        let dates: [Date]
+    }
+
+    private func predictedPeriodRuns(
+        from predictedEventsByDay: [Date: [EventType]],
+        calendar: Calendar
+    ) -> [PredictedPeriodRun] {
         let predictedPeriodLikeDates = predictedEventsByDay.keys
             .map(\.startOfDay)
             .filter { key in
@@ -358,39 +419,38 @@ extension CalendarViewModel {
             }
             .sorted()
 
-        guard predictedPeriodLikeDates.isEmpty == false else { return }
+        guard predictedPeriodLikeDates.isEmpty == false else { return [] }
 
-        let calendar = Calendar.current
+        var runs: [PredictedPeriodRun] = []
         var currentRun: [Date] = []
-
-        func flushRun() {
-            guard currentRun.isEmpty == false else { return }
-            let shouldRemoveRun = currentRun.contains { actualPeriodDates.contains($0) }
-            if shouldRemoveRun {
-                for date in currentRun {
-                    guard var types = predictedEventsByDay[date] else { continue }
-                    types.removeAll { $0 == .period || $0 == .delayed }
-                    predictedEventsByDay[date] = types
-                }
-            }
-            currentRun.removeAll(keepingCapacity: true)
-        }
-
         for date in predictedPeriodLikeDates {
             if let previous = currentRun.last {
                 let gap = calendar.dateComponents([.day], from: previous, to: date).day ?? .max
                 if gap == 1 {
                     currentRun.append(date)
                 } else {
-                    flushRun()
+                    if let first = currentRun.first {
+                        runs.append(PredictedPeriodRun(start: first, dates: currentRun))
+                    }
+                    currentRun.removeAll(keepingCapacity: true)
                     currentRun.append(date)
                 }
             } else {
                 currentRun.append(date)
             }
         }
+        if let first = currentRun.first {
+            runs.append(PredictedPeriodRun(start: first, dates: currentRun))
+        }
+        return runs
+    }
 
-        flushRun()
+    private func averageCycleLengthDays(from summaries: [PeriodSummary]) -> Int? {
+        let cycleDays = summaries.compactMap(\.cycleDays).filter { $0 > 0 }
+        guard cycleDays.isEmpty == false else { return nil }
+        let avg = Double(cycleDays.reduce(0, +)) / Double(cycleDays.count)
+        let rounded = Int(round(avg))
+        return rounded > 0 ? rounded : nil
     }
     
     private func makeMonthInfo(for month: Date, userEvents: [UserEvent], context: MonthComputationContext) -> MonthInfo {
