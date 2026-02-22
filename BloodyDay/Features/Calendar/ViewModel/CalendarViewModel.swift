@@ -270,6 +270,7 @@ extension CalendarViewModel {
         )
         
         let allPeriodEvents = eventRepository.events(of: .period)
+        let actualPeriodDates = Set(allPeriodEvents.map { $0.date.startOfDay })
         let periodSummaries = PeriodSummaryBuilder.build(from: allPeriodEvents.map(\.date))
         let manualAverages = manualCycleAverages(for: settings)
         let prediction = CyclePrediction.predictEvents(
@@ -321,6 +322,11 @@ extension CalendarViewModel {
                 predictedEventsByDay[key] = events
             }
         }
+
+        suppressPredictedPeriodRunsOverlappingActualPeriods(
+            predictedEventsByDay: &predictedEventsByDay,
+            actualPeriodDates: actualPeriodDates
+        )
         
         var predictedPeriodDates: Set<Date> = []
         for (date, types) in predictedEventsByDay where date >= bounds.start && date < bounds.endExclusive {
@@ -336,6 +342,55 @@ extension CalendarViewModel {
             predictedEventsByDay: predictedEventsByDay,
             predictedPeriodDates: predictedPeriodDates
         )
+    }
+
+    private func suppressPredictedPeriodRunsOverlappingActualPeriods(
+        predictedEventsByDay: inout [Date: [EventType]],
+        actualPeriodDates: Set<Date>
+    ) {
+        guard actualPeriodDates.isEmpty == false, predictedEventsByDay.isEmpty == false else { return }
+
+        let predictedPeriodLikeDates = predictedEventsByDay.keys
+            .map(\.startOfDay)
+            .filter { key in
+                guard let types = predictedEventsByDay[key] else { return false }
+                return types.contains(.period) || types.contains(.delayed)
+            }
+            .sorted()
+
+        guard predictedPeriodLikeDates.isEmpty == false else { return }
+
+        let calendar = Calendar.current
+        var currentRun: [Date] = []
+
+        func flushRun() {
+            guard currentRun.isEmpty == false else { return }
+            let shouldRemoveRun = currentRun.contains { actualPeriodDates.contains($0) }
+            if shouldRemoveRun {
+                for date in currentRun {
+                    guard var types = predictedEventsByDay[date] else { continue }
+                    types.removeAll { $0 == .period || $0 == .delayed }
+                    predictedEventsByDay[date] = types
+                }
+            }
+            currentRun.removeAll(keepingCapacity: true)
+        }
+
+        for date in predictedPeriodLikeDates {
+            if let previous = currentRun.last {
+                let gap = calendar.dateComponents([.day], from: previous, to: date).day ?? .max
+                if gap == 1 {
+                    currentRun.append(date)
+                } else {
+                    flushRun()
+                    currentRun.append(date)
+                }
+            } else {
+                currentRun.append(date)
+            }
+        }
+
+        flushRun()
     }
     
     private func makeMonthInfo(for month: Date, userEvents: [UserEvent], context: MonthComputationContext) -> MonthInfo {
