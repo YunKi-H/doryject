@@ -112,7 +112,7 @@ extension CalendarViewModel {
         
         let selected = selectedDate.startOfDay
         let pillDates = Set(eventRepository.events(of: .pill).map { $0.date.startOfDay })
-        let cycles = groupedPillCycles(
+        let cycles = PillCycleCalculator.groupedCycles(
             pillDates: pillDates,
             breakDays: breakDays,
             calendar: .current
@@ -696,7 +696,7 @@ extension CalendarViewModel {
         breakDays: Int,
         calendar: Calendar
     ) -> Set<Date> {
-        let cycles = groupedPillCycles(
+        let cycles = PillCycleCalculator.groupedCycles(
             pillDates: pillDates,
             breakDays: breakDays,
             calendar: calendar
@@ -709,17 +709,6 @@ extension CalendarViewModel {
         return Set(cycle)
     }
     
-    private func groupedPillCycles(
-        pillDates: Set<Date>,
-        breakDays: Int,
-        calendar: Calendar
-    ) -> [[Date]] {
-        return PillCycleCalculator.groupedCycles(
-            pillDates: pillDates,
-            breakDays: breakDays,
-            calendar: calendar
-        )
-    }
 }
 
 // DayInfoCard
@@ -887,7 +876,7 @@ extension CalendarViewModel {
         }
         
         let pillDates = Set(eventRepository.events(of: .pill).map { $0.date.startOfDay })
-        let cycles = groupedPillCycles(
+        let cycles = PillCycleCalculator.groupedCycles(
             pillDates: pillDates,
             breakDays: breakDays,
             calendar: calendar
@@ -950,7 +939,7 @@ extension CalendarViewModel {
             return .pillBreak(day: breakDay, total: breakDays)
         }
         
-        let cycles = groupedPillCycles(
+        let cycles = PillCycleCalculator.groupedCycles(
             pillDates: pillDates,
             breakDays: breakDays,
             calendar: calendar
