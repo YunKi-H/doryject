@@ -296,22 +296,6 @@ extension CalendarViewModel {
         return PeriodSummaryBuilder.build(from: events.map { $0.date })
     }
     
-    private func predictedPeriodLengthDaysFromCurrentData() -> Int {
-        let settings = settingsRepository?.load() ?? .init()
-        return PeriodForecastCalculator.predictedPeriodLengthDays(
-            settings: settings,
-            periodSummaries: actualPeriodSummaries()
-        )
-    }
-    
-    private func manualCycleAverages(for settings: UserSettings) -> (cycleDays: Int?, periodDays: Int?) {
-        let periodSettings = settings.period
-        guard periodSettings.autoCyclePredictionEnabled == false else {
-            return (nil, nil)
-        }
-        return (periodSettings.averageCycleDays, periodSettings.averagePeriodDays)
-    }
-    
     private func mapPrimaryStatus(_ snapshot: DayInfoCardPrimarySnapshot) -> CalendarPrimaryStatus {
         switch snapshot {
         case .countdown(let days):
