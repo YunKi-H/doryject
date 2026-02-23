@@ -49,12 +49,6 @@ final class CalendarViewModel {
     }
 }
 
-struct PillDisableConfirmationContext {
-    let remainingCount: Int
-    let todayOnlyDeleteDates: [Date]
-    let datesToDeleteFromSelected: [Date]
-}
-
 // Repository
 extension CalendarViewModel {
     func isEventOnSelectedDate(_ type: EventType) -> Bool {
@@ -79,21 +73,16 @@ extension CalendarViewModel {
         recomputeLoadedMonths(keepingMonth: keepingMonth)
     }
     
-    func pillDisableConfirmationContextForSelectedDate() -> PillDisableConfirmationContext? {
+    func pillDisableConfirmationPlanForSelectedDate() -> PillDisableConfirmationPlan? {
         guard let settings = settingsRepository?.load() else {
             return nil
         }
         let pillDates = Set(eventRepository.events(of: .pill).map { $0.date.startOfDay })
-        guard let plan = CalendarEventTogglePolicyUseCase.pillDisableConfirmationPlan(
+        return CalendarEventTogglePolicyUseCase.pillDisableConfirmationPlan(
             selectedDate: selectedDate,
             pillDates: pillDates,
             settings: settings,
             calendar: .current
-        ) else { return nil }
-        return PillDisableConfirmationContext(
-            remainingCount: plan.remainingCount,
-            todayOnlyDeleteDates: plan.todayOnlyDeleteDates,
-            datesToDeleteFromSelected: plan.stopCycleDeleteDates
         )
     }
     

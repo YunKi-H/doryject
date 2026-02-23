@@ -21,9 +21,7 @@ struct CalendarMainView: View {
     @State private var pill: Bool = false
     @State private var love: Bool = false
     @State private var isPillDisableDialogPresented: Bool = false
-    @State private var pillDisableRemainingCount: Int = 0
-    @State private var pillDisableTodayOnlyDates: [Date] = []
-    @State private var pillDisableDatesFromSelected: [Date] = []
+    @State private var pillDisablePlan: PillDisableConfirmationPlan?
     
     var body: some View {
         VStack(spacing: 0) {
@@ -115,10 +113,6 @@ struct CalendarMainView: View {
         }
         .appGradientOverlay()
         .sheet(isPresented: $isPresentedEventSheet) {
-//            let isFutureSelectedDate = viewModel.selectedDate.startOfDay > Date().startOfDay
-//            let periodIconColor: Color = isFutureSelectedDate ? .mainNeutral20 : .mainRed
-//            let pillIconColor: Color = isFutureSelectedDate ? .mainNeutral20 : .subBlue
-//            let loveIconColor: Color = isFutureSelectedDate ? .mainNeutral20 : .subPink
             let periodIconColor: Color = .mainRed
             let pillIconColor: Color = .subBlue
             let loveIconColor: Color = .subPink
@@ -166,7 +160,6 @@ struct CalendarMainView: View {
                         }
                     }
                     .listRowBackground(Color.bgSecondary)
-//                    .disabled(isFutureSelectedDate)
                 }
                 .scrollDisabled(true)
                 .padding(.top, 14)
@@ -211,17 +204,17 @@ struct CalendarMainView: View {
             }
         }
         .confirmationDialog(
-            "피임약 복용을 중단하시겠습니까?\n아직 예정된 복용이 \(pillDisableRemainingCount)정 남았습니다.",
+            "피임약 복용을 중단하시겠습니까?\n아직 예정된 복용이 \(pillDisablePlan?.remainingCount ?? 0)정 남았습니다.",
             isPresented: $isPillDisableDialogPresented,
             titleVisibility: .visible
         ) {
             Button("오늘만 미복용") {
-                viewModel.deletePillEvents(on: pillDisableTodayOnlyDates)
+                viewModel.deletePillEvents(on: pillDisablePlan?.todayOnlyDeleteDates ?? [])
                 clearPillDisableDialogContext()
                 syncToggleState()
             }
             Button("복용 중단", role: .destructive) {
-                viewModel.deletePillEvents(on: pillDisableDatesFromSelected)
+                viewModel.deletePillEvents(on: pillDisablePlan?.stopCycleDeleteDates ?? [])
                 clearPillDisableDialogContext()
                 syncToggleState()
             }
@@ -242,10 +235,8 @@ struct CalendarMainView: View {
             return
         }
         
-        if let context = viewModel.pillDisableConfirmationContextForSelectedDate() {
-            pillDisableRemainingCount = context.remainingCount
-            pillDisableTodayOnlyDates = context.todayOnlyDeleteDates
-            pillDisableDatesFromSelected = context.datesToDeleteFromSelected
+        if let plan = viewModel.pillDisableConfirmationPlanForSelectedDate() {
+            pillDisablePlan = plan
             isPillDisableDialogPresented = true
             return
         }
@@ -256,9 +247,7 @@ struct CalendarMainView: View {
     
     private func clearPillDisableDialogContext() {
         isPillDisableDialogPresented = false
-        pillDisableRemainingCount = 0
-        pillDisableTodayOnlyDates = []
-        pillDisableDatesFromSelected = []
+        pillDisablePlan = nil
     }
 }
 
