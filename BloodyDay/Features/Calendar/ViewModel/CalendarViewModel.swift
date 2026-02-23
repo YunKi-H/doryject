@@ -710,7 +710,7 @@ extension CalendarViewModel {
         let settings = settingsRepository?.load() ?? .init()
         let periodDates = eventRepository.events(of: .period).map(\.date)
         let pillDates = Set(eventRepository.events(of: .pill).map { $0.date.startOfDay })
-        return DayInfoCardStatusUseCase.primaryStatus(
+        let snapshot = DayInfoCardStatusUseCase.primaryStatus(
             for: date,
             today: Date(),
             periodDates: periodDates,
@@ -718,6 +718,7 @@ extension CalendarViewModel {
             settings: settings,
             calendar: .current
         )
+        return mapPrimaryStatus(snapshot)
     }
     
     func secondaryStatus(for date: Date) -> CalendarSecondaryStatus {
@@ -728,7 +729,7 @@ extension CalendarViewModel {
             .first(where: { $0.date.isSameDay(as: date) })?
             .events
 
-        return DayInfoCardStatusUseCase.secondaryStatus(
+        let snapshot = DayInfoCardStatusUseCase.secondaryStatus(
             for: date,
             allEventsEmpty: eventRepository.allEvents().isEmpty,
             isPillEnabled: isPillEnabled,
@@ -737,6 +738,7 @@ extension CalendarViewModel {
             settings: settings,
             calendar: .current
         )
+        return mapSecondaryStatus(snapshot)
     }
     
     private func actualPeriodSummaries() -> [PeriodSummary] {
@@ -758,6 +760,38 @@ extension CalendarViewModel {
             return (nil, nil)
         }
         return (periodSettings.averageCycleDays, periodSettings.averagePeriodDays)
+    }
+
+    private func mapPrimaryStatus(_ snapshot: DayInfoCardPrimarySnapshot) -> CalendarPrimaryStatus {
+        switch snapshot {
+        case .countdown(let days):
+            return .countdown(days: days)
+        case .ongoing(let day):
+            return .ongoing(day: day)
+        case .bDay:
+            return .bDay
+        case .delayed(let days):
+            return .delayed(days: days)
+        case .unknown:
+            return .unknown
+        }
+    }
+
+    private func mapSecondaryStatus(_ snapshot: DayInfoCardSecondarySnapshot) -> CalendarSecondaryStatus {
+        switch snapshot {
+        case .pill(let day, let total):
+            return .pill(day: day, total: total)
+        case .pillBreak(let day, let total):
+            return .pillBreak(day: day, total: total)
+        case .ovulation:
+            return .ovulation
+        case .fertile:
+            return .fertile
+        case .notFertile:
+            return .notFertile
+        case .unknown:
+            return .unknown
+        }
     }
     
 }

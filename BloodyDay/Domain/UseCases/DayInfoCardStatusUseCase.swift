@@ -15,7 +15,7 @@ enum DayInfoCardStatusUseCase {
         pillDates: Set<Date>,
         settings: UserSettings,
         calendar: Calendar
-    ) -> CalendarPrimaryStatus {
+    ) -> DayInfoCardPrimarySnapshot {
         let summaries = PeriodSummaryBuilder.build(from: periodDates)
         let target = date.startOfDay
         let normalizedToday = today.startOfDay
@@ -77,7 +77,7 @@ enum DayInfoCardStatusUseCase {
         pillDates: Set<Date>,
         settings: UserSettings,
         calendar: Calendar
-    ) -> CalendarSecondaryStatus {
+    ) -> DayInfoCardSecondarySnapshot {
         if allEventsEmpty {
             return .unknown
         }
@@ -190,7 +190,7 @@ enum DayInfoCardStatusUseCase {
         pillDates: Set<Date>,
         settings: UserSettings,
         calendar: Calendar
-    ) -> CalendarSecondaryStatus? {
+    ) -> DayInfoCardSecondarySnapshot? {
         let pillSettings = settings.pill
         guard pillSettings.pillEnabled else { return nil }
         
@@ -201,8 +201,6 @@ enum DayInfoCardStatusUseCase {
         let target = date.startOfDay
         
         if pillSettings.pillAutoRecordEnabled {
-            // Auto-record ON creates concrete pill events for scheduled intake days.
-            // Fallback synthesis can leave stale labels after manual cycle interruption.
             return nil
         }
         
