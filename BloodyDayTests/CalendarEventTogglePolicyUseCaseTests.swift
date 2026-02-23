@@ -33,6 +33,28 @@ struct CalendarEventTogglePolicyUseCaseTests {
     }
     
     @Test
+    func mutationPlan_periodOffKeepsEarlierContiguousDatesUntouched() {
+        let d1 = makeDate(2026, 3, 1)
+        let d2 = addDays(d1, 1)
+        let d3 = addDays(d1, 2)
+        let d4 = addDays(d1, 3)
+        let d5 = addDays(d1, 4)
+        
+        let plan = CalendarEventTogglePolicyUseCase.mutationPlan(
+            type: .period,
+            enabled: false,
+            selectedDate: d3,
+            existingDatesByType: [.period: Set([d1, d2, d3, d4, d5])],
+            settings: .init(),
+            calendar: calendar
+        )
+        
+        #expect(plan.deletions == [CalendarEventMutation(type: .period, dates: [d3, d4, d5])])
+        #expect(plan.deletions.first?.dates.contains(d1) == false)
+        #expect(plan.deletions.first?.dates.contains(d2) == false)
+    }
+    
+    @Test
     func mutationPlan_periodOnAdjacentAddsOnlySelectedDate() {
         let target = makeDate(2026, 2, 12)
         let existingPeriod = Set([addDays(target, -1)])
@@ -100,6 +122,47 @@ struct CalendarEventTogglePolicyUseCaseTests {
     }
     
     @Test
+    func mutationPlan_returnsEmptyWhenToggleStateIsAlreadyEnabled() {
+        let target = makeDate(2026, 2, 10)
+        
+        let plan = CalendarEventTogglePolicyUseCase.mutationPlan(
+            type: .pill,
+            enabled: true,
+            selectedDate: target,
+            existingDatesByType: [.pill: Set([target])],
+            settings: .init(),
+            calendar: calendar
+        )
+        
+        #expect(plan.isEmpty)
+    }
+    
+    @Test
+    func mutationPlan_pillOnWithAutoRecordWhenCycleAlreadyAtPillCountAddsOnlySelectedDateOutsideCycle() {
+        var settings = UserSettings()
+        settings.pill.pillEnabled = true
+        settings.pill.pillAutoRecordEnabled = true
+        settings.pill.pillCount = 3
+        settings.pill.pillBreakDuration = 7
+        
+        let cycleStart = makeDate(2026, 4, 1)
+        let fullCycle: Set<Date> = [cycleStart, addDays(cycleStart, 1), addDays(cycleStart, 2)]
+        let outsideDate = addDays(cycleStart, -1)
+        
+        let plan = CalendarEventTogglePolicyUseCase.mutationPlan(
+            type: .pill,
+            enabled: true,
+            selectedDate: outsideDate,
+            existingDatesByType: [.pill: fullCycle],
+            settings: settings,
+            calendar: calendar
+        )
+        
+        #expect(plan.deletions.isEmpty)
+        #expect(plan.additions == [CalendarEventMutation(type: .pill, dates: [outsideDate])])
+    }
+    
+    @Test
     func pillDisableConfirmationPlan_returnsContextForAutoRecordCurrentCycleWithRemainingDates() {
         var settings = UserSettings()
         settings.pill.pillEnabled = true
@@ -121,6 +184,25 @@ struct CalendarEventTogglePolicyUseCaseTests {
         #expect(plan?.remainingCount == 2)
         #expect(plan?.todayOnlyDeleteDates == [selected])
         #expect(plan?.stopCycleDeleteDates == [selected, addDays(selected, 1), addDays(selected, 2)])
+    }
+    
+    @Test
+    func pillDisableConfirmationPlan_returnsNilWhenAutoRecordIsOff() {
+        var settings = UserSettings()
+        settings.pill.pillEnabled = true
+        settings.pill.pillAutoRecordEnabled = false
+        settings.pill.pillCount = 21
+        settings.pill.pillBreakDuration = 7
+        
+        let selected = makeDate(2026, 2, 10)
+        let plan = CalendarEventTogglePolicyUseCase.pillDisableConfirmationPlan(
+            selectedDate: selected,
+            pillDates: [selected, addDays(selected, 1)],
+            settings: settings,
+            calendar: calendar
+        )
+        
+        #expect(plan == nil)
     }
     
     @Test
