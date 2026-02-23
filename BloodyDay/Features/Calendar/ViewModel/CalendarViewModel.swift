@@ -101,18 +101,34 @@ extension CalendarViewModel {
     }
     
     private func applyMutationPlan(_ plan: CalendarEventMutationPlan) {
+        var existingDatesCache: [EventType: Set<Date>] = [:]
+        
+        func existingDates(for type: EventType) -> Set<Date> {
+            if let cached = existingDatesCache[type] {
+                return cached
+            }
+            let loaded = Set(eventRepository.events(of: type).map { $0.date.startOfDay })
+            existingDatesCache[type] = loaded
+            return loaded
+        }
+        
         for mutation in plan.deletions {
+            var typeDates = existingDates(for: mutation.type)
             for date in mutation.dates.map(\.startOfDay) {
                 eventRepository.delete(type: mutation.type, on: date)
+                typeDates.remove(date)
             }
+            existingDatesCache[mutation.type] = typeDates
         }
         
         for mutation in plan.additions {
+            var typeDates = existingDates(for: mutation.type)
             for date in mutation.dates.map(\.startOfDay) {
-                let alreadyExists = eventRepository.events(of: mutation.type).contains { $0.date.startOfDay == date }
-                guard alreadyExists == false else { continue }
+                guard typeDates.contains(date) == false else { continue }
                 eventRepository.save(UserEvent(id: .init(), date: date, type: mutation.type))
+                typeDates.insert(date)
             }
+            existingDatesCache[mutation.type] = typeDates
         }
     }
 }
@@ -180,32 +196,11 @@ extension CalendarViewModel {
             keepingMonth: keepingMonth,
             previousCurrentIndex: currentIndex,
             allEvents: eventRepository.allEvents(),
-            buildContext: { [weak self] bounds, userEvents in
-                guard let self else {
-                    return MonthComputationContext(
-                        eventsByDay: [:],
-                        pillDates: [],
-                        pillSequenceByDate: [:],
-                        predictedEventsByDay: [:],
-                        predictedPeriodDates: []
-                    )
-                }
-                return self.buildMonthComputationContext(bounds: bounds, userEvents: userEvents)
+            buildContext: { bounds, userEvents in
+                self.buildMonthComputationContext(bounds: bounds, userEvents: userEvents)
             },
-            makeMonthInfo: { [weak self] month, userEvents, context in
-                guard let self else {
-                    return MonthInfo(
-                        monthDate: month.startOfMonth,
-                        days: [],
-                        periodRanges: [],
-                        predictedPeriodRanges: [],
-                        predictedPeriodDates: [],
-                        delayedRanges: [],
-                        fertileRanges: [],
-                        ovulationRanges: []
-                    )
-                }
-                return self.makeMonthInfo(for: month, userEvents: userEvents, context: context)
+            makeMonthInfo: { month, userEvents, context in
+                self.makeMonthInfo(for: month, userEvents: userEvents, context: context)
             }
         )
         months = result.months
