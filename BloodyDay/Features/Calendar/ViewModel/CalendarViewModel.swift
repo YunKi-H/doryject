@@ -71,72 +71,66 @@ extension CalendarViewModel {
     
     func setEvent(_ type: EventType, enabled: Bool) {
         let date = selectedDate.startOfDay
-        let alreadySet = isEventOnSelectedDate(type)
-        if enabled == alreadySet {
-            return
-        }
-        if enabled {
-            if type == .period {
-                addPeriodEvents(startingAt: date)
-            } else if type == .pill, shouldAutoRecordPill {
-                addPillEvents(startingAt: date)
-            } else {
-                let new = UserEvent(id: .init(), date: date, type: type)
-                eventRepository.save(new)
-            }
-        } else {
-            if type == .period {
-                deletePeriodEvents(startingAt: date)
-            } else {
-                eventRepository.delete(type: type, on: date)
-            }
-        }
+        let settings = settingsRepository?.load() ?? .init()
+        let plan = CalendarEventTogglePolicyUseCase.mutationPlan(
+            type: type,
+            enabled: enabled,
+            selectedDate: date,
+            existingDatesByType: existingEventDatesByType(),
+            settings: settings,
+            calendar: .current
+        )
+        guard plan.isEmpty == false else { return }
+        applyMutationPlan(plan)
         let keepingMonth = months.indices.contains(currentIndex) ? months[currentIndex].monthDate : date.startOfMonth
         recomputeLoadedMonths(keepingMonth: keepingMonth)
     }
     
     func pillDisableConfirmationContextForSelectedDate() -> PillDisableConfirmationContext? {
-        guard isEventOnSelectedDate(.pill),
-              let settings = settingsRepository?.load() else {
+        guard let settings = settingsRepository?.load() else {
             return nil
         }
-        let pillSettings = settings.pill
-        guard pillSettings.pillEnabled,
-              pillSettings.pillAutoRecordEnabled else {
-            return nil
-        }
-        
-        let pillCount = max(pillSettings.pillCount, 0)
-        let breakDays = max(pillSettings.pillBreakDuration, 0)
-        guard pillCount > 0 else { return nil }
-        
-        let selected = selectedDate.startOfDay
         let pillDates = Set(eventRepository.events(of: .pill).map { $0.date.startOfDay })
-        guard let currentCycle = PillCycleCalculator.latestCycle(
+        guard let plan = CalendarEventTogglePolicyUseCase.pillDisableConfirmationPlan(
+            selectedDate: selectedDate,
             pillDates: pillDates,
-            breakDays: breakDays,
+            settings: settings,
             calendar: .current
-        ),
-              currentCycle.contains(selected) else { return nil }
-        
-        let sortedCurrentCycle = currentCycle.map { $0.startOfDay }.sorted()
-        let futureDates = sortedCurrentCycle.filter { $0 > selected }
-        guard futureDates.isEmpty == false else { return nil }
-        
-        let datesToDeleteFromSelected = sortedCurrentCycle.filter { $0 >= selected }
-        let remainingCount = futureDates.count
+        ) else { return nil }
         return PillDisableConfirmationContext(
-            remainingCount: remainingCount,
-            datesToDeleteFromSelected: datesToDeleteFromSelected
+            remainingCount: plan.remainingCount,
+            datesToDeleteFromSelected: plan.stopCycleDeleteDates
         )
     }
     
     func deletePillEvents(on dates: [Date]) {
-        for date in dates.map(\.startOfDay) {
-            eventRepository.delete(type: .pill, on: date)
-        }
+        applyMutationPlan(.init(deletions: [CalendarEventMutation(type: .pill, dates: dates)]))
         let keepingMonth = months.indices.contains(currentIndex) ? months[currentIndex].monthDate : selectedDate.startOfMonth
         recomputeLoadedMonths(keepingMonth: keepingMonth)
+    }
+    
+    private func existingEventDatesByType() -> [EventType: Set<Date>] {
+        let supportedTypes: [EventType] = [.period, .pill, .love, .ovulation, .fertile, .delayed]
+        return Dictionary(uniqueKeysWithValues: supportedTypes.map { type in
+            let dates = Set(eventRepository.events(of: type).map { $0.date.startOfDay })
+            return (type, dates)
+        })
+    }
+    
+    private func applyMutationPlan(_ plan: CalendarEventMutationPlan) {
+        for mutation in plan.deletions {
+            for date in mutation.dates.map(\.startOfDay) {
+                eventRepository.delete(type: mutation.type, on: date)
+            }
+        }
+        
+        for mutation in plan.additions {
+            for date in mutation.dates.map(\.startOfDay) {
+                let alreadyExists = eventRepository.events(of: mutation.type).contains { $0.date.startOfDay == date }
+                guard alreadyExists == false else { continue }
+                eventRepository.save(UserEvent(id: .init(), date: date, type: mutation.type))
+            }
+        }
     }
 }
 
@@ -612,95 +606,8 @@ extension CalendarViewModel {
         )
     }
     
-    private func addPeriodEvents(startingAt date: Date) {
-        let normalizedDate = date.startOfDay
-        let periodEvents = eventRepository.events(of: .period).map { $0.date.startOfDay }
-        let calendar = Calendar.current
-        let previousDay = calendar.date(byAdding: .day, value: -1, to: normalizedDate)!
-        let nextDay = calendar.date(byAdding: .day, value: 1, to: normalizedDate)!
-        let isAdjacent = periodEvents.contains(where: { $0.isSameDay(as: previousDay) }) ||
-        periodEvents.contains(where: { $0.isSameDay(as: nextDay) })
-        
-        let datesToAdd: [Date]
-        if isAdjacent {
-            datesToAdd = [normalizedDate]
-        } else {
-            let lengthDays = predictedPeriodLengthDaysFromCurrentData()
-            let endExclusive = calendar.date(byAdding: .day, value: lengthDays, to: normalizedDate)!
-            datesToAdd = Date.dates(from: normalizedDate, toExclusive: endExclusive)
-        }
-        
-        for day in datesToAdd {
-            let new = UserEvent(id: .init(), date: day, type: .period)
-            eventRepository.save(new)
-        }
-    }
-    
-    private func deletePeriodEvents(startingAt date: Date) {
-        let calendar = Calendar.current
-        let periodDates = Set(eventRepository.events(of: .period).map { $0.date.startOfDay })
-        var cursor = date.startOfDay
-        guard periodDates.contains(cursor) else { return }
-        
-        while periodDates.contains(cursor) {
-            eventRepository.delete(type: .period, on: cursor)
-            guard let next = calendar.date(byAdding: .day, value: 1, to: cursor) else { break }
-            cursor = next
-        }
-    }
-    
-    private var shouldAutoRecordPill: Bool {
-        guard let pillSettings = settingsRepository?.load().pill else { return false }
-        return pillSettings.pillEnabled && pillSettings.pillAutoRecordEnabled
-    }
-    
     private var isPillEnabled: Bool {
         settingsRepository?.load().pill.pillEnabled == true
-    }
-    
-    private func addPillEvents(startingAt date: Date) {
-        guard let pillSettings = settingsRepository?.load().pill,
-              pillSettings.pillAutoRecordEnabled else { return }
-        let pillCount = max(pillSettings.pillCount, 0)
-        let breakDays = max(pillSettings.pillBreakDuration, 0)
-        guard pillCount > 0 else { return }
-        
-        let calendar = Calendar.current
-        let start = date.startOfDay
-        var pillDates = Set(eventRepository.events(of: .pill).map { $0.date.startOfDay })
-        var cycleDates = Set(
-            PillCycleCalculator.cycle(
-                containing: start,
-                pillDates: pillDates,
-                breakDays: breakDays,
-                calendar: calendar
-            ) ?? [start]
-        )
-        guard cycleDates.count < pillCount else {
-            if eventRepository.events(of: .pill).contains(where: { $0.date.startOfDay == start }) == false {
-                eventRepository.save(UserEvent(id: .init(), date: start, type: .pill))
-            }
-            return
-        }
-        
-        var cursor = start
-        while cycleDates.count < pillCount {
-            if pillDates.contains(cursor) == false {
-                let new = UserEvent(id: .init(), date: cursor, type: .pill)
-                eventRepository.save(new)
-                pillDates.insert(cursor)
-                cycleDates = Set(
-                    PillCycleCalculator.cycle(
-                        containing: start,
-                        pillDates: pillDates,
-                        breakDays: breakDays,
-                        calendar: calendar
-                    ) ?? [start]
-                )
-            }
-            guard let next = calendar.date(byAdding: .day, value: 1, to: cursor) else { break }
-            cursor = next.startOfDay
-        }
     }
 }
 
@@ -728,7 +635,7 @@ extension CalendarViewModel {
             .flatMap(\.days)
             .first(where: { $0.date.isSameDay(as: date) })?
             .events
-
+        
         let snapshot = DayInfoCardStatusUseCase.secondaryStatus(
             for: date,
             allEventsEmpty: eventRepository.allEvents().isEmpty,
@@ -761,7 +668,7 @@ extension CalendarViewModel {
         }
         return (periodSettings.averageCycleDays, periodSettings.averagePeriodDays)
     }
-
+    
     private func mapPrimaryStatus(_ snapshot: DayInfoCardPrimarySnapshot) -> CalendarPrimaryStatus {
         switch snapshot {
         case .countdown(let days):
@@ -776,7 +683,7 @@ extension CalendarViewModel {
             return .unknown
         }
     }
-
+    
     private func mapSecondaryStatus(_ snapshot: DayInfoCardSecondarySnapshot) -> CalendarSecondaryStatus {
         switch snapshot {
         case .pill(let day, let total):
