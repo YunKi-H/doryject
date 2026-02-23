@@ -268,7 +268,7 @@ extension CalendarViewModel {
             settings: settings,
             calendar: .current
         )
-        return mapPrimaryStatus(snapshot)
+        return CalendarStatusMapper.map(snapshot)
     }
     
     func secondaryStatus(for date: Date) -> CalendarSecondaryStatus {
@@ -288,44 +288,12 @@ extension CalendarViewModel {
             settings: settings,
             calendar: .current
         )
-        return mapSecondaryStatus(snapshot)
+        return CalendarStatusMapper.map(snapshot)
     }
     
     private func actualPeriodSummaries() -> [PeriodSummary] {
         let events = eventRepository.events(of: .period)
         return PeriodSummaryBuilder.build(from: events.map { $0.date })
-    }
-    
-    private func mapPrimaryStatus(_ snapshot: DayInfoCardPrimarySnapshot) -> CalendarPrimaryStatus {
-        switch snapshot {
-        case .countdown(let days):
-            return .countdown(days: days)
-        case .ongoing(let day):
-            return .ongoing(day: day)
-        case .bDay:
-            return .bDay
-        case .delayed(let days):
-            return .delayed(days: days)
-        case .unknown:
-            return .unknown
-        }
-    }
-    
-    private func mapSecondaryStatus(_ snapshot: DayInfoCardSecondarySnapshot) -> CalendarSecondaryStatus {
-        switch snapshot {
-        case .pill(let day, let total):
-            return .pill(day: day, total: total)
-        case .pillBreak(let day, let total):
-            return .pillBreak(day: day, total: total)
-        case .ovulation:
-            return .ovulation
-        case .fertile:
-            return .fertile
-        case .notFertile:
-            return .notFertile
-        case .unknown:
-            return .unknown
-        }
     }
     
 }
