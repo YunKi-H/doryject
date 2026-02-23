@@ -194,38 +194,41 @@ extension CalendarViewModel {
     }
     
     private func rebuildMonths(monthDates: [Date], keepingMonth: Date) {
-        let normalizedMonthDates = monthDates.map(\.startOfMonth)
-        guard let bounds = calculationBounds(for: normalizedMonthDates) else {
-            months = []
-            currentIndex = 0
-            return
-        }
-        let calculationEvents = calculationEvents(in: bounds)
-        let context = buildMonthComputationContext(bounds: bounds, userEvents: calculationEvents)
-        months = normalizedMonthDates.map { makeMonthInfo(for: $0, userEvents: calculationEvents, context: context) }
-        
-        if let idx = months.firstIndex(where: { $0.monthDate == keepingMonth.startOfMonth }) {
-            currentIndex = idx
-        } else {
-            currentIndex = min(currentIndex, max(months.count - 1, 0))
-        }
-    }
-    
-    private func calculationBounds(for monthDates: [Date]) -> (start: Date, endExclusive: Date)? {
-        guard let firstMonth = monthDates.min(),
-              let lastMonth = monthDates.max() else {
-            return nil
-        }
-        let start = firstMonth.startOfMonth.addingMonths(-1)
-        let endExclusive = lastMonth.startOfMonth.addingMonths(2)
-        return (start: start, endExclusive: endExclusive)
-    }
-    
-    private func calculationEvents(in bounds: (start: Date, endExclusive: Date)) -> [UserEvent] {
-        return eventRepository.allEvents().filter {
-            let day = $0.date.startOfDay
-            return day >= bounds.start && day < bounds.endExclusive
-        }
+        let result = BuildCalendarMonthsUseCase.execute(
+            monthDates: monthDates,
+            keepingMonth: keepingMonth,
+            previousCurrentIndex: currentIndex,
+            allEvents: eventRepository.allEvents(),
+            buildContext: { [weak self] bounds, userEvents in
+                guard let self else {
+                    return MonthComputationContext(
+                        eventsByDay: [:],
+                        pillDates: [],
+                        pillSequenceByDate: [:],
+                        predictedEventsByDay: [:],
+                        predictedPeriodDates: []
+                    )
+                }
+                return self.buildMonthComputationContext(bounds: bounds, userEvents: userEvents)
+            },
+            makeMonthInfo: { [weak self] month, userEvents, context in
+                guard let self else {
+                    return MonthInfo(
+                        monthDate: month.startOfMonth,
+                        days: [],
+                        periodRanges: [],
+                        predictedPeriodRanges: [],
+                        predictedPeriodDates: [],
+                        delayedRanges: [],
+                        fertileRanges: [],
+                        ovulationRanges: []
+                    )
+                }
+                return self.makeMonthInfo(for: month, userEvents: userEvents, context: context)
+            }
+        )
+        months = result.months
+        currentIndex = result.currentIndex
     }
     
     private func buildMonthComputationContext(
