@@ -707,98 +707,36 @@ extension CalendarViewModel {
 // DayInfoCard
 extension CalendarViewModel {
     func primaryStatus(for date: Date) -> CalendarPrimaryStatus {
-        periodStatus(for: date)
+        let settings = settingsRepository?.load() ?? .init()
+        let periodDates = eventRepository.events(of: .period).map(\.date)
+        let pillDates = Set(eventRepository.events(of: .pill).map { $0.date.startOfDay })
+        return DayInfoCardStatusUseCase.primaryStatus(
+            for: date,
+            today: Date(),
+            periodDates: periodDates,
+            pillDates: pillDates,
+            settings: settings,
+            calendar: .current
+        )
     }
     
     func secondaryStatus(for date: Date) -> CalendarSecondaryStatus {
-        calculateSecondaryStatus(for: date)
-    }
-    
-    private func periodStatus(for date: Date) -> CalendarPrimaryStatus {
-        let summaries = actualPeriodSummaries()
-        let calendar = Calendar.current
-        let target = date.startOfDay
-        let today = Date().startOfDay
-        
-        if let ongoing = summaries.first(where: { $0.start.startOfDay <= target && target <= $0.end.startOfDay }) {
-            if target == ongoing.start.startOfDay {
-                return .bDay
-            }
-            let dayIndex = (calendar.dateComponents([.day], from: ongoing.start.startOfDay, to: target).day ?? 0) + 1
-            return .ongoing(day: max(dayIndex, 1))
-        }
-        
-        if let latestStart = summaries.map({ $0.start.startOfDay }).max(), target < latestStart {
-            return .unknown
-        }
-        
         let settings = settingsRepository?.load() ?? .init()
         let pillDates = Set(eventRepository.events(of: .pill).map { $0.date.startOfDay })
-        guard let context = PeriodForecastCalculator.predictionContext(
-            target: target,
-            settings: settings,
-            periodSummaries: summaries,
-            pillDates: pillDates,
-            calendar: calendar
-        ),
-              let predictedStart = PeriodForecastCalculator.expectedStartDate(
-                target: target,
-                today: today,
-                context: context,
-                calendar: calendar
-              ) else {
-            return .unknown
-        }
-        let predictedLength = max(context.predictedLength, 1)
-        let predictedEndExclusive = calendar.date(byAdding: .day, value: predictedLength, to: predictedStart.startOfDay)!
-        
-        if target == predictedStart.startOfDay {
-            return .bDay
-        }
-        if target > predictedStart.startOfDay && target < predictedEndExclusive {
-            let dayIndex = (calendar.dateComponents([.day], from: predictedStart.startOfDay, to: target).day ?? 0) + 1
-            return .ongoing(day: max(dayIndex, 1))
-        }
-        if target >= predictedStart && target <= today {
-            return .delayed(days: max(calendar.dateComponents([.day], from: predictedStart.startOfDay, to: target).day ?? 0, 0))
-        }
-        
-        let daysUntil = calendar.dateComponents([.day], from: target, to: predictedStart).day ?? 0
-        return .countdown(days: max(daysUntil, 0))
-    }
-    
-    private func calculateSecondaryStatus(for date: Date) -> CalendarSecondaryStatus {
-        if eventRepository.allEvents().isEmpty {
-            return .unknown
-        }
-        let shouldShowPillStatus = isPillEnabled
-        if shouldShowPillStatus, let pillInfo = pillInfo(for: date) {
-            return .pill(day: pillInfo.day, total: pillInfo.total)
-        }
-        
-        if shouldShowPillStatus, let breakInfo = pillBreakInfo(for: date) {
-            return .pillBreak(day: breakInfo.day, total: breakInfo.total)
-        }
-        
-        if shouldShowPillStatus, let scheduled = scheduledPillStatusForCurrentCycle(for: date) {
-            return scheduled
-        }
-        
-        guard let dayInfo = months
+        let dayEvents = months
             .flatMap(\.days)
-            .first(where: { $0.date.isSameDay(as: date) }) else {
-            return .notFertile
-        }
-        
-        if dayInfo.events.contains(where: { $0.type == .ovulation }) {
-            return .ovulation
-        }
-        
-        if dayInfo.events.contains(where: { $0.type == .fertile }) {
-            return .fertile
-        }
-        
-        return .notFertile
+            .first(where: { $0.date.isSameDay(as: date) })?
+            .events
+
+        return DayInfoCardStatusUseCase.secondaryStatus(
+            for: date,
+            allEventsEmpty: eventRepository.allEvents().isEmpty,
+            isPillEnabled: isPillEnabled,
+            dayEvents: dayEvents,
+            pillDates: pillDates,
+            settings: settings,
+            calendar: .current
+        )
     }
     
     private func actualPeriodSummaries() -> [PeriodSummary] {
@@ -822,140 +760,6 @@ extension CalendarViewModel {
         return (periodSettings.averageCycleDays, periodSettings.averagePeriodDays)
     }
     
-    private func pillInfo(for date: Date) -> (day: Int, total: Int?)? {
-        guard let pillSettings = settingsRepository?.load().pill else { return nil }
-        guard pillSettings.pillEnabled else { return nil }
-        let pillDates = Set(eventRepository.events(of: .pill).map { $0.date.startOfDay })
-        let target = date.startOfDay
-        guard pillDates.contains(target) else { return nil }
-        
-        let pillCount = max(pillSettings.pillCount, 0)
-        let breakDays = max(pillSettings.pillBreakDuration, 0)
-        let sequenceByDate = PeriodForecastCalculator.pillSequenceMap(
-            pillDates: pillDates,
-            pillCount: pillCount,
-            breakDays: breakDays,
-            calendar: .current
-        )
-        guard let sequence = sequenceByDate[target] else { return nil }
-        return (day: sequence, total: pillCount > 0 ? pillCount : nil)
-    }
-    
-    private func pillBreakInfo(for date: Date) -> (day: Int, total: Int)? {
-        guard let pillSettings = settingsRepository?.load().pill else { return nil }
-        guard pillSettings.pillEnabled else { return nil }
-        let pillCount = max(pillSettings.pillCount, 0)
-        let breakDays = max(pillSettings.pillBreakDuration, 0)
-        let autoRecordEnabled = pillSettings.pillAutoRecordEnabled
-        guard pillCount > 0, breakDays > 0 else { return nil }
-        
-        let calendar = Calendar.current
-        let target = date.startOfDay
-        
-        if autoRecordEnabled == false {
-            let pillDates = Set(eventRepository.events(of: .pill).map { $0.date.startOfDay })
-            guard let projection = PeriodForecastCalculator.latestPillCycleProjection(
-                settings: settingsRepository?.load() ?? .init(),
-                pillDates: pillDates,
-                calendar: calendar
-            ),
-                  let breakStart = calendar.date(byAdding: .day, value: 1, to: projection.projectedLastIntakeDate.startOfDay),
-                  let breakEndExclusive = calendar.date(byAdding: .day, value: breakDays, to: breakStart.startOfDay) else {
-                return nil
-            }
-            guard target >= breakStart.startOfDay && target < breakEndExclusive.startOfDay else { return nil }
-            let breakDay = (calendar.dateComponents([.day], from: breakStart.startOfDay, to: target).day ?? 0) + 1
-            return (day: breakDay, total: breakDays)
-        }
-        
-        let pillDates = Set(eventRepository.events(of: .pill).map { $0.date.startOfDay })
-        let cycles = PillCycleCalculator.groupedCycles(
-            pillDates: pillDates,
-            breakDays: breakDays,
-            calendar: calendar
-        )
-        
-        for cycle in cycles {
-            guard let lastIntake = cycle.last else {
-                continue
-            }
-            let projectedLast = lastIntake.startOfDay
-            guard let breakStart = calendar.date(byAdding: .day, value: 1, to: projectedLast),
-                  let breakEndExclusive = calendar.date(byAdding: .day, value: breakDays, to: breakStart.startOfDay) else {
-                continue
-            }
-            guard target >= breakStart.startOfDay && target < breakEndExclusive.startOfDay else {
-                continue
-            }
-            let breakDay = (calendar.dateComponents([.day], from: breakStart.startOfDay, to: target).day ?? 0) + 1
-            return (day: breakDay, total: breakDays)
-        }
-        
-        return nil
-    }
-    
-    private func scheduledPillStatusForCurrentCycle(for date: Date) -> CalendarSecondaryStatus? {
-        let settings = settingsRepository?.load() ?? .init()
-        let pillSettings = settings.pill
-        guard pillSettings.pillEnabled else { return nil }
-        
-        let pillCount = max(pillSettings.pillCount, 0)
-        let breakDays = max(pillSettings.pillBreakDuration, 0)
-        guard pillCount > 0 else { return nil }
-        
-        let calendar = Calendar.current
-        let pillDates = Set(eventRepository.events(of: .pill).map { $0.date.startOfDay })
-        let target = date.startOfDay
-        
-        if pillSettings.pillAutoRecordEnabled {
-            // Auto-record ON creates concrete pill events for scheduled intake days.
-            // Fallback synthesis here can leave stale pill/break labels after users
-            // intentionally stop a cycle early by deleting future pill events.
-            return nil
-        }
-        
-        guard let currentCycle = PillCycleCalculator.latestCycle(
-            pillDates: pillDates,
-            breakDays: breakDays,
-            calendar: calendar
-        ),
-              let cycleStart = currentCycle.first,
-              let cycleLastIntake = currentCycle.last,
-              target >= cycleStart.startOfDay else {
-            return nil
-        }
-        
-        let sequenceByDate = PeriodForecastCalculator.pillSequenceMap(
-            pillDates: Set(currentCycle),
-            pillCount: pillCount,
-            breakDays: breakDays,
-            calendar: calendar
-        )
-        
-        var inferredCount: Int?
-        if let exact = sequenceByDate[target] {
-            inferredCount = exact
-        } else if target > cycleLastIntake.startOfDay,
-                  let lastKnownCount = sequenceByDate[cycleLastIntake.startOfDay] {
-            let daysAfterLastIntake = calendar.dateComponents([.day], from: cycleLastIntake.startOfDay, to: target).day ?? -1
-            if daysAfterLastIntake >= 1 {
-                inferredCount = lastKnownCount + daysAfterLastIntake
-            }
-        } else {
-            let offsetFromStart = calendar.dateComponents([.day], from: cycleStart.startOfDay, to: target).day ?? -1
-            if offsetFromStart >= 0 {
-                inferredCount = offsetFromStart + 1
-            }
-        }
-        
-        guard let count = inferredCount, count > 0 else { return nil }
-        if count <= pillCount {
-            return .pill(day: count, total: pillCount)
-        }
-        let breakDay = count - pillCount
-        guard breakDays > 0, breakDay > 0, breakDay <= breakDays else { return nil }
-        return .pillBreak(day: breakDay, total: breakDays)
-    }
 }
 
 enum CalendarPrimaryStatus: Equatable {
