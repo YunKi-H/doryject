@@ -22,6 +22,7 @@ struct CalendarMainView: View {
     @State private var love: Bool = false
     @State private var isPillDisableDialogPresented: Bool = false
     @State private var pillDisableRemainingCount: Int = 0
+    @State private var pillDisableTodayOnlyDates: [Date] = []
     @State private var pillDisableDatesFromSelected: [Date] = []
     
     var body: some View {
@@ -215,7 +216,7 @@ struct CalendarMainView: View {
             titleVisibility: .visible
         ) {
             Button("오늘만 미복용") {
-                viewModel.setEvent(.pill, enabled: false)
+                viewModel.deletePillEvents(on: pillDisableTodayOnlyDates)
                 clearPillDisableDialogContext()
                 syncToggleState()
             }
@@ -243,6 +244,7 @@ struct CalendarMainView: View {
         
         if let context = viewModel.pillDisableConfirmationContextForSelectedDate() {
             pillDisableRemainingCount = context.remainingCount
+            pillDisableTodayOnlyDates = context.todayOnlyDeleteDates
             pillDisableDatesFromSelected = context.datesToDeleteFromSelected
             isPillDisableDialogPresented = true
             return
@@ -255,6 +257,7 @@ struct CalendarMainView: View {
     private func clearPillDisableDialogContext() {
         isPillDisableDialogPresented = false
         pillDisableRemainingCount = 0
+        pillDisableTodayOnlyDates = []
         pillDisableDatesFromSelected = []
     }
 }

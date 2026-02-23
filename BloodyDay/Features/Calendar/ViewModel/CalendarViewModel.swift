@@ -51,6 +51,7 @@ final class CalendarViewModel {
 
 struct PillDisableConfirmationContext {
     let remainingCount: Int
+    let todayOnlyDeleteDates: [Date]
     let datesToDeleteFromSelected: [Date]
 }
 
@@ -99,6 +100,7 @@ extension CalendarViewModel {
         ) else { return nil }
         return PillDisableConfirmationContext(
             remainingCount: plan.remainingCount,
+            todayOnlyDeleteDates: plan.todayOnlyDeleteDates,
             datesToDeleteFromSelected: plan.stopCycleDeleteDates
         )
     }
@@ -262,7 +264,6 @@ extension CalendarViewModel {
         )
         
         let allPeriodEvents = eventRepository.events(of: .period)
-        let actualPeriodDates = Set(allPeriodEvents.map { $0.date.startOfDay })
         let periodSummaries = PeriodSummaryBuilder.build(from: allPeriodEvents.map(\.date))
         let manualAverages = manualCycleAverages(for: settings)
         let prediction = CyclePrediction.predictEvents(
