@@ -77,6 +77,35 @@ struct PeriodForecastCalculatorTests {
         #expect(projection?.projectedLastIntakeDate == addDays(lastIntake, 18))
         #expect(projection?.intakeCount == 3)
     }
+
+    @Test
+    func predictionContext_prefersLatestActualPeriodWhenItIsNewerThanPillAnchor() {
+        var settings = UserSettings()
+        settings.period.autoCyclePredictionEnabled = false
+        settings.period.averageCycleDays = 28
+        settings.period.averagePeriodDays = 5
+        settings.pill.pillEnabled = true
+        settings.pill.pillAutoRecordEnabled = true
+        settings.pill.pillCount = 21
+        settings.pill.pillBreakDuration = 7
+
+        let actualStart = makeDate(2026, 3, 6)
+        let summaries = summaries(fromRuns: [(start: actualStart, length: 5)])
+        let pillCycleStart = makeDate(2026, 2, 14)
+        let pillDates: Set<Date> = Set((0..<18).map { addDays(pillCycleStart, $0) })
+
+        let context = PeriodForecastCalculator.predictionContext(
+            target: makeDate(2026, 3, 11),
+            settings: settings,
+            periodSummaries: summaries,
+            pillDates: pillDates,
+            calendar: calendar
+        )
+
+        #expect(context?.firstExpected == makeDate(2026, 4, 3))
+        #expect(context?.cycleLength == 28)
+        #expect(context?.predictedLength == 5)
+    }
     
     @Test
     func suppressPredictedCycleArtifacts_removesOverlappingPredictedPeriodAndFertilityArtifacts() {
