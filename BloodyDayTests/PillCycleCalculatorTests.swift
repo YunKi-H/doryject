@@ -30,10 +30,10 @@ struct PillCycleCalculatorTests {
     }
     
     @Test
-    func groupedCycles_keepsSameCycleWhenGapIsWithinBreakDaysPlusOne() {
+    func groupedCycles_keepsSameCycleWhenGapIsWithinBreakDays() {
         let start = makeDate(2026, 2, 1)
         let breakDays = 7
-        let allowedGap = breakDays + 1
+        let allowedGap = breakDays
         let second = addDays(start, allowedGap)
         
         let cycles = PillCycleCalculator.groupedCycles(
@@ -47,10 +47,10 @@ struct PillCycleCalculatorTests {
     }
     
     @Test
-    func groupedCycles_splitsCycleWhenGapExceedsBreakDaysPlusOne() {
+    func groupedCycles_splitsCycleWhenGapExceedsBreakDays() {
         let start = makeDate(2026, 2, 1)
         let breakDays = 7
-        let second = addDays(start, breakDays + 2)
+        let second = addDays(start, breakDays + 1)
         
         let cycles = PillCycleCalculator.groupedCycles(
             pillDates: [start, second],

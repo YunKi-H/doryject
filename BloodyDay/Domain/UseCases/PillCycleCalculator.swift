@@ -16,7 +16,10 @@ enum PillCycleCalculator {
         let sorted = pillDates.map(\.startOfDay).sorted()
         guard sorted.isEmpty == false else { return [] }
         
-        let allowedGap = max(breakDays, 0) + 1
+        // `gap` is the day distance between two intake dates. Consecutive intake days
+        // have a gap of 1, while a completed break of `breakDays` creates a gap of
+        // `breakDays + 1` to the next cycle's first intake day.
+        let allowedGap = max(breakDays, 1)
         var cycles: [[Date]] = [[sorted[0]]]
         
         for day in sorted.dropFirst() {
