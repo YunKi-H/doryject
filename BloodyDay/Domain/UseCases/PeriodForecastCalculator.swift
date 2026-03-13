@@ -34,6 +34,27 @@ enum PeriodForecastCalculator {
     ) -> PeriodPredictionContext? {
         let normalizedTarget = target.startOfDay
         let predictedLength = predictedPeriodLengthDays(settings: settings, periodSummaries: periodSummaries)
+        let latestActualStart = periodSummaries.map(\.start).max()?.startOfDay
+        let actualCycleLength = cycleLengthDays(settings: settings, periodSummaries: periodSummaries)
+        
+        if let projection = latestPillCycleProjection(
+            settings: settings,
+            pillDates: pillDates,
+            calendar: calendar
+        ),
+           normalizedTarget >= projection.cycleStart.startOfDay,
+           let latestActualStart,
+           latestActualStart >= projection.cycleStart.startOfDay,
+           normalizedTarget >= latestActualStart,
+           let actualCycleLength,
+           actualCycleLength > 0,
+           let firstExpectedFromActual = calendar.date(byAdding: .day, value: actualCycleLength, to: latestActualStart)?.startOfDay {
+            return .init(
+                firstExpected: firstExpectedFromActual,
+                cycleLength: actualCycleLength,
+                predictedLength: predictedLength
+            )
+        }
         
         if let pill = pillPredictionContext(
             target: normalizedTarget,
@@ -48,14 +69,14 @@ enum PeriodForecastCalculator {
             )
         }
         
-        guard let lastStart = periodSummaries.map(\.start).max()?.startOfDay,
-              let cycleLength = cycleLengthDays(settings: settings, periodSummaries: periodSummaries),
-              cycleLength > 0,
-              let firstExpected = calendar.date(byAdding: .day, value: cycleLength, to: lastStart)?.startOfDay else {
+        guard let latestActualStart,
+              let actualCycleLength,
+              actualCycleLength > 0,
+              let firstExpected = calendar.date(byAdding: .day, value: actualCycleLength, to: latestActualStart)?.startOfDay else {
             return nil
         }
         
-        return .init(firstExpected: firstExpected, cycleLength: cycleLength, predictedLength: predictedLength)
+        return .init(firstExpected: firstExpected, cycleLength: actualCycleLength, predictedLength: predictedLength)
     }
     
     static func expectedStartDate(

@@ -99,6 +99,35 @@ struct DayInfoCardStatusUseCaseTests {
         
         #expect(status == .unknown)
     }
+
+    @Test
+    func primaryStatus_prefersLatestActualPeriodOverStalePillPrediction() {
+        var settings = UserSettings()
+        settings.period.autoCyclePredictionEnabled = false
+        settings.period.averageCycleDays = 28
+        settings.period.averagePeriodDays = 5
+        settings.pill.pillEnabled = true
+        settings.pill.pillAutoRecordEnabled = true
+        settings.pill.pillCount = 21
+        settings.pill.pillBreakDuration = 7
+
+        let actualStart = makeDate(2026, 3, 6)
+        let periodDates = (0..<5).map { addDays(actualStart, $0) }
+
+        let pillCycleStart = makeDate(2026, 2, 14)
+        let pillDates: Set<Date> = Set((0..<18).map { addDays(pillCycleStart, $0) }) // projected first expected = 3/6
+
+        let status = DayInfoCardStatusUseCase.primaryStatus(
+            for: makeDate(2026, 3, 11),
+            today: makeDate(2026, 3, 11),
+            periodDates: periodDates,
+            pillDates: pillDates,
+            settings: settings,
+            calendar: calendar
+        )
+
+        #expect(status == .countdown(days: 23))
+    }
     
     @Test
     func secondaryStatus_returnsPillWhenExactPillEventExists() {
