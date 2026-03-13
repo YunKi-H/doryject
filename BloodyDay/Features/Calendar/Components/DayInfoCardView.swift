@@ -55,7 +55,7 @@ struct DayInfoCardView: View {
     private var secondarySubTextColor: Color {
         switch secondaryStatus {
         case .pill(_, _), .pillBreak(_, _):
-            return .subBlue30
+            return .subBlue50
         case .ovulation, .fertile, .notFertile:
             return .textSecondary40
         default:
@@ -76,11 +76,11 @@ struct DayInfoCardView: View {
                         icon: AnyView(
                             Image(systemName: "drop.fill")
                                 .font(.system(size: 14, weight: .regular))
-                                .foregroundStyle(.mainRed)
+                                .foregroundStyle(.pointRed)
                         ),
                         text: primaryStatus.displayText,
                         subText: primaryStatus.subText,
-                        textColor: .mainRed,
+                        textColor: .pointRed,
                         subTextColor: .mainRed50,
                         backgroundColor: .mainRed10
                     )
