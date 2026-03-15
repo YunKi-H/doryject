@@ -104,7 +104,7 @@ struct CalendarHeaderView: View {
             .padding(.bottom, 5)
             
             Rectangle()
-                .fill(.mainNeutralSecondary.opacity(0.12))
+                .fill(.black.opacity(0.12))
                 .frame(height: 1.2)
                 .offset(y: 0.6)
         }

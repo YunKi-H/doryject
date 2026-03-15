@@ -39,16 +39,16 @@ struct DayCellView: View {
                     if isToday || isSelected {
                         if day.events.contains(where: { $0.type.isCycleRelated }) {
                             Capsule(style: .continuous)
-                                .foregroundStyle(isToday ? .mainNeutral : .bgSecondary)
+                                .foregroundStyle(isToday ? .textPrimary : .bgSecondary)
                                 .frame(width: 38, height: 20)
                                 .glassEffect(.clear)
                                 .opacity(day.date.isInSameMonth(as: monthDate) ? 1 : 0.3)
                         } else {
                             Circle()
-                                .foregroundStyle(isToday ? .mainNeutral : .bgSecondary)
+                                .foregroundStyle(isToday ? .textPrimary : .bgSecondary)
                                 .frame(width: 30, height: 30)
                                 .glassEffect(.clear, in: .circle)
-                                .shadow(color: .mainNeutral8, radius: 2)
+                                .shadow(color: .textTertiary8, radius: 2)
                                 .opacity(day.date.isInSameMonth(as: monthDate) ? 1 : 0.3)
                         }
                     }

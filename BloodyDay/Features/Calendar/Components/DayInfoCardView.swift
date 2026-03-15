@@ -25,7 +25,7 @@ struct DayInfoCardView: View {
                 .frame(width: 13, height: 13)
         default:
             Image(systemName: "sparkle")
-                .foregroundStyle(.mainNeutral)
+                .foregroundStyle(.textPrimary)
                 .font(.system(size: 14, weight: .regular))
         }
     }

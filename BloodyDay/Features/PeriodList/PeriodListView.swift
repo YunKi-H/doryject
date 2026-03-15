@@ -122,7 +122,7 @@ struct PeriodListView: View {
                                     Image(systemName: "pencil")
                                         .symbolRenderingMode(.palette)
                                         .foregroundStyle(.textPoint)
-                                        .tint(.mainNeutral)
+                                        .tint(.textPrimary)
                                     Text("수정")
                                         .foregroundStyle(.textSecondary50)
                                 }
