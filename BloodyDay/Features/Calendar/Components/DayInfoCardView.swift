@@ -21,7 +21,7 @@ struct DayInfoCardView: View {
         case .pill(_, _), .pillBreak(_, _):
             Image(.pillHalf)
                 .resizable()
-                .foregroundStyle(.subBlue)
+                .foregroundStyle(.pointBlue)
                 .frame(width: 13, height: 13)
         default:
             Image(systemName: "sparkle")
@@ -33,7 +33,7 @@ struct DayInfoCardView: View {
     private var secondaryTextColor: Color {
         switch secondaryStatus {
         case .pill(_, _), .pillBreak(_, _):
-            return .subBlue
+            return .pointBlue
         case .ovulation, .fertile, .notFertile:
             return .textPrimary
         case .unknown:
