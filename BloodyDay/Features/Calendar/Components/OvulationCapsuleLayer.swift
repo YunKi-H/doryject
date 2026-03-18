@@ -19,7 +19,7 @@ struct OvulationCapsuleLayer: View {
         ForEach(ranges, id: \.self) { range in
             CapsuleSegment(
                 range: range.range,
-                color: .mainNeutral8,
+                color: .textTertiary8,
                 height: 20,
                 horizontalPadding: 6,
                 days: days,

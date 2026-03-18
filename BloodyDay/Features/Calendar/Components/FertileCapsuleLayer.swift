@@ -19,7 +19,7 @@ struct FertileCapsuleLayer: View {
         ForEach(ranges, id: \.self) { range in
             CapsuleSegment(
                 range: range.range,
-                color: .mainNeutral8,
+                color: .textTertiary8,
                 height: 30,
                 horizontalPadding: 1,
                 days: days,

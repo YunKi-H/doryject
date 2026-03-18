@@ -26,7 +26,7 @@ enum BloodyDayTab: String, CaseIterable {
 struct BloodyDayTabBar<TabItemView: View>: UIViewRepresentable {
     var size: CGSize
     var activeTint: Color = .mainRed
-    var barTint: Color = Color(red: 237/255, green: 237/255, blue: 237/255)
+    var barTint: Color = Color(uiColor: .tertiarySystemFill)
     @Binding var activeTab: BloodyDayTab
     @ViewBuilder var tabItemView: (BloodyDayTab) -> TabItemView
     

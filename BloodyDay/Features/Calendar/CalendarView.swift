@@ -55,12 +55,12 @@ struct CalendarView: View {
                     VStack(spacing: 0) {
                         ForEach(0..<rows, id: \.self) { _ in
                             Rectangle()
-                                .fill(.mainNeutral8)
+                                .fill(.textTertiary8)
                                 .frame(height: 1)
                             Spacer(minLength: 0)
                         }
                         Rectangle()
-                            .fill(.mainNeutral8)
+                            .fill(.textTertiary8)
                             .frame(height: 1)
                     }
                 }

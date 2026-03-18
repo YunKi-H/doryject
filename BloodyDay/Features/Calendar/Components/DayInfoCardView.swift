@@ -21,11 +21,11 @@ struct DayInfoCardView: View {
         case .pill(_, _), .pillBreak(_, _):
             Image(.pillHalf)
                 .resizable()
-                .foregroundStyle(.subBlue)
+                .foregroundStyle(.pointBlue)
                 .frame(width: 13, height: 13)
         default:
             Image(systemName: "sparkle")
-                .foregroundStyle(.mainNeutral)
+                .foregroundStyle(.textPrimary)
                 .font(.system(size: 14, weight: .regular))
         }
     }
@@ -33,7 +33,7 @@ struct DayInfoCardView: View {
     private var secondaryTextColor: Color {
         switch secondaryStatus {
         case .pill(_, _), .pillBreak(_, _):
-            return .subBlue
+            return .pointBlue
         case .ovulation, .fertile, .notFertile:
             return .textPrimary
         case .unknown:
@@ -55,7 +55,7 @@ struct DayInfoCardView: View {
     private var secondarySubTextColor: Color {
         switch secondaryStatus {
         case .pill(_, _), .pillBreak(_, _):
-            return .subBlue30
+            return .subBlue50
         case .ovulation, .fertile, .notFertile:
             return .textSecondary40
         default:
@@ -76,11 +76,11 @@ struct DayInfoCardView: View {
                         icon: AnyView(
                             Image(systemName: "drop.fill")
                                 .font(.system(size: 14, weight: .regular))
-                                .foregroundStyle(.mainRed)
+                                .foregroundStyle(.pointRed)
                         ),
                         text: primaryStatus.displayText,
                         subText: primaryStatus.subText,
-                        textColor: .mainRed,
+                        textColor: .pointRed,
                         subTextColor: .mainRed50,
                         backgroundColor: .mainRed10
                     )
@@ -109,6 +109,7 @@ struct DayInfoCardView: View {
                         .frame(width: 26, height: 26)
                 }
             }
+            .frame(height: 26, alignment: .leading)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(EdgeInsets(top: 14, leading: 14, bottom: 14, trailing: 14))
