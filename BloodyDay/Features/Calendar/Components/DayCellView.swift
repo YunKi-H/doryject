@@ -8,6 +8,8 @@
 import SwiftUI
 
 struct DayCellView: View {
+    @Environment(\.colorScheme) private var colorScheme
+    
     let day: DayInfo
     let isSelected: Bool
     let isPredictedPeriodDay: Bool
@@ -67,7 +69,7 @@ struct DayCellView: View {
                     HStack(spacing: 4) {
                         Image(.pillHalf)
                             .resizable()
-                            .foregroundStyle(.subBlue30)
+                            .foregroundStyle(colorScheme == .dark ? .subBlue : .subBlue30)
                             .frame(width: 10, height: 10)
                         
                         Text("\(count)")
