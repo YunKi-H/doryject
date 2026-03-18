@@ -109,6 +109,7 @@ struct DayInfoCardView: View {
                         .frame(width: 26, height: 26)
                 }
             }
+            .frame(height: 26, alignment: .leading)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(EdgeInsets(top: 14, leading: 14, bottom: 14, trailing: 14))
