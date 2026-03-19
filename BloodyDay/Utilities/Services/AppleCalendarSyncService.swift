@@ -274,30 +274,20 @@ final class AppleCalendarSyncService {
             periodSummaries: actualPeriodSummaries,
             pillDates: pillDates,
             calendar: calendar
-        ),
-        let currentOrContaining = PeriodForecastCalculator.expectedStartDate(
-            target: normalizedToday,
-            today: normalizedToday,
-            context: context,
-            calendar: calendar
-        )?.startOfDay else {
+        ) else {
             return []
         }
 
-        var rawStarts: [Date] = []
-        var cursor = currentOrContaining
-        if let previous = calendar.date(byAdding: .day, value: -context.cycleLength, to: currentOrContaining)?.startOfDay {
-            rawStarts.append(previous)
-        }
-        rawStarts.append(cursor)
-
-        while let following = calendar.date(byAdding: .day, value: context.cycleLength, to: cursor)?.startOfDay {
-            if following >= horizonEndExclusive {
-                break
-            }
-            rawStarts.append(following)
-            cursor = following
-        }
+        let rawStarts = predictedRawPeriodStarts(
+            settings: settings,
+            periodSummaries: actualPeriodSummaries,
+            pillDates: pillDates,
+            context: context,
+            today: normalizedToday,
+            horizonEndExclusive: horizonEndExclusive,
+            calendar: calendar
+        )
+        guard rawStarts.isEmpty == false else { return [] }
 
         let validStarts = PeriodForecastCalculator.validPredictedPeriodStarts(
             rawStarts: rawStarts,
@@ -323,6 +313,82 @@ final class AppleCalendarSyncService {
                 cycleDays: context.cycleLength
             )
         }
+    }
+
+    private func predictedRawPeriodStarts(
+        settings: UserSettings,
+        periodSummaries: [PeriodSummary],
+        pillDates: Set<Date>,
+        context: PeriodPredictionContext,
+        today: Date,
+        horizonEndExclusive: Date,
+        calendar: Calendar
+    ) -> [Date] {
+        if let projection = PeriodForecastCalculator.latestPillCycleProjection(
+            settings: settings,
+            pillDates: pillDates,
+            calendar: calendar
+        ),
+           settings.pill.pillEnabled,
+           let firstPredictedStart = calendar.date(
+            byAdding: .day,
+            value: 3,
+            to: projection.projectedLastIntakeDate
+           )?.startOfDay,
+           firstPredictedStart >= projection.cycleStart.startOfDay {
+            return sequencedStarts(
+                firstStart: firstPredictedStart,
+                cycleLength: projection.cycleLength,
+                horizonEndExclusive: horizonEndExclusive,
+                calendar: calendar
+            )
+        }
+
+        guard let currentOrContaining = PeriodForecastCalculator.expectedStartDate(
+            target: today,
+            today: today,
+            context: context,
+            calendar: calendar
+        )?.startOfDay else {
+            return []
+        }
+
+        var rawStarts: [Date] = []
+        if let previous = calendar.date(byAdding: .day, value: -context.cycleLength, to: currentOrContaining)?.startOfDay {
+            rawStarts.append(previous)
+        }
+        rawStarts.append(currentOrContaining)
+
+        guard context.cycleLength > 0 else { return rawStarts }
+
+        var cursor = currentOrContaining
+        while let following = calendar.date(byAdding: .day, value: context.cycleLength, to: cursor)?.startOfDay {
+            if following >= horizonEndExclusive {
+                break
+            }
+            rawStarts.append(following)
+            cursor = following
+        }
+        return rawStarts
+    }
+
+    private func sequencedStarts(
+        firstStart: Date,
+        cycleLength: Int,
+        horizonEndExclusive: Date,
+        calendar: Calendar
+    ) -> [Date] {
+        guard cycleLength > 0, firstStart < horizonEndExclusive else { return [] }
+        var starts: [Date] = []
+        var cursor = firstStart.startOfDay
+        while cursor < horizonEndExclusive {
+            starts.append(cursor)
+            guard let following = calendar.date(byAdding: .day, value: cycleLength, to: cursor)?.startOfDay else {
+                break
+            }
+            cursor = following
+        }
+        return starts
     }
     
     private func upsertPeriodSummary(

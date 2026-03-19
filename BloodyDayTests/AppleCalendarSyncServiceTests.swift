@@ -76,6 +76,46 @@ struct AppleCalendarSyncServiceTests {
         #expect(starts.contains(makeDate(2026, 4, 26)))
     }
 
+    @Test
+    func syncAll_usesPillBasedPredictionSequenceLikeCalendarView() async {
+        let today = makeDate(2026, 3, 19)
+        var settings = UserSettings()
+        settings.period.autoCyclePredictionEnabled = true
+        settings.appleCalendar.isEnabled = true
+        settings.appleCalendar.eventSyncEnabled[.period] = true
+        settings.pill.pillEnabled = true
+        settings.pill.pillAutoRecordEnabled = true
+        settings.pill.pillCount = 21
+        settings.pill.pillBreakDuration = 7
+
+        let actualPeriods =
+            makeEvents(type: .period, start: makeDate(2026, 3, 2), length: 4) +
+            makeEvents(type: .period, start: makeDate(2026, 3, 19), length: 5)
+        let pillEvents = makeEvents(type: .pill, start: makeDate(2026, 3, 9), length: 21)
+        let settingsRepository = InMemorySettingsRepository(settings: settings)
+        let eventRepository = StaticEventRepository(events: actualPeriods + pillEvents)
+        let client = RecordingAppleCalendarClient(calendarIdentifier: "period-calendar")
+        let store = InMemoryAppleCalendarSyncStore()
+        let service = AppleCalendarSyncService(
+            settingsRepository: settingsRepository,
+            eventRepository: eventRepository,
+            calendarClient: client,
+            syncStore: store,
+            nowProvider: { today }
+        )
+
+        await service.syncAll()
+
+        let predictedStarts = Set(
+            client.upsertedEvents
+                .filter { $0.start >= today }
+                .map(\.start)
+        )
+
+        #expect(predictedStarts.contains(makeDate(2026, 4, 29)))
+        #expect(predictedStarts.contains(makeDate(2026, 4, 5)) == false)
+    }
+
     private func makeEvents(type: EventType, start: Date, length: Int) -> [UserEvent] {
         (0..<length).map { offset in
             UserEvent(
