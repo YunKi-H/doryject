@@ -12,18 +12,22 @@ final class AppleCalendarSyncService {
     private let eventRepository: EventRepository
     private let calendarClient: AppleCalendarClient
     private let syncStore: AppleCalendarSyncStore
+    private let nowProvider: () -> Date
     private let supportedTypes: [EventType] = [.period, .pill, .love]
+    private let predictedPeriodSyncHorizonYears = 1
     
     init(
         settingsRepository: SettingsRepository,
         eventRepository: EventRepository,
         calendarClient: AppleCalendarClient,
-        syncStore: AppleCalendarSyncStore
+        syncStore: AppleCalendarSyncStore,
+        nowProvider: @escaping () -> Date = Date.init
     ) {
         self.settingsRepository = settingsRepository
         self.eventRepository = eventRepository
         self.calendarClient = calendarClient
         self.syncStore = syncStore
+        self.nowProvider = nowProvider
     }
     
     func syncAll() async {
@@ -41,6 +45,21 @@ final class AppleCalendarSyncService {
                         let summaries = PeriodSummaryBuilder.build(from: eventRepository.events(of: .period).map { $0.date })
                         for summary in summaries {
                             let syntheticId = periodSummaryId(start: summary.start)
+                            validIds.insert(syntheticId)
+                            await upsertPeriodSummary(
+                                summary,
+                                calendarIdentifier: calendarId,
+                                syntheticId: syntheticId,
+                                title: title
+                            )
+                        }
+                        let predictedSummaries = predictedPeriodSummaries(
+                            settings: settings,
+                            actualPeriodSummaries: summaries,
+                            today: nowProvider()
+                        )
+                        for summary in predictedSummaries {
+                            let syntheticId = predictedPeriodSummaryId(start: summary.start)
                             validIds.insert(syntheticId)
                             await upsertPeriodSummary(
                                 summary,
@@ -217,12 +236,159 @@ final class AppleCalendarSyncService {
     }
     
     private func periodSummaryId(start: Date) -> UUID {
+        syntheticSummaryId(start: start, prefix: "00000000-0000-0000-0000")
+    }
+
+    private func predictedPeriodSummaryId(start: Date) -> UUID {
+        syntheticSummaryId(start: start, prefix: "11111111-1111-1111-1111")
+    }
+
+    private func syntheticSummaryId(start: Date, prefix: String) -> UUID {
         let calendar = Calendar.current
         let comps = calendar.dateComponents([.year, .month, .day], from: start.startOfDay)
         let dayKey = (comps.year ?? 0) * 10_000 + (comps.month ?? 0) * 100 + (comps.day ?? 0)
         let suffix = String(format: "%012d", dayKey)
-        let uuidString = "00000000-0000-0000-0000-\(suffix)"
+        let uuidString = "\(prefix)-\(suffix)"
         return UUID(uuidString: uuidString) ?? UUID()
+    }
+
+    private func predictedPeriodSummaries(
+        settings: UserSettings,
+        actualPeriodSummaries: [PeriodSummary],
+        today: Date = Date(),
+        calendar: Calendar = .current
+    ) -> [PeriodSummary] {
+        let normalizedToday = today.startOfDay
+        guard let horizonEndExclusive = calendar.date(
+            byAdding: .year,
+            value: predictedPeriodSyncHorizonYears,
+            to: normalizedToday
+        )?.startOfDay else {
+            return []
+        }
+
+        let pillDates = Set(eventRepository.events(of: .pill).map { $0.date.startOfDay })
+        guard let context = PeriodForecastCalculator.predictionContext(
+            target: normalizedToday,
+            settings: settings,
+            periodSummaries: actualPeriodSummaries,
+            pillDates: pillDates,
+            calendar: calendar
+        ) else {
+            return []
+        }
+
+        let rawStarts = predictedRawPeriodStarts(
+            settings: settings,
+            periodSummaries: actualPeriodSummaries,
+            pillDates: pillDates,
+            context: context,
+            today: normalizedToday,
+            horizonEndExclusive: horizonEndExclusive,
+            calendar: calendar
+        )
+        guard rawStarts.isEmpty == false else { return [] }
+
+        let validStarts = PeriodForecastCalculator.validPredictedPeriodStarts(
+            rawStarts: rawStarts,
+            today: normalizedToday,
+            predictedLength: context.predictedLength,
+            actualPeriodSummaries: actualPeriodSummaries,
+            estimatedCycleLength: context.cycleLength,
+            calendar: calendar
+        )
+
+        let lengthDays = max(context.predictedLength, 1)
+        return validStarts.compactMap { start in
+            guard let end = calendar.date(byAdding: .day, value: lengthDays - 1, to: start.startOfDay)?.startOfDay else {
+                return nil
+            }
+            guard end >= normalizedToday, start < horizonEndExclusive else {
+                return nil
+            }
+            return PeriodSummary(
+                start: start.startOfDay,
+                end: end,
+                lengthDays: lengthDays,
+                cycleDays: context.cycleLength
+            )
+        }
+    }
+
+    private func predictedRawPeriodStarts(
+        settings: UserSettings,
+        periodSummaries: [PeriodSummary],
+        pillDates: Set<Date>,
+        context: PeriodPredictionContext,
+        today: Date,
+        horizonEndExclusive: Date,
+        calendar: Calendar
+    ) -> [Date] {
+        if let projection = PeriodForecastCalculator.latestPillCycleProjection(
+            settings: settings,
+            pillDates: pillDates,
+            calendar: calendar
+        ),
+           settings.pill.pillEnabled,
+           let firstPredictedStart = calendar.date(
+            byAdding: .day,
+            value: 3,
+            to: projection.projectedLastIntakeDate
+           )?.startOfDay,
+           firstPredictedStart >= projection.cycleStart.startOfDay {
+            return sequencedStarts(
+                firstStart: firstPredictedStart,
+                cycleLength: projection.cycleLength,
+                horizonEndExclusive: horizonEndExclusive,
+                calendar: calendar
+            )
+        }
+
+        guard let currentOrContaining = PeriodForecastCalculator.expectedStartDate(
+            target: today,
+            today: today,
+            context: context,
+            calendar: calendar
+        )?.startOfDay else {
+            return []
+        }
+
+        var rawStarts: [Date] = []
+        if let previous = calendar.date(byAdding: .day, value: -context.cycleLength, to: currentOrContaining)?.startOfDay {
+            rawStarts.append(previous)
+        }
+        rawStarts.append(currentOrContaining)
+
+        guard context.cycleLength > 0 else { return rawStarts }
+
+        var cursor = currentOrContaining
+        while let following = calendar.date(byAdding: .day, value: context.cycleLength, to: cursor)?.startOfDay {
+            if following >= horizonEndExclusive {
+                break
+            }
+            rawStarts.append(following)
+            cursor = following
+        }
+        return rawStarts
+    }
+
+    private func sequencedStarts(
+        firstStart: Date,
+        cycleLength: Int,
+        horizonEndExclusive: Date,
+        calendar: Calendar
+    ) -> [Date] {
+        guard cycleLength > 0, firstStart < horizonEndExclusive else { return [] }
+        var starts: [Date] = []
+        var cursor = firstStart.startOfDay
+        while cursor < horizonEndExclusive {
+            starts.append(cursor)
+            guard let following = calendar.date(byAdding: .day, value: cycleLength, to: cursor)?.startOfDay else {
+                break
+            }
+            cursor = following
+        }
+        return starts
     }
     
     private func upsertPeriodSummary(
