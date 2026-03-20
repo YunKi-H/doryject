@@ -14,19 +14,11 @@
 			remoteGlobalIDString = 2BF454532E97DB6900C1190F;
 			remoteInfo = BloodyDay;
 		};
-		2BF454702E97DB7000C1190F /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 2BF4544C2E97DB6900C1190F /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 2BF454532E97DB6900C1190F;
-			remoteInfo = BloodyDay;
-		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		2BF454542E97DB6900C1190F /* BloodyDay.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BloodyDay.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		2BF454652E97DB7000C1190F /* BloodyDayTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BloodyDayTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		2BF4546F2E97DB7000C1190F /* BloodyDayUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BloodyDayUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		2BF4549C2E97DC3100C1190F /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
 		2BF4549D2E97DC3700C1190F /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -55,11 +47,6 @@
 			path = BloodyDayTests;
 			sourceTree = "<group>";
 		};
-		2BF454722E97DB7000C1190F /* BloodyDayUITests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = BloodyDayUITests;
-			sourceTree = "<group>";
-		};
 		2BF4549B2E97DC1A00C1190F /* .github */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = .github;
@@ -82,13 +69,6 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		2BF4546C2E97DB7000C1190F /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -97,7 +77,6 @@
 			children = (
 				2BF454562E97DB6900C1190F /* BloodyDay */,
 				2BF454682E97DB7000C1190F /* BloodyDayTests */,
-				2BF454722E97DB7000C1190F /* BloodyDayUITests */,
 				2BF4549B2E97DC1A00C1190F /* .github */,
 				2BF454552E97DB6900C1190F /* Products */,
 				2BF4549C2E97DC3100C1190F /* .gitignore */,
@@ -110,7 +89,6 @@
 			children = (
 				2BF454542E97DB6900C1190F /* BloodyDay.app */,
 				2BF454652E97DB7000C1190F /* BloodyDayTests.xctest */,
-				2BF4546F2E97DB7000C1190F /* BloodyDayUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -163,29 +141,6 @@
 			productReference = 2BF454652E97DB7000C1190F /* BloodyDayTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
-		2BF4546E2E97DB7000C1190F /* BloodyDayUITests */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 2BF454802E97DB7000C1190F /* Build configuration list for PBXNativeTarget "BloodyDayUITests" */;
-			buildPhases = (
-				2BF4546B2E97DB7000C1190F /* Sources */,
-				2BF4546C2E97DB7000C1190F /* Frameworks */,
-				2BF4546D2E97DB7000C1190F /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				2BF454712E97DB7000C1190F /* PBXTargetDependency */,
-			);
-			fileSystemSynchronizedGroups = (
-				2BF454722E97DB7000C1190F /* BloodyDayUITests */,
-			);
-			name = BloodyDayUITests;
-			packageProductDependencies = (
-			);
-			productName = BloodyDayUITests;
-			productReference = 2BF4546F2E97DB7000C1190F /* BloodyDayUITests.xctest */;
-			productType = "com.apple.product-type.bundle.ui-testing";
-		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -200,10 +155,6 @@
 						CreatedOnToolsVersion = 26.0.1;
 					};
 					2BF454642E97DB7000C1190F = {
-						CreatedOnToolsVersion = 26.0.1;
-						TestTargetID = 2BF454532E97DB6900C1190F;
-					};
-					2BF4546E2E97DB7000C1190F = {
 						CreatedOnToolsVersion = 26.0.1;
 						TestTargetID = 2BF454532E97DB6900C1190F;
 					};
@@ -226,7 +177,6 @@
 			targets = (
 				2BF454532E97DB6900C1190F /* BloodyDay */,
 				2BF454642E97DB7000C1190F /* BloodyDayTests */,
-				2BF4546E2E97DB7000C1190F /* BloodyDayUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -240,13 +190,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		2BF454632E97DB7000C1190F /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		2BF4546D2E97DB7000C1190F /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -270,13 +213,6 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		2BF4546B2E97DB7000C1190F /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -284,11 +220,6 @@
 			isa = PBXTargetDependency;
 			target = 2BF454532E97DB6900C1190F /* BloodyDay */;
 			targetProxy = 2BF454662E97DB7000C1190F /* PBXContainerItemProxy */;
-		};
-		2BF454712E97DB7000C1190F /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 2BF454532E97DB6900C1190F /* BloodyDay */;
-			targetProxy = 2BF454702E97DB7000C1190F /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -538,46 +469,6 @@
 			};
 			name = Release;
 		};
-		2BF454812E97DB7000C1190F /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = UV2PAA368V;
-				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = dorypawn.BloodyDayUITests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				STRING_CATALOG_GENERATE_SYMBOLS = NO;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_TARGET_NAME = BloodyDay;
-			};
-			name = Debug;
-		};
-		2BF454822E97DB7000C1190F /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = UV2PAA368V;
-				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = dorypawn.BloodyDayUITests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				STRING_CATALOG_GENERATE_SYMBOLS = NO;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_TARGET_NAME = BloodyDay;
-			};
-			name = Release;
-		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -604,15 +495,6 @@
 			buildConfigurations = (
 				2BF4547E2E97DB7000C1190F /* Debug */,
 				2BF4547F2E97DB7000C1190F /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		2BF454802E97DB7000C1190F /* Build configuration list for PBXNativeTarget "BloodyDayUITests" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				2BF454812E97DB7000C1190F /* Debug */,
-				2BF454822E97DB7000C1190F /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
