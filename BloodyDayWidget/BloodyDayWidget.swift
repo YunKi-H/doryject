@@ -7,6 +7,7 @@
 
 import WidgetKit
 import SwiftUI
+import AppIntents
 
 struct Provider: AppIntentTimelineProvider {
     func placeholder(in context: Context) -> SimpleEntry {
@@ -68,9 +69,9 @@ struct BloodyDayWidgetEntryView: View {
             }
             
             HStack(spacing: 8) {
-                toggleBadge(symbol: "drop.fill", isOn: entry.snapshot.toggles.period, tint: .red)
-                toggleBadge(symbol: "pill.fill", isOn: entry.snapshot.toggles.pill, tint: .blue)
-                toggleBadge(symbol: "heart.fill", isOn: entry.snapshot.toggles.love, tint: .pink)
+                toggleButton(symbol: "drop.fill", isOn: entry.snapshot.toggles.period, tint: .red, eventType: .period)
+                toggleButton(symbol: "pill.fill", isOn: entry.snapshot.toggles.pill, tint: .blue, eventType: .pill)
+                toggleButton(symbol: "heart.fill", isOn: entry.snapshot.toggles.love, tint: .pink, eventType: .love)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             Spacer(minLength: 0)
@@ -102,18 +103,21 @@ struct BloodyDayWidgetEntryView: View {
         .background(.fill.tertiary, in: Capsule())
     }
     
-    private func toggleBadge(symbol: String, isOn: Bool, tint: Color) -> some View {
-        HStack(spacing: 4) {
-            Image(systemName: symbol)
-                .font(.system(size: 11, weight: .semibold))
-            Circle()
-                .fill(isOn ? tint : Color.secondary.opacity(0.25))
-                .frame(width: 7, height: 7)
+    private func toggleButton(symbol: String, isOn: Bool, tint: Color, eventType: ToggleTodayEventKind) -> some View {
+        Button(intent: ToggleTodayEventIntent(eventType: eventType)) {
+            HStack(spacing: 4) {
+                Image(systemName: symbol)
+                    .font(.system(size: 11, weight: .semibold))
+                Circle()
+                    .fill(isOn ? tint : Color.secondary.opacity(0.25))
+                    .frame(width: 7, height: 7)
+            }
+            .foregroundStyle(isOn ? tint : .secondary)
+            .padding(.horizontal, 8)
+            .frame(height: 28)
+            .background(.fill.tertiary, in: Capsule())
         }
-        .foregroundStyle(isOn ? tint : .secondary)
-        .padding(.horizontal, 8)
-        .frame(height: 28)
-        .background(.fill.tertiary, in: Capsule())
+        .buttonStyle(.plain)
     }
 }
 

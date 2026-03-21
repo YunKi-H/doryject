@@ -25,6 +25,14 @@ struct WidgetSnapshotStore {
         return try? JSONDecoder().decode(WidgetSnapshot.self, from: data)
     }
     
+    func save(_ snapshot: WidgetSnapshot) {
+        guard let url = storageURL(),
+              let data = try? JSONEncoder().encode(snapshot) else {
+            return
+        }
+        try? data.write(to: url, options: .atomic)
+    }
+    
     private func storageURL() -> URL? {
         FileManager.default
             .containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier)?

@@ -10,10 +10,12 @@ import SwiftData
 
 @main
 struct BloodyDayApp: App {
+    private let sharedModelContainer = SharedAppModelContainer.make()
+    
     var body: some Scene {
         WindowGroup {
             BloodyDayRootView()
         }
-        .modelContainer(for: [UserEvent.self])
+        .modelContainer(sharedModelContainer)
     }
 }
