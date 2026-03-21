@@ -12,6 +12,7 @@ import SwiftUI
 struct BloodyDayWidgetBundle: WidgetBundle {
     var body: some Widget {
         BloodyDayWidget()
-        BloodyDayWidgetControl()
+        BloodyDayLockScreenCircularWidget()
+        BloodyDayLockScreenRectangularWidget()
     }
 }
