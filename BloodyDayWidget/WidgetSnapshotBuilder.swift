@@ -12,8 +12,12 @@ enum WidgetSnapshotBuilder {
         let normalizedToday = today.startOfDay
         let settings = loadSettings()
         let events = WidgetSharedEventStore.allEvents()
-        let pillDates = Set(events.filter { $0.type == .pill }.map { $0.date.startOfDay })
-        let periodDates = events.filter { $0.type == .period }.map(\.date)
+        let todayEvents = events.filter { calendar.isDate($0.date, inSameDayAs: normalizedToday) }
+        let todayEventTypes = Set(todayEvents.map(\.type))
+        let eventsByType = Dictionary(grouping: events, by: \.type)
+        let pillDates = Set((eventsByType[.pill] ?? []).map { $0.date.startOfDay })
+        let periodEvents = eventsByType[.period] ?? []
+        let periodDates = periodEvents.map(\.date)
         let monthStart = normalizedToday.startOfMonth
         let bounds = (
             start: monthStart.startOfCalendarGrid(),
@@ -22,7 +26,7 @@ enum WidgetSnapshotBuilder {
         let context = BuildCalendarMonthComputationContextUseCase.execute(
             bounds: bounds,
             userEvents: events,
-            allPeriodEvents: events.filter { $0.type == .period },
+            allPeriodEvents: periodEvents,
             allPillDates: pillDates,
             settings: settings,
             today: normalizedToday,
@@ -56,7 +60,7 @@ enum WidgetSnapshotBuilder {
         if let chip = secondaryChip(from: secondary) {
             chips.append(chip)
         }
-        if events.contains(where: { $0.type == .love && calendar.isDate($0.date, inSameDayAs: normalizedToday) }) {
+        if todayEventTypes.contains(.love) {
             chips.append(.init(id: "love", kind: .love, text: "사랑한 날", subText: nil))
         }
         
@@ -66,9 +70,9 @@ enum WidgetSnapshotBuilder {
             primarySubText: primarySubText(from: primary),
             chips: chips,
             toggles: .init(
-                period: events.contains(where: { $0.type == .period && calendar.isDate($0.date, inSameDayAs: normalizedToday) }),
-                pill: events.contains(where: { $0.type == .pill && calendar.isDate($0.date, inSameDayAs: normalizedToday) }),
-                love: events.contains(where: { $0.type == .love && calendar.isDate($0.date, inSameDayAs: normalizedToday) })
+                period: todayEventTypes.contains(.period),
+                pill: todayEventTypes.contains(.pill),
+                love: todayEventTypes.contains(.love)
             )
         )
     }
