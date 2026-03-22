@@ -71,6 +71,7 @@
 				Domain/UseCases/PeriodSummaryBuilder.swift,
 				Domain/UseCases/PillCycleCalculator.swift,
 				Features/Calendar/UseCases/BuildCalendarMonthComputationContextUseCase.swift,
+				Resources/Assets.xcassets,
 				Utilities/CyclePrediction.swift,
 				"Utilities/Date+Extension.swift",
 			);
