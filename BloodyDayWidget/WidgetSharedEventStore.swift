@@ -11,9 +11,19 @@ import SwiftData
 enum WidgetSharedEventStore {
     static let appGroupIdentifier = "group.dorypawn.BDay.shared"
     private static let storeFileName = "BloodyDay.sqlite"
+    private static let sharedContainer: ModelContainer = {
+        do {
+            return try ModelContainer(
+                for: UserEvent.self,
+                configurations: ModelConfiguration(url: storeURL())
+            )
+        } catch {
+            fatalError("Failed to create widget shared model container: \(error)")
+        }
+    }()
     
     static func toggle(_ type: EventType, on date: Date, calendar: Calendar = .current) -> Bool {
-        let context = ModelContext(modelContainer())
+        let context = ModelContext(sharedContainer)
         let target = calendar.startOfDay(for: date)
         let key = UserEvent.makeUniqueKey(date: target, type: type, calendar: calendar)
         let descriptor = FetchDescriptor<UserEvent>(
@@ -38,7 +48,7 @@ enum WidgetSharedEventStore {
     }
     
     static func allEvents() -> [UserEvent] {
-        let context = ModelContext(modelContainer())
+        let context = ModelContext(sharedContainer)
         let descriptor = FetchDescriptor<UserEvent>(
             sortBy: [SortDescriptor(\UserEvent.date, order: .forward)]
         )
@@ -47,17 +57,6 @@ enum WidgetSharedEventStore {
         } catch {
             assertionFailure("Widget event fetch failed: \(error)")
             return []
-        }
-    }
-    
-    private static func modelContainer() -> ModelContainer {
-        do {
-            return try ModelContainer(
-                for: UserEvent.self,
-                configurations: ModelConfiguration(url: storeURL())
-            )
-        } catch {
-            fatalError("Failed to create widget shared model container: \(error)")
         }
     }
     
