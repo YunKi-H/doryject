@@ -54,6 +54,28 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		2B61D4EB2F6FC1E4003299A7 /* Exceptions for "BloodyDay" folder in "BloodyDayWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Data/DTO/UserEvent.swift,
+				Domain/Entities/DayEvent.swift,
+				Domain/Entities/EventType.swift,
+				Domain/Entities/Settings/AppleCalendarSettings.swift,
+				Domain/Entities/Settings/NotificationSettings.swift,
+				Domain/Entities/Settings/PeriodSettings.swift,
+				Domain/Entities/Settings/PillSettings.swift,
+				Domain/Entities/Settings/UserSettings.swift,
+				Domain/Models/DayInfoCardStatusSnapshot.swift,
+				Domain/UseCases/DayInfoCardStatusUseCase.swift,
+				Domain/UseCases/PeriodForecastCalculator.swift,
+				Domain/UseCases/PeriodSummaryBuilder.swift,
+				Domain/UseCases/PillCycleCalculator.swift,
+				Features/Calendar/UseCases/BuildCalendarMonthComputationContextUseCase.swift,
+				Utilities/CyclePrediction.swift,
+				"Utilities/Date+Extension.swift",
+			);
+			target = 2BE0DABA2F6DA546008394E3 /* BloodyDayWidgetExtension */;
+		};
 		2BE0DAD32F6DA547008394E3 /* Exceptions for "BloodyDayWidget" folder in "BloodyDayWidgetExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -83,6 +105,7 @@
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				2BF454772E97DB7000C1190F /* Exceptions for "BloodyDay" folder in "BloodyDay" target */,
+				2B61D4EB2F6FC1E4003299A7 /* Exceptions for "BloodyDay" folder in "BloodyDayWidgetExtension" target */,
 			);
 			path = BloodyDay;
 			sourceTree = "<group>";

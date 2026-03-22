@@ -21,7 +21,7 @@ enum ToggleTodayEventKind: String, AppEnum {
         .love: "사랑한 날"
     ]
     
-    var widgetType: WidgetEventType {
+    var widgetType: EventType {
         switch self {
         case .period:
             return .period
@@ -47,51 +47,18 @@ struct ToggleTodayEventIntent: AppIntent {
     }
     
     func perform() async throws -> some IntentResult {
-        let isOn = WidgetSharedEventStore.toggle(eventType.widgetType, on: .now)
-        if eventType == .pill, isOn {
+        let toggledOn = WidgetSharedEventStore.toggle(eventType.widgetType, on: .now)
+        if eventType == .pill, toggledOn {
             enablePillIfNeeded()
         }
-        patchSnapshot(isOn: isOn)
+        rebuildSnapshot()
         WidgetCenter.shared.reloadAllTimelines()
         return .result()
     }
     
-    private func patchSnapshot(isOn: Bool) {
+    private func rebuildSnapshot() {
         let store = WidgetSnapshotStore()
-        guard var snapshot = store.load() else { return }
-        
-        switch eventType {
-        case .period:
-            snapshot = WidgetSnapshot(
-                generatedAt: snapshot.generatedAt,
-                primaryText: isOn ? "B-Day" : "-",
-                primarySubText: nil,
-                chips: snapshot.chips,
-                toggles: .init(period: isOn, pill: snapshot.toggles.pill, love: snapshot.toggles.love)
-            )
-        case .pill:
-            snapshot = WidgetSnapshot(
-                generatedAt: snapshot.generatedAt,
-                primaryText: snapshot.primaryText,
-                primarySubText: snapshot.primarySubText,
-                chips: snapshot.chips,
-                toggles: .init(period: snapshot.toggles.period, pill: isOn, love: snapshot.toggles.love)
-            )
-        case .love:
-            var chips = snapshot.chips.filter { $0.kind != .love }
-            if isOn {
-                chips.append(.init(id: "love", kind: .love, text: "사랑한 날", subText: nil))
-            }
-            snapshot = WidgetSnapshot(
-                generatedAt: snapshot.generatedAt,
-                primaryText: snapshot.primaryText,
-                primarySubText: snapshot.primarySubText,
-                chips: chips,
-                toggles: .init(period: snapshot.toggles.period, pill: snapshot.toggles.pill, love: isOn)
-            )
-        }
-        
-        store.save(snapshot)
+        store.save(WidgetSnapshotBuilder.build())
     }
     
     private func enablePillIfNeeded() {

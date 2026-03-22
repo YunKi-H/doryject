@@ -8,45 +8,16 @@
 import Foundation
 import SwiftData
 
-enum WidgetEventType: String, Codable {
-    case period
-    case pill
-    case love
-}
-
-@Model
-final class WidgetUserEvent {
-    var id: UUID
-    var date: Date
-    var typeRaw: String
-    
-    @Attribute(.unique)
-    var uniqueKey: String
-    
-    init(id: UUID = .init(), date: Date, type: WidgetEventType, calendar: Calendar = .current) {
-        self.id = id
-        self.date = date
-        self.typeRaw = type.rawValue
-        self.uniqueKey = Self.makeUniqueKey(date: date, type: type, calendar: calendar)
-    }
-    
-    static func makeUniqueKey(date: Date, type: WidgetEventType, calendar: Calendar) -> String {
-        let comps = calendar.dateComponents([.year, .month, .day], from: date)
-        let dayKey = (comps.year ?? 0) * 10_000 + (comps.month ?? 0) * 100 + (comps.day ?? 0)
-        return "\(dayKey)|\(type.rawValue)"
-    }
-}
-
 enum WidgetSharedEventStore {
     static let appGroupIdentifier = "group.dorypawn.BDay.shared"
     private static let storeFileName = "BloodyDay.sqlite"
     
-    static func toggle(_ type: WidgetEventType, on date: Date, calendar: Calendar = .current) -> Bool {
+    static func toggle(_ type: EventType, on date: Date, calendar: Calendar = .current) -> Bool {
         let context = ModelContext(modelContainer())
         let target = calendar.startOfDay(for: date)
-        let key = WidgetUserEvent.makeUniqueKey(date: target, type: type, calendar: calendar)
-        let descriptor = FetchDescriptor<WidgetUserEvent>(
-            predicate: #Predicate<WidgetUserEvent> { $0.uniqueKey == key }
+        let key = UserEvent.makeUniqueKey(date: target, type: type, calendar: calendar)
+        let descriptor = FetchDescriptor<UserEvent>(
+            predicate: #Predicate<UserEvent> { $0.uniqueKey == key }
         )
         
         do {
@@ -56,7 +27,7 @@ enum WidgetSharedEventStore {
                 try context.save()
                 return false
             } else {
-                context.insert(WidgetUserEvent(date: target, type: type, calendar: calendar))
+                context.insert(UserEvent(date: target, type: type, calendar: calendar))
                 try context.save()
                 return true
             }
@@ -66,10 +37,23 @@ enum WidgetSharedEventStore {
         }
     }
     
+    static func allEvents() -> [UserEvent] {
+        let context = ModelContext(modelContainer())
+        let descriptor = FetchDescriptor<UserEvent>(
+            sortBy: [SortDescriptor(\UserEvent.date, order: .forward)]
+        )
+        do {
+            return try context.fetch(descriptor)
+        } catch {
+            assertionFailure("Widget event fetch failed: \(error)")
+            return []
+        }
+    }
+    
     private static func modelContainer() -> ModelContainer {
         do {
             return try ModelContainer(
-                for: WidgetUserEvent.self,
+                for: UserEvent.self,
                 configurations: ModelConfiguration(url: storeURL())
             )
         } catch {
