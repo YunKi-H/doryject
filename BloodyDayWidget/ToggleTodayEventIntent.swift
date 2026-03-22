@@ -64,18 +64,15 @@ struct ToggleTodayEventIntent: AppIntent {
     private func enablePillIfNeeded() {
         let key = "user.settings.v1"
         guard let defaults = UserDefaults(suiteName: WidgetSnapshotStore.appGroupIdentifier) else { return }
-        
-        var root: [String: Any] = [:]
+        var settings: UserSettings
         if let data = defaults.data(forKey: key),
-           let decoded = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-            root = decoded
+           let decoded = try? JSONDecoder().decode(UserSettings.self, from: data) {
+            settings = decoded
+        } else {
+            settings = .init()
         }
-        
-        var pill = root["pill"] as? [String: Any] ?? [:]
-        pill["pillEnabled"] = true
-        root["pill"] = pill
-        
-        guard let encoded = try? JSONSerialization.data(withJSONObject: root) else { return }
+        settings.pill.pillEnabled = true
+        guard let encoded = try? JSONEncoder().encode(settings) else { return }
         defaults.set(encoded, forKey: key)
     }
 }
