@@ -15,18 +15,37 @@ enum WidgetDisplayMapper {
         case .ongoing(let day):
             return "B+\(day)"
         case .bDay:
-            return "B-Day"
+            return "B-DAY"
         case .delayed:
             return "생리 지연"
         case .unknown:
-            return "-"
+            return "B-DAY"
         }
     }
     
-    static func primarySubText(from snapshot: DayInfoCardPrimarySnapshot) -> String? {
+    static func primarySubText(
+        from snapshot: DayInfoCardPrimarySnapshot,
+        referenceDate: Date,
+        calendar: Calendar = .current
+    ) -> String? {
         switch snapshot {
+        case .countdown(let days):
+            guard let expectedDate = calendar.date(byAdding: .day, value: days, to: referenceDate.startOfDay) else {
+                return nil
+            }
+            return "(\(monthDayText(for: expectedDate)) 예정)"
+        case .ongoing(let day):
+            guard let startDate = calendar.date(byAdding: .day, value: -(max(day - 1, 0)), to: referenceDate.startOfDay) else {
+                return nil
+            }
+            return "(\(monthDayText(for: startDate)) 시작)"
         case .delayed(let days):
-            return "(\(days)일 지연됨)"
+            guard let startDate = calendar.date(byAdding: .day, value: -days, to: referenceDate.startOfDay) else {
+                return nil
+            }
+            return "(\(monthDayText(for: startDate)) 시작)"
+        case .bDay:
+            return nil
         default:
             return nil
         }
@@ -61,5 +80,13 @@ enum WidgetDisplayMapper {
         case .countdown, .unknown:
             return nil
         }
+    }
+
+    private static func monthDayText(for date: Date) -> String {
+        date.formatted(
+            Date.FormatStyle()
+                .month(.defaultDigits)
+                .day(.defaultDigits)
+        )
     }
 }

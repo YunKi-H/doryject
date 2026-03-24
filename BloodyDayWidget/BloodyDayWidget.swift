@@ -17,7 +17,7 @@ struct Provider: AppIntentTimelineProvider {
             snapshot: .placeholder
         )
     }
-
+    
     func snapshot(for configuration: ConfigurationAppIntent, in context: Context) async -> SimpleEntry {
         SimpleEntry(
             date: Date(),
@@ -46,35 +46,43 @@ struct SimpleEntry: TimelineEntry {
 
 struct BloodyDayWidgetEntryView: View {
     var entry: Provider.Entry
-
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text(entry.snapshot.primaryText)
-                    .font(.system(size: 30, weight: .semibold))
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
-                if let primarySubText = entry.snapshot.primarySubText {
-                    Text(primarySubText)
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.75)
-                }
-            }
-            
             if entry.snapshot.chips.isEmpty == false {
                 chipRow(entry.snapshot.chips)
             }
             
-            HStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(entry.snapshot.primaryText)
+                    .font(.semibold_32)
+                    .foregroundStyle(.textPrimary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+                
+                Group {
+                    if let primarySubText = entry.snapshot.primarySubText {
+                        Text(primarySubText)
+                    } else {
+                        Color.clear
+                    }
+                }
+                .font(.regular_11)
+                .foregroundStyle(.textSecondary50)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+                .frame(height: 13, alignment: .leading)
+            }
+            .padding(.leading, 4)
+            
+            Spacer(minLength: 0)
+            
+            HStack(spacing: 10) {
                 toggleButton(isOn: entry.snapshot.toggles.period, eventType: .period)
                 toggleButton(isOn: entry.snapshot.toggles.pill, eventType: .pill)
                 toggleButton(isOn: entry.snapshot.toggles.love, eventType: .love)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            Spacer(minLength: 0)
         }
         .padding(12)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -87,17 +95,17 @@ struct BloodyDayWidgetEntryView: View {
             }
         }
     }
-
+    
     private func chipView(_ chip: WidgetChipSnapshot) -> some View {
         HStack(spacing: 4) {
             chipIcon(chip)
             Text(chip.text)
-                .font(.system(size: 10, weight: .medium))
+                .font(.medium_11)
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
                 .foregroundStyle(chipTextColor(chip))
         }
-        .padding(.horizontal, 7)
+        .padding(.horizontal, 8)
         .frame(height: 22)
         .background(chipBackgroundColor(chip), in: Capsule())
     }
@@ -114,29 +122,29 @@ struct BloodyDayWidgetEntryView: View {
         }
         .buttonStyle(.plain)
     }
-
+    
     @ViewBuilder
     private func toggleIcon(for eventType: ToggleTodayEventKind, isOn: Bool) -> some View {
         switch eventType {
         case .period:
             Image(systemName: "drop.fill")
-                .font(.system(size: 15, weight: .semibold))
+                .frame(width: 22, height: 22)
                 .foregroundStyle(isOn ? .textPoint : .textSecondary20)
         case .pill:
             Image(.pillHalf)
                 .resizable()
-                .frame(width: 15, height: 15)
+                .frame(width: 17, height: 17)
                 .foregroundStyle(isOn ? .textPoint : .textSecondary20)
         case .love:
             Image(systemName: "heart.fill")
-                .font(.system(size: 15, weight: .semibold))
+                .frame(width: 22, height: 22)
                 .foregroundStyle(isOn ? .textPoint : .textSecondary20)
         }
     }
-
+    
     private func toggleBackground(for eventType: ToggleTodayEventKind, isOn: Bool) -> LinearGradient {
         let baseColor = toggleBaseColor(for: eventType, isOn: isOn)
-
+        
         return LinearGradient(
             colors: [
                 baseColor.opacity(isOn ? 1.0 : 0.12),
@@ -146,7 +154,7 @@ struct BloodyDayWidgetEntryView: View {
             endPoint: .bottom
         )
     }
-
+    
     private func toggleBaseColor(for eventType: ToggleTodayEventKind, isOn: Bool) -> Color {
         let baseColor: Color
         if isOn {
@@ -163,18 +171,18 @@ struct BloodyDayWidgetEntryView: View {
         }
         return baseColor
     }
-
+    
     private func chipTextColor(_ chip: WidgetChipSnapshot) -> Color {
         switch chip.kind {
         case .period:
-            return .mainRed
+            return .pointRed
         case .pill:
-            return .subBlue
+            return .pointBlue
         case .fertility:
             return .textPrimary
         }
     }
-
+    
     private func chipBackgroundColor(_ chip: WidgetChipSnapshot) -> Color {
         switch chip.kind {
         case .period:
@@ -185,7 +193,7 @@ struct BloodyDayWidgetEntryView: View {
             return .textTertiary8
         }
     }
-
+    
     @ViewBuilder
     private func chipIcon(_ chip: WidgetChipSnapshot) -> some View {
         switch chip.kind {
@@ -204,12 +212,12 @@ struct BloodyDayWidgetEntryView: View {
                 .foregroundStyle(chipTextColor(chip))
         }
     }
-
+    
 }
 
 struct BloodyDayWidget: Widget {
     let kind: String = "BloodyDayWidget"
-
+    
     var body: some WidgetConfiguration {
         AppIntentConfiguration(kind: kind, intent: ConfigurationAppIntent.self, provider: Provider()) { entry in
             BloodyDayWidgetEntryView(entry: entry)
@@ -261,12 +269,17 @@ struct BloodyDayLockScreenRectangularWidget: Widget {
                 Text(entry.snapshot.primaryText)
                     .font(.system(size: 16, weight: .semibold))
                     .lineLimit(1)
-                if let primarySubText = entry.snapshot.primarySubText {
-                    Text(primarySubText)
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                Group {
+                    if let primarySubText = entry.snapshot.primarySubText {
+                        Text(primarySubText)
+                    } else {
+                        Color.clear
+                    }
                 }
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .frame(height: 12, alignment: .leading)
                 if let firstChip = entry.snapshot.chips.first {
                     Text(firstChip.text)
                         .font(.system(size: 11, weight: .medium))

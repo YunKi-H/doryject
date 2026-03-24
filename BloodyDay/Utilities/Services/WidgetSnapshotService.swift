@@ -115,7 +115,11 @@ final class WidgetSnapshotService {
         return WidgetSnapshot(
             generatedAt: normalizedToday,
             primaryText: primaryText(from: primary),
-            primarySubText: primarySubText(from: primary),
+            primarySubText: primarySubText(
+                from: primary,
+                referenceDate: normalizedToday,
+                calendar: calendar
+            ),
             chips: chips,
             toggles: .init(
                 period: allEvents.contains { $0.type == .period && $0.date.isSameDay(as: normalizedToday) },
@@ -140,10 +144,29 @@ final class WidgetSnapshotService {
         }
     }
     
-    private func primarySubText(from snapshot: DayInfoCardPrimarySnapshot) -> String? {
+    private func primarySubText(
+        from snapshot: DayInfoCardPrimarySnapshot,
+        referenceDate: Date,
+        calendar: Calendar
+    ) -> String? {
         switch snapshot {
+        case .countdown(let days):
+            guard let expectedDate = calendar.date(byAdding: .day, value: days, to: referenceDate.startOfDay) else {
+                return nil
+            }
+            return "(\(monthDayText(for: expectedDate)) 예정)"
+        case .ongoing(let day):
+            guard let startDate = calendar.date(byAdding: .day, value: -(max(day - 1, 0)), to: referenceDate.startOfDay) else {
+                return nil
+            }
+            return "(\(monthDayText(for: startDate)) 시작)"
         case .delayed(let days):
-            return "(\(days)일 지연됨)"
+            guard let startDate = calendar.date(byAdding: .day, value: -days, to: referenceDate.startOfDay) else {
+                return nil
+            }
+            return "(\(monthDayText(for: startDate)) 시작)"
+        case .bDay:
+            return nil
         default:
             return nil
         }
@@ -189,6 +212,14 @@ final class WidgetSnapshotService {
         case .period:
             return 2
         }
+    }
+
+    private func monthDayText(for date: Date) -> String {
+        date.formatted(
+            Date.FormatStyle()
+                .month(.defaultDigits)
+                .day(.defaultDigits)
+        )
     }
 }
 

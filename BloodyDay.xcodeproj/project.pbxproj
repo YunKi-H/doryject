@@ -74,6 +74,7 @@
 				Resources/Assets.xcassets,
 				Utilities/CyclePrediction.swift,
 				"Utilities/Date+Extension.swift",
+				"Utilities/Font+Extension.swift",
 			);
 			target = 2BE0DABA2F6DA546008394E3 /* BloodyDayWidgetExtension */;
 		};

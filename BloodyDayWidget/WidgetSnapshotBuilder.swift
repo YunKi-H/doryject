@@ -70,7 +70,11 @@ enum WidgetSnapshotBuilder {
         return WidgetSnapshot(
             generatedAt: normalizedToday,
             primaryText: WidgetDisplayMapper.primaryText(from: primary),
-            primarySubText: WidgetDisplayMapper.primarySubText(from: primary),
+            primarySubText: WidgetDisplayMapper.primarySubText(
+                from: primary,
+                referenceDate: normalizedToday,
+                calendar: calendar
+            ),
             chips: chips,
             toggles: .init(
                 period: todayEventTypes.contains(.period),
