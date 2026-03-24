@@ -69,9 +69,9 @@ struct BloodyDayWidgetEntryView: View {
             }
             
             HStack(spacing: 8) {
-                toggleButton(symbol: "drop.fill", isOn: entry.snapshot.toggles.period, tint: .mainRed, eventType: .period)
-                toggleButton(symbol: "pill.fill", isOn: entry.snapshot.toggles.pill, tint: .subBlue, eventType: .pill)
-                toggleButton(symbol: "heart.fill", isOn: entry.snapshot.toggles.love, tint: .subPink, eventType: .love)
+                toggleButton(isOn: entry.snapshot.toggles.period, eventType: .period)
+                toggleButton(isOn: entry.snapshot.toggles.pill, eventType: .pill)
+                toggleButton(isOn: entry.snapshot.toggles.love, eventType: .love)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             Spacer(minLength: 0)
@@ -102,21 +102,66 @@ struct BloodyDayWidgetEntryView: View {
         .background(chipBackgroundColor(chip), in: Capsule())
     }
     
-    private func toggleButton(symbol: String, isOn: Bool, tint: Color, eventType: ToggleTodayEventKind) -> some View {
+    private func toggleButton(isOn: Bool, eventType: ToggleTodayEventKind) -> some View {
         Button(intent: ToggleTodayEventIntent(eventType: eventType)) {
-            HStack(spacing: 4) {
-                Image(systemName: symbol)
-                    .font(.system(size: 11, weight: .semibold))
+            ZStack {
                 Circle()
-                    .fill(isOn ? tint : Color.secondary.opacity(0.25))
-                    .frame(width: 7, height: 7)
+                    .fill(toggleBackground(for: eventType, isOn: isOn))
+                    .frame(width: 36, height: 36)
+                toggleIcon(for: eventType, isOn: isOn)
             }
-            .foregroundStyle(isOn ? tint : .secondary)
-            .padding(.horizontal, 8)
-            .frame(height: 28)
-            .background(.fill.tertiary, in: Capsule())
+            .frame(width: 36, height: 36)
         }
         .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private func toggleIcon(for eventType: ToggleTodayEventKind, isOn: Bool) -> some View {
+        switch eventType {
+        case .period:
+            Image(systemName: "drop.fill")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(isOn ? .textPoint : .textSecondary20)
+        case .pill:
+            Image(.pillHalf)
+                .resizable()
+                .frame(width: 15, height: 15)
+                .foregroundStyle(isOn ? .textPoint : .textSecondary20)
+        case .love:
+            Image(systemName: "heart.fill")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(isOn ? .textPoint : .textSecondary20)
+        }
+    }
+
+    private func toggleBackground(for eventType: ToggleTodayEventKind, isOn: Bool) -> LinearGradient {
+        let baseColor = toggleBaseColor(for: eventType, isOn: isOn)
+
+        return LinearGradient(
+            colors: [
+                baseColor.opacity(isOn ? 1.0 : 0.12),
+                baseColor.opacity(isOn ? 0.74 : 0.08)
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+    }
+
+    private func toggleBaseColor(for eventType: ToggleTodayEventKind, isOn: Bool) -> Color {
+        let baseColor: Color
+        if isOn {
+            switch eventType {
+            case .period:
+                baseColor = .mainRed
+            case .pill:
+                baseColor = .subBlue
+            case .love:
+                baseColor = .subPink
+            }
+        } else {
+            baseColor = .textPrimary
+        }
+        return baseColor
     }
 
     private func chipTextColor(_ chip: WidgetChipSnapshot) -> Color {
