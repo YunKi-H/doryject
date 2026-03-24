@@ -69,13 +69,14 @@ struct BloodyDayWidgetEntryView: View {
             }
             
             HStack(spacing: 8) {
-                toggleButton(symbol: "drop.fill", isOn: entry.snapshot.toggles.period, tint: .red, eventType: .period)
-                toggleButton(symbol: "pill.fill", isOn: entry.snapshot.toggles.pill, tint: .blue, eventType: .pill)
-                toggleButton(symbol: "heart.fill", isOn: entry.snapshot.toggles.love, tint: .pink, eventType: .love)
+                toggleButton(symbol: "drop.fill", isOn: entry.snapshot.toggles.period, tint: .mainRed, eventType: .period)
+                toggleButton(symbol: "pill.fill", isOn: entry.snapshot.toggles.pill, tint: .subBlue, eventType: .pill)
+                toggleButton(symbol: "heart.fill", isOn: entry.snapshot.toggles.love, tint: .subPink, eventType: .love)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             Spacer(minLength: 0)
         }
+        .padding(12)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
     
@@ -83,10 +84,11 @@ struct BloodyDayWidgetEntryView: View {
         HStack(spacing: 4) {
             if chip.kind == .love {
                 Image(systemName: "heart.fill")
-                    .font(.system(size: 11, weight: .medium))
+                    .font(.system(size: 12, weight: .medium))
             } else {
-                Image(systemName: "capsule.portrait.fill")
-                    .font(.system(size: 11, weight: .medium))
+                Image(.pillHalf)
+                    .resizable()
+                    .frame(width: 12, height: 12)
             }
             Text(chip.text)
                 .lineLimit(1)
@@ -127,7 +129,9 @@ struct BloodyDayWidget: Widget {
     var body: some WidgetConfiguration {
         AppIntentConfiguration(kind: kind, intent: ConfigurationAppIntent.self, provider: Provider()) { entry in
             BloodyDayWidgetEntryView(entry: entry)
-                .containerBackground(.fill.tertiary, for: .widget)
+                .containerBackground(for: .widget) {
+                    Color.clear
+                }
         }
         .supportedFamilies([.systemSmall])
         .configurationDisplayName("오늘 요약")
@@ -152,8 +156,11 @@ struct BloodyDayLockScreenCircularWidget: Widget {
                         .minimumScaleFactor(0.7)
                 }
             }
+            .padding(8)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .containerBackground(.fill.tertiary, for: .widget)
+            .containerBackground(for: .widget) {
+                Color.clear
+            }
         }
         .supportedFamilies([.accessoryCircular])
         .configurationDisplayName("생리 요약")
@@ -182,8 +189,12 @@ struct BloodyDayLockScreenRectangularWidget: Widget {
                         .lineLimit(1)
                 }
             }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-            .containerBackground(.fill.tertiary, for: .widget)
+            .containerBackground(for: .widget) {
+                Color.clear
+            }
         }
         .supportedFamilies([.accessoryRectangular])
         .configurationDisplayName("상태 문구")
