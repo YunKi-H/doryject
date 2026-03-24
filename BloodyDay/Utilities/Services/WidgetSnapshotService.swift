@@ -226,12 +226,28 @@ final class WidgetSnapshotService {
 struct WidgetSnapshotStore {
     private let fileName = "widget_snapshot.json"
     private let appGroupIdentifier: String
+    private let loadHandler: (() -> WidgetSnapshot?)?
+    private let saveHandler: ((WidgetSnapshot) -> Void)?
     
     init(appGroupIdentifier: String = WidgetSnapshotService.appGroupIdentifier) {
         self.appGroupIdentifier = appGroupIdentifier
+        self.loadHandler = nil
+        self.saveHandler = nil
+    }
+
+    init(
+        loadHandler: @escaping () -> WidgetSnapshot?,
+        saveHandler: @escaping (WidgetSnapshot) -> Void
+    ) {
+        self.appGroupIdentifier = WidgetSnapshotService.appGroupIdentifier
+        self.loadHandler = loadHandler
+        self.saveHandler = saveHandler
     }
     
     func load() -> WidgetSnapshot? {
+        if let loadHandler {
+            return loadHandler()
+        }
         guard let url = storageURL(),
               let data = try? Data(contentsOf: url) else {
             return nil
@@ -240,6 +256,10 @@ struct WidgetSnapshotStore {
     }
     
     func save(_ snapshot: WidgetSnapshot) {
+        if let saveHandler {
+            saveHandler(snapshot)
+            return
+        }
         guard let url = storageURL(),
               let data = try? JSONEncoder().encode(snapshot) else {
             return
