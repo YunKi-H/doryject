@@ -57,11 +57,14 @@ enum WidgetSnapshotBuilder {
         )
         
         var chips: [WidgetChipSnapshot] = []
-        if let chip = WidgetDisplayMapper.secondaryChip(from: secondary) {
-            chips.append(chip)
+        if let pillOrFertilityChip = WidgetDisplayMapper.secondaryChip(from: secondary) {
+            chips.append(pillOrFertilityChip)
         }
-        if todayEventTypes.contains(.love) {
-            chips.append(.init(id: "love", kind: .love, text: "사랑한 날", subText: nil))
+        if let periodChip = WidgetDisplayMapper.periodChip(from: primary) {
+            chips.append(periodChip)
+        }
+        chips.sort { lhs, rhs in
+            chipPriority(lhs.kind) < chipPriority(rhs.kind)
         }
         
         return WidgetSnapshot(
@@ -84,5 +87,16 @@ enum WidgetSnapshotBuilder {
             return .init()
         }
         return settings
+    }
+
+    private static func chipPriority(_ kind: WidgetChipKind) -> Int {
+        switch kind {
+        case .pill:
+            return 0
+        case .fertility:
+            return 1
+        case .period:
+            return 2
+        }
     }
 }

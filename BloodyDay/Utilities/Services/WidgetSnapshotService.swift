@@ -20,12 +20,12 @@ struct WidgetChipSnapshot: Codable, Identifiable {
     let id: String
     let kind: WidgetChipKind
     let text: String
-    let subText: String?
 }
 
 enum WidgetChipKind: String, Codable {
-    case secondary
-    case love
+    case period
+    case pill
+    case fertility
 }
 
 struct WidgetToggleSnapshot: Codable {
@@ -105,8 +105,11 @@ final class WidgetSnapshotService {
         if let secondaryChip = secondaryChipSnapshot(from: secondary) {
             chips.append(secondaryChip)
         }
-        if todayEvents?.contains(where: { $0.type == .love }) == true {
-            chips.append(.init(id: "love", kind: .love, text: "사랑한 날", subText: nil))
+        if let periodChip = periodChipSnapshot(from: primary) {
+            chips.append(periodChip)
+        }
+        chips.sort { lhs, rhs in
+            chipPriority(lhs.kind) < chipPriority(rhs.kind)
         }
         
         return WidgetSnapshot(
@@ -149,23 +152,42 @@ final class WidgetSnapshotService {
     private func secondaryChipSnapshot(from snapshot: DayInfoCardSecondarySnapshot) -> WidgetChipSnapshot? {
         switch snapshot {
         case .pill(let day, let total):
-            let text: String
             if let total, total > 0 {
-                text = "\(day)정 복용/\(total)정"
-            } else {
-                text = "피임약 \(day)일째"
+                return .init(id: "pill", kind: .pill, text: "(\(day)/\(total))")
             }
-            return .init(id: "secondary", kind: .secondary, text: text, subText: nil)
+            return .init(id: "pill", kind: .pill, text: "(\(day))")
         case .pillBreak(let day, let total):
-            return .init(id: "secondary", kind: .secondary, text: "휴약기", subText: "(\(day)일째/\(total)일)")
+            return .init(id: "pill", kind: .pill, text: "휴약기 (\(day)/\(total))")
         case .ovulation:
-            return .init(id: "secondary", kind: .secondary, text: "임신 확률 높음", subText: "(배란일)")
+            return .init(id: "fertility", kind: .fertility, text: "매우높음")
         case .fertile:
-            return .init(id: "secondary", kind: .secondary, text: "임신 확률 보통", subText: "(가임기)")
+            return .init(id: "fertility", kind: .fertility, text: "높음")
         case .notFertile:
-            return .init(id: "secondary", kind: .secondary, text: "임신 확률 낮음", subText: nil)
+            return nil
         case .unknown:
             return nil
+        }
+    }
+
+    private func periodChipSnapshot(from snapshot: DayInfoCardPrimarySnapshot) -> WidgetChipSnapshot? {
+        switch snapshot {
+        case .ongoing, .bDay:
+            return .init(id: "period", kind: .period, text: "진행")
+        case .delayed:
+            return .init(id: "period", kind: .period, text: "지연")
+        case .countdown, .unknown:
+            return nil
+        }
+    }
+
+    private func chipPriority(_ kind: WidgetChipKind) -> Int {
+        switch kind {
+        case .pill:
+            return 0
+        case .fertility:
+            return 1
+        case .period:
+            return 2
         }
     }
 }

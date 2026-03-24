@@ -19,12 +19,12 @@ struct WidgetChipSnapshot: Codable, Identifiable {
     let id: String
     let kind: WidgetChipKind
     let text: String
-    let subText: String?
 }
 
 enum WidgetChipKind: String, Codable {
-    case secondary
-    case love
+    case period
+    case pill
+    case fertility
 }
 
 struct WidgetToggleSnapshot: Codable {

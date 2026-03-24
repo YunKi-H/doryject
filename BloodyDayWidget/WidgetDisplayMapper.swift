@@ -36,18 +36,29 @@ enum WidgetDisplayMapper {
         switch snapshot {
         case .pill(let day, let total):
             if let total {
-                return .init(id: "secondary", kind: .secondary, text: "\(day)정 복용/\(total)정", subText: nil)
+                return .init(id: "pill", kind: .pill, text: "(\(day)/\(total))")
             }
-            return .init(id: "secondary", kind: .secondary, text: "피임약 \(day)일째", subText: nil)
+            return .init(id: "pill", kind: .pill, text: "(\(day))")
         case .pillBreak(let day, let total):
-            return .init(id: "secondary", kind: .secondary, text: "휴약기", subText: "(\(day)일째/\(total)일)")
+            return .init(id: "pill", kind: .pill, text: "휴약기 (\(day)/\(total))")
         case .ovulation:
-            return .init(id: "secondary", kind: .secondary, text: "임신 확률 높음", subText: "(배란일)")
+            return .init(id: "fertility", kind: .fertility, text: "매우높음")
         case .fertile:
-            return .init(id: "secondary", kind: .secondary, text: "임신 확률 보통", subText: "(가임기)")
+            return .init(id: "fertility", kind: .fertility, text: "높음")
         case .notFertile:
-            return .init(id: "secondary", kind: .secondary, text: "임신 확률 낮음", subText: nil)
+            return nil
         case .unknown:
+            return nil
+        }
+    }
+
+    static func periodChip(from snapshot: DayInfoCardPrimarySnapshot) -> WidgetChipSnapshot? {
+        switch snapshot {
+        case .ongoing, .bDay:
+            return .init(id: "period", kind: .period, text: "진행")
+        case .delayed:
+            return .init(id: "period", kind: .period, text: "지연")
+        case .countdown, .unknown:
             return nil
         }
     }

@@ -64,8 +64,8 @@ struct BloodyDayWidgetEntryView: View {
                 }
             }
             
-            if let firstChip = entry.snapshot.chips.first {
-                chipView(firstChip)
+            if entry.snapshot.chips.isEmpty == false {
+                chipRow(entry.snapshot.chips)
             }
             
             HStack(spacing: 8) {
@@ -80,29 +80,26 @@ struct BloodyDayWidgetEntryView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
     
-    private func chipView(_ chip: WidgetChipSnapshot) -> some View {
-        HStack(spacing: 4) {
-            if chip.kind == .love {
-                Image(systemName: "heart.fill")
-                    .font(.system(size: 12, weight: .medium))
-            } else {
-                Image(.pillHalf)
-                    .resizable()
-                    .frame(width: 12, height: 12)
-            }
-            Text(chip.text)
-                .lineLimit(1)
-                .minimumScaleFactor(0.75)
-            if let subText = chip.subText {
-                Text(subText)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
+    private func chipRow(_ chips: [WidgetChipSnapshot]) -> some View {
+        HStack(spacing: 6) {
+            ForEach(chips.prefix(3)) { chip in
+                chipView(chip)
             }
         }
-        .font(.system(size: 10, weight: .medium))
+    }
+
+    private func chipView(_ chip: WidgetChipSnapshot) -> some View {
+        HStack(spacing: 4) {
+            chipIcon(chip)
+            Text(chip.text)
+                .font(.system(size: 10, weight: .medium))
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+                .foregroundStyle(chipTextColor(chip))
+        }
         .padding(.horizontal, 7)
         .frame(height: 22)
-        .background(.fill.tertiary, in: Capsule())
+        .background(chipBackgroundColor(chip), in: Capsule())
     }
     
     private func toggleButton(symbol: String, isOn: Bool, tint: Color, eventType: ToggleTodayEventKind) -> some View {
@@ -121,6 +118,48 @@ struct BloodyDayWidgetEntryView: View {
         }
         .buttonStyle(.plain)
     }
+
+    private func chipTextColor(_ chip: WidgetChipSnapshot) -> Color {
+        switch chip.kind {
+        case .period:
+            return .mainRed
+        case .pill:
+            return .subBlue
+        case .fertility:
+            return .textPrimary
+        }
+    }
+
+    private func chipBackgroundColor(_ chip: WidgetChipSnapshot) -> Color {
+        switch chip.kind {
+        case .period:
+            return .mainRed10
+        case .pill:
+            return .subBlue10
+        case .fertility:
+            return .textTertiary8
+        }
+    }
+
+    @ViewBuilder
+    private func chipIcon(_ chip: WidgetChipSnapshot) -> some View {
+        switch chip.kind {
+        case .period:
+            Image(systemName: "drop.fill")
+                .font(.system(size: 10, weight: .regular))
+                .foregroundStyle(chipTextColor(chip))
+        case .pill:
+            Image(.pillHalf)
+                .resizable()
+                .foregroundStyle(chipTextColor(chip))
+                .frame(width: 10, height: 10)
+        case .fertility:
+            Image(systemName: "sparkle")
+                .font(.system(size: 10, weight: .regular))
+                .foregroundStyle(chipTextColor(chip))
+        }
+    }
+
 }
 
 struct BloodyDayWidget: Widget {
@@ -152,6 +191,7 @@ struct BloodyDayLockScreenCircularWidget: Widget {
                 if let firstChip = entry.snapshot.chips.first {
                     Text(firstChip.text)
                         .font(.system(size: 9, weight: .medium))
+                        .foregroundStyle(lockScreenChipTextColor(firstChip))
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
                 }
@@ -183,9 +223,9 @@ struct BloodyDayLockScreenRectangularWidget: Widget {
                         .lineLimit(1)
                 }
                 if let firstChip = entry.snapshot.chips.first {
-                    Text(firstChip.text + (firstChip.subText.map { " \($0)" } ?? ""))
+                    Text(firstChip.text)
                         .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(lockScreenChipTextColor(firstChip))
                         .lineLimit(1)
                 }
             }
@@ -201,14 +241,26 @@ struct BloodyDayLockScreenRectangularWidget: Widget {
     }
 }
 
+private func lockScreenChipTextColor(_ chip: WidgetChipSnapshot) -> Color {
+    switch chip.kind {
+    case .period:
+        return .pointRed
+    case .pill:
+        return .pointBlue
+    case .fertility:
+        return .textPrimary
+    }
+}
+
 private extension WidgetSnapshot {
     static let placeholder = WidgetSnapshot(
         generatedAt: .now,
         primaryText: "B-3",
         primarySubText: nil,
         chips: [
-            .init(id: "secondary", kind: .secondary, text: "18정 복용/21정", subText: nil),
-            .init(id: "love", kind: .love, text: "사랑한 날", subText: nil)
+            .init(id: "pill", kind: .pill, text: "(18/21)"),
+            .init(id: "fertility", kind: .fertility, text: "매우높음"),
+            .init(id: "period", kind: .period, text: "진행")
         ],
         toggles: .init(period: false, pill: true, love: true)
     )
