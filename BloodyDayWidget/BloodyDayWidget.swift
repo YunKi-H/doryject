@@ -265,27 +265,33 @@ struct BloodyDayLockScreenRectangularWidget: Widget {
     
     var body: some WidgetConfiguration {
         AppIntentConfiguration(kind: kind, intent: ConfigurationAppIntent.self, provider: Provider()) { entry in
-            VStack(alignment: .leading, spacing: 4) {
-                Text(entry.snapshot.primaryText)
-                    .font(.system(size: 16, weight: .semibold))
+            VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(entry.snapshot.primaryText)
+                        .font(.semibold_32)
+                        .lineLimit(1)
+                    
+                    Group {
+                        if let primarySubText = lockScreenPrimarySubText(entry.snapshot.primarySubText) {
+                            Text(primarySubText)
+                        } else {
+                            Color.clear
+                        }
+                    }
+                    .font(.medium_14)
                     .lineLimit(1)
+                    .frame(height: 17, alignment: .leading)
+                }
+                .padding(.leading, 1)
+                
                 Group {
-                    if let primarySubText = entry.snapshot.primarySubText {
-                        Text(primarySubText)
+                    if let firstChip = entry.snapshot.chips.first {
+                        lockScreenRectangularChip(firstChip)
                     } else {
                         Color.clear
                     }
                 }
-                .font(.system(size: 10, weight: .medium))
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .frame(height: 12, alignment: .leading)
-                if let firstChip = entry.snapshot.chips.first {
-                    Text(firstChip.text)
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(lockScreenChipTextColor(firstChip))
-                        .lineLimit(1)
-                }
+                .frame(height: 17, alignment: .leading)
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
@@ -307,6 +313,48 @@ private func lockScreenChipTextColor(_ chip: WidgetChipSnapshot) -> Color {
         return .pointBlue
     case .fertility:
         return .textPrimary
+    }
+}
+
+private func lockScreenPrimarySubText(_ text: String?) -> String? {
+    guard let text else { return nil }
+    let trimmed = text
+        .replacingOccurrences(of: "(", with: "")
+        .replacingOccurrences(of: ")", with: "")
+    if trimmed.hasSuffix("예정") {
+        return trimmed.replacingOccurrences(of: " 예정", with: " 시작 예정")
+    }
+    return trimmed
+}
+
+private func lockScreenRectangularChip(_ chip: WidgetChipSnapshot) -> some View {
+    HStack(spacing: 3) {
+        lockScreenChipIcon(chip)
+        Text(chip.text)
+            .font(.regular_11)
+            .foregroundStyle(lockScreenChipTextColor(chip))
+            .lineLimit(1)
+    }
+    .padding(.init(top: 2, leading: 5, bottom: 1, trailing: 5))
+    .background(.fill.tertiary, in: Capsule())
+}
+
+@ViewBuilder
+private func lockScreenChipIcon(_ chip: WidgetChipSnapshot) -> some View {
+    switch chip.kind {
+    case .period:
+        Image(systemName: "drop.fill")
+            .font(.system(size: 9, weight: .regular))
+            .foregroundStyle(lockScreenChipTextColor(chip))
+    case .pill:
+        Image(.pillHalf)
+            .resizable()
+            .frame(width: 9, height: 9)
+            .foregroundStyle(lockScreenChipTextColor(chip))
+    case .fertility:
+        Image(systemName: "sparkle")
+            .font(.system(size: 9, weight: .regular))
+            .foregroundStyle(lockScreenChipTextColor(chip))
     }
 }
 
