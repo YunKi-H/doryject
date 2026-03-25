@@ -215,11 +215,9 @@ final class WidgetSnapshotService {
     }
 
     private func monthDayText(for date: Date) -> String {
-        date.formatted(
-            Date.FormatStyle()
-                .month(.defaultDigits)
-                .day(.defaultDigits)
-        )
+        let month = Calendar.current.component(.month, from: date)
+        let day = Calendar.current.component(.day, from: date)
+        return "\(month)/\(day)"
     }
 }
 
