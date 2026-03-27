@@ -11,6 +11,7 @@ import SwiftData
 enum WidgetSharedEventStore {
     static let appGroupIdentifier = "group.dorypawn.BDay.shared"
     private static let storeFileName = "BloodyDay.sqlite"
+    private static let settingsKey = "user.settings.v1"
     private static let sharedContainer: ModelContainer = {
         do {
             return try ModelContainer(
@@ -25,22 +26,29 @@ enum WidgetSharedEventStore {
     static func toggle(_ type: EventType, on date: Date, calendar: Calendar = .current) -> Bool {
         let context = ModelContext(sharedContainer)
         let target = calendar.startOfDay(for: date)
-        let key = UserEvent.makeUniqueKey(date: target, type: type, calendar: calendar)
-        let descriptor = FetchDescriptor<UserEvent>(
-            predicate: #Predicate<UserEvent> { $0.uniqueKey == key }
-        )
         
         do {
-            let existing = try context.fetch(descriptor)
-            if let event = existing.first {
-                context.delete(event)
-                try context.save()
-                return false
-            } else {
-                context.insert(UserEvent(date: target, type: type, calendar: calendar))
-                try context.save()
-                return true
-            }
+            let events = try context.fetch(
+                FetchDescriptor<UserEvent>(
+                    sortBy: [SortDescriptor(\UserEvent.date, order: .forward)]
+                )
+            )
+            let existingDatesByType = Dictionary(
+                grouping: events,
+                by: \.type
+            ).mapValues { Set($0.map(\.date)) }
+            let settings = loadSettings()
+            let toggledOn = !(existingDatesByType[type] ?? []).contains(target)
+            let plan = CalendarEventTogglePolicyUseCase.mutationPlan(
+                type: type,
+                enabled: toggledOn,
+                selectedDate: target,
+                existingDatesByType: existingDatesByType,
+                settings: settings,
+                calendar: calendar
+            )
+            try apply(plan: plan, in: context, existingEvents: events, calendar: calendar)
+            return toggledOn
         } catch {
             assertionFailure("Widget event toggle failed: \(error)")
             return false
@@ -74,5 +82,48 @@ enum WidgetSharedEventStore {
             attributes: nil
         )
         return fallbackDirectory.appendingPathComponent(storeFileName)
+    }
+
+    private static func loadSettings() -> UserSettings {
+        guard let defaults = UserDefaults(suiteName: appGroupIdentifier),
+              let data = defaults.data(forKey: settingsKey),
+              let settings = try? JSONDecoder().decode(UserSettings.self, from: data) else {
+            return .init()
+        }
+        return settings
+    }
+
+    private static func apply(
+        plan: CalendarEventMutationPlan,
+        in context: ModelContext,
+        existingEvents: [UserEvent],
+        calendar: Calendar
+    ) throws {
+        guard plan.isEmpty == false else { return }
+
+        var eventsByKey = Dictionary(
+            uniqueKeysWithValues: existingEvents.map { ($0.uniqueKey, $0) }
+        )
+
+        for mutation in plan.deletions {
+            for date in mutation.dates {
+                let key = UserEvent.makeUniqueKey(date: date, type: mutation.type, calendar: calendar)
+                if let event = eventsByKey.removeValue(forKey: key) {
+                    context.delete(event)
+                }
+            }
+        }
+
+        for mutation in plan.additions {
+            for date in mutation.dates {
+                let key = UserEvent.makeUniqueKey(date: date, type: mutation.type, calendar: calendar)
+                guard eventsByKey[key] == nil else { continue }
+                let event = UserEvent(date: date, type: mutation.type, calendar: calendar)
+                context.insert(event)
+                eventsByKey[key] = event
+            }
+        }
+
+        try context.save()
     }
 }
