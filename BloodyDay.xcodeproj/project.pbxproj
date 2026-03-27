@@ -6,15 +6,21 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		2BE0DABE2F6DA547008394E3 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2BE0DABD2F6DA546008394E3 /* WidgetKit.framework */; };
+		2BE0DAC02F6DA547008394E3 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2BE0DABF2F6DA547008394E3 /* SwiftUI.framework */; };
+		2BE0DACF2F6DA547008394E3 /* BloodyDayWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 2BE0DABB2F6DA546008394E3 /* BloodyDayWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
-		2BF454662E97DB7000C1190F /* PBXContainerItemProxy */ = {
+		2BE0DACD2F6DA547008394E3 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 2BF4544C2E97DB6900C1190F /* Project object */;
 			proxyType = 1;
-			remoteGlobalIDString = 2BF454532E97DB6900C1190F;
-			remoteInfo = BloodyDay;
+			remoteGlobalIDString = 2BE0DABA2F6DA546008394E3;
+			remoteInfo = BloodyDayWidgetExtension;
 		};
-		2BF454702E97DB7000C1190F /* PBXContainerItemProxy */ = {
+		2BF454662E97DB7000C1190F /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 2BF4544C2E97DB6900C1190F /* Project object */;
 			proxyType = 1;
@@ -23,15 +29,64 @@
 		};
 /* End PBXContainerItemProxy section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		2BE0DAD42F6DA547008394E3 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				2BE0DACF2F6DA547008394E3 /* BloodyDayWidgetExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		2BE0DABB2F6DA546008394E3 /* BloodyDayWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = BloodyDayWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		2BE0DABD2F6DA546008394E3 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		2BE0DABF2F6DA547008394E3 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		2BF454542E97DB6900C1190F /* BloodyDay.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BloodyDay.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		2BF454652E97DB7000C1190F /* BloodyDayTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BloodyDayTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		2BF4546F2E97DB7000C1190F /* BloodyDayUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BloodyDayUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		2BF4549C2E97DC3100C1190F /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
 		2BF4549D2E97DC3700C1190F /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		2B61D4EB2F6FC1E4003299A7 /* Exceptions for "BloodyDay" folder in "BloodyDayWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Data/DTO/UserEvent.swift,
+				Domain/Entities/DayEvent.swift,
+				Domain/Entities/EventType.swift,
+				Domain/Entities/Settings/AppleCalendarSettings.swift,
+				Domain/Entities/Settings/NotificationSettings.swift,
+				Domain/Entities/Settings/PeriodSettings.swift,
+				Domain/Entities/Settings/PillSettings.swift,
+				Domain/Entities/Settings/UserSettings.swift,
+				Domain/Models/CalendarEventTogglePolicy.swift,
+				Domain/Models/DayInfoCardStatusSnapshot.swift,
+				Domain/UseCases/CalendarEventTogglePolicyUseCase.swift,
+				Domain/UseCases/DayInfoCardStatusUseCase.swift,
+				Domain/UseCases/PeriodForecastCalculator.swift,
+				Domain/UseCases/PeriodSummaryBuilder.swift,
+				Domain/UseCases/PillCycleCalculator.swift,
+				Features/Calendar/UseCases/BuildCalendarMonthComputationContextUseCase.swift,
+				Resources/Assets.xcassets,
+				Utilities/CyclePrediction.swift,
+				"Utilities/Date+Extension.swift",
+				"Utilities/Font+Extension.swift",
+			);
+			target = 2BE0DABA2F6DA546008394E3 /* BloodyDayWidgetExtension */;
+		};
+		2BE0DAD32F6DA547008394E3 /* Exceptions for "BloodyDayWidget" folder in "BloodyDayWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 2BE0DABA2F6DA546008394E3 /* BloodyDayWidgetExtension */;
+		};
 		2BF454772E97DB7000C1190F /* Exceptions for "BloodyDay" folder in "BloodyDay" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -42,10 +97,19 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		2BE0DAC12F6DA547008394E3 /* BloodyDayWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				2BE0DAD32F6DA547008394E3 /* Exceptions for "BloodyDayWidget" folder in "BloodyDayWidgetExtension" target */,
+			);
+			path = BloodyDayWidget;
+			sourceTree = "<group>";
+		};
 		2BF454562E97DB6900C1190F /* BloodyDay */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				2BF454772E97DB7000C1190F /* Exceptions for "BloodyDay" folder in "BloodyDay" target */,
+				2B61D4EB2F6FC1E4003299A7 /* Exceptions for "BloodyDay" folder in "BloodyDayWidgetExtension" target */,
 			);
 			path = BloodyDay;
 			sourceTree = "<group>";
@@ -53,11 +117,6 @@
 		2BF454682E97DB7000C1190F /* BloodyDayTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = BloodyDayTests;
-			sourceTree = "<group>";
-		};
-		2BF454722E97DB7000C1190F /* BloodyDayUITests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = BloodyDayUITests;
 			sourceTree = "<group>";
 		};
 		2BF4549B2E97DC1A00C1190F /* .github */ = {
@@ -68,6 +127,15 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		2BE0DAB82F6DA546008394E3 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2BE0DAC02F6DA547008394E3 /* SwiftUI.framework in Frameworks */,
+				2BE0DABE2F6DA547008394E3 /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		2BF454512E97DB6900C1190F /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -82,23 +150,26 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		2BF4546C2E97DB7000C1190F /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		2BE0DABC2F6DA546008394E3 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				2BE0DABD2F6DA546008394E3 /* WidgetKit.framework */,
+				2BE0DABF2F6DA547008394E3 /* SwiftUI.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		2BF4544B2E97DB6900C1190F = {
 			isa = PBXGroup;
 			children = (
 				2BF454562E97DB6900C1190F /* BloodyDay */,
 				2BF454682E97DB7000C1190F /* BloodyDayTests */,
-				2BF454722E97DB7000C1190F /* BloodyDayUITests */,
 				2BF4549B2E97DC1A00C1190F /* .github */,
+				2BE0DAC12F6DA547008394E3 /* BloodyDayWidget */,
+				2BE0DABC2F6DA546008394E3 /* Frameworks */,
 				2BF454552E97DB6900C1190F /* Products */,
 				2BF4549C2E97DC3100C1190F /* .gitignore */,
 				2BF4549D2E97DC3700C1190F /* README.md */,
@@ -110,7 +181,7 @@
 			children = (
 				2BF454542E97DB6900C1190F /* BloodyDay.app */,
 				2BF454652E97DB7000C1190F /* BloodyDayTests.xctest */,
-				2BF4546F2E97DB7000C1190F /* BloodyDayUITests.xctest */,
+				2BE0DABB2F6DA546008394E3 /* BloodyDayWidgetExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -118,6 +189,28 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		2BE0DABA2F6DA546008394E3 /* BloodyDayWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 2BE0DAD02F6DA547008394E3 /* Build configuration list for PBXNativeTarget "BloodyDayWidgetExtension" */;
+			buildPhases = (
+				2BE0DAB72F6DA546008394E3 /* Sources */,
+				2BE0DAB82F6DA546008394E3 /* Frameworks */,
+				2BE0DAB92F6DA546008394E3 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				2BE0DAC12F6DA547008394E3 /* BloodyDayWidget */,
+			);
+			name = BloodyDayWidgetExtension;
+			packageProductDependencies = (
+			);
+			productName = BloodyDayWidgetExtension;
+			productReference = 2BE0DABB2F6DA546008394E3 /* BloodyDayWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		2BF454532E97DB6900C1190F /* BloodyDay */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 2BF454782E97DB7000C1190F /* Build configuration list for PBXNativeTarget "BloodyDay" */;
@@ -125,10 +218,12 @@
 				2BF454502E97DB6900C1190F /* Sources */,
 				2BF454512E97DB6900C1190F /* Frameworks */,
 				2BF454522E97DB6900C1190F /* Resources */,
+				2BE0DAD42F6DA547008394E3 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				2BE0DACE2F6DA547008394E3 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				2BF454562E97DB6900C1190F /* BloodyDay */,
@@ -163,29 +258,6 @@
 			productReference = 2BF454652E97DB7000C1190F /* BloodyDayTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
-		2BF4546E2E97DB7000C1190F /* BloodyDayUITests */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 2BF454802E97DB7000C1190F /* Build configuration list for PBXNativeTarget "BloodyDayUITests" */;
-			buildPhases = (
-				2BF4546B2E97DB7000C1190F /* Sources */,
-				2BF4546C2E97DB7000C1190F /* Frameworks */,
-				2BF4546D2E97DB7000C1190F /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				2BF454712E97DB7000C1190F /* PBXTargetDependency */,
-			);
-			fileSystemSynchronizedGroups = (
-				2BF454722E97DB7000C1190F /* BloodyDayUITests */,
-			);
-			name = BloodyDayUITests;
-			packageProductDependencies = (
-			);
-			productName = BloodyDayUITests;
-			productReference = 2BF4546F2E97DB7000C1190F /* BloodyDayUITests.xctest */;
-			productType = "com.apple.product-type.bundle.ui-testing";
-		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -193,17 +265,16 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 2600;
+				LastSwiftUpdateCheck = 2630;
 				LastUpgradeCheck = 2600;
 				TargetAttributes = {
+					2BE0DABA2F6DA546008394E3 = {
+						CreatedOnToolsVersion = 26.3;
+					};
 					2BF454532E97DB6900C1190F = {
 						CreatedOnToolsVersion = 26.0.1;
 					};
 					2BF454642E97DB7000C1190F = {
-						CreatedOnToolsVersion = 26.0.1;
-						TestTargetID = 2BF454532E97DB6900C1190F;
-					};
-					2BF4546E2E97DB7000C1190F = {
 						CreatedOnToolsVersion = 26.0.1;
 						TestTargetID = 2BF454532E97DB6900C1190F;
 					};
@@ -226,12 +297,19 @@
 			targets = (
 				2BF454532E97DB6900C1190F /* BloodyDay */,
 				2BF454642E97DB7000C1190F /* BloodyDayTests */,
-				2BF4546E2E97DB7000C1190F /* BloodyDayUITests */,
+				2BE0DABA2F6DA546008394E3 /* BloodyDayWidgetExtension */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		2BE0DAB92F6DA546008394E3 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		2BF454522E97DB6900C1190F /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -246,16 +324,16 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		2BF4546D2E97DB7000C1190F /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		2BE0DAB72F6DA546008394E3 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-/* End PBXResourcesBuildPhase section */
-
-/* Begin PBXSourcesBuildPhase section */
 		2BF454502E97DB6900C1190F /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -270,29 +348,86 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		2BF4546B2E97DB7000C1190F /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		2BE0DACE2F6DA547008394E3 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 2BE0DABA2F6DA546008394E3 /* BloodyDayWidgetExtension */;
+			targetProxy = 2BE0DACD2F6DA547008394E3 /* PBXContainerItemProxy */;
+		};
 		2BF454672E97DB7000C1190F /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 2BF454532E97DB6900C1190F /* BloodyDay */;
 			targetProxy = 2BF454662E97DB7000C1190F /* PBXContainerItemProxy */;
 		};
-		2BF454712E97DB7000C1190F /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 2BF454532E97DB6900C1190F /* BloodyDay */;
-			targetProxy = 2BF454702E97DB7000C1190F /* PBXContainerItemProxy */;
-		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		2BE0DAD12F6DA547008394E3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = BloodyDayWidget/BloodyDayWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = UV2PAA368V;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = BloodyDayWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = BloodyDayWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.2.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dorypawn.BDay.BloodyDayWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		2BE0DAD22F6DA547008394E3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = BloodyDayWidget/BloodyDayWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = UV2PAA368V;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = BloodyDayWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = BloodyDayWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.2.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dorypawn.BDay.BloodyDayWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 		2BF454792E97DB7000C1190F /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -318,7 +453,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1.0;
+				MARKETING_VERSION = 1.2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = dorypawn.BDay;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -358,7 +493,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1.0;
+				MARKETING_VERSION = 1.2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = dorypawn.BDay;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -538,49 +673,18 @@
 			};
 			name = Release;
 		};
-		2BF454812E97DB7000C1190F /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = UV2PAA368V;
-				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = dorypawn.BloodyDayUITests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				STRING_CATALOG_GENERATE_SYMBOLS = NO;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_TARGET_NAME = BloodyDay;
-			};
-			name = Debug;
-		};
-		2BF454822E97DB7000C1190F /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = UV2PAA368V;
-				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = dorypawn.BloodyDayUITests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				STRING_CATALOG_GENERATE_SYMBOLS = NO;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_TARGET_NAME = BloodyDay;
-			};
-			name = Release;
-		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		2BE0DAD02F6DA547008394E3 /* Build configuration list for PBXNativeTarget "BloodyDayWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				2BE0DAD12F6DA547008394E3 /* Debug */,
+				2BE0DAD22F6DA547008394E3 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		2BF4544F2E97DB6900C1190F /* Build configuration list for PBXProject "BloodyDay" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -604,15 +708,6 @@
 			buildConfigurations = (
 				2BF4547E2E97DB7000C1190F /* Debug */,
 				2BF4547F2E97DB7000C1190F /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		2BF454802E97DB7000C1190F /* Build configuration list for PBXNativeTarget "BloodyDayUITests" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				2BF454812E97DB7000C1190F /* Debug */,
-				2BF454822E97DB7000C1190F /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

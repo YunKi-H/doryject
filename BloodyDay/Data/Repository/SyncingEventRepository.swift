@@ -12,17 +12,20 @@ final class SyncingEventRepository: EventRepository {
     private let syncService: AppleCalendarSyncService
     private let settingsRepository: SettingsRepository?
     private let notificationScheduler: NotificationScheduler?
+    private let widgetSnapshotService: WidgetSnapshotService?
     
     init(
         base: EventRepository,
         syncService: AppleCalendarSyncService,
         settingsRepository: SettingsRepository? = nil,
-        notificationScheduler: NotificationScheduler? = nil
+        notificationScheduler: NotificationScheduler? = nil,
+        widgetSnapshotService: WidgetSnapshotService? = nil
     ) {
         self.base = base
         self.syncService = syncService
         self.settingsRepository = settingsRepository
         self.notificationScheduler = notificationScheduler
+        self.widgetSnapshotService = widgetSnapshotService
     }
     
     func save(_ event: UserEvent) {
@@ -34,6 +37,7 @@ final class SyncingEventRepository: EventRepository {
             Task { await syncService.syncUpsert(event: event) }
         }
         refreshNotifications()
+        refreshWidgets()
     }
     
     func delete(id: UUID) {
@@ -45,6 +49,7 @@ final class SyncingEventRepository: EventRepository {
             Task { await syncService.syncDelete(eventId: id, eventType: event?.type) }
         }
         refreshNotifications()
+        refreshWidgets()
     }
     
     func delete(type: EventType, on: Date) {
@@ -57,6 +62,7 @@ final class SyncingEventRepository: EventRepository {
             Task { await syncService.syncDelete(events: events) }
         }
         refreshNotifications()
+        refreshWidgets()
     }
     
     func replace(type: EventType, on dates: Set<Date>) {
@@ -66,6 +72,7 @@ final class SyncingEventRepository: EventRepository {
         base.replace(type: type, on: dates)
         Task { await syncService.syncAll() }
         refreshNotifications()
+        refreshWidgets()
     }
     
     func allEvents() -> [UserEvent] {
@@ -85,6 +92,10 @@ final class SyncingEventRepository: EventRepository {
               let settingsRepository = settingsRepository else { return }
         let settings = settingsRepository.load()
         scheduler.apply(settings: settings, eventRepository: base)
+    }
+    
+    private func refreshWidgets() {
+        widgetSnapshotService?.refresh()
     }
     
     private func enablePillIfNeeded(for event: UserEvent) {
