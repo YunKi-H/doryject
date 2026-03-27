@@ -59,6 +59,10 @@ extension Font {
         return pretendard(.regular, fixedSize: 20)
     }
     
+    static var medium_9: Font {
+        return pretendard(.medium, fixedSize: 9)
+    }
+    
     static var medium_11: Font {
         return pretendard(.medium, fixedSize: 11)
     }

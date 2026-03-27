@@ -236,20 +236,28 @@ struct BloodyDayLockScreenCircularWidget: Widget {
     
     var body: some WidgetConfiguration {
         AppIntentConfiguration(kind: kind, intent: ConfigurationAppIntent.self, provider: Provider()) { entry in
-            VStack(spacing: 2) {
-                Text(entry.snapshot.primaryText)
-                    .font(.system(size: 14, weight: .semibold))
-                    .multilineTextAlignment(.center)
-                    .minimumScaleFactor(0.7)
-                if let firstChip = entry.snapshot.chips.first {
-                    Text(firstChip.text)
-                        .font(.system(size: 9, weight: .medium))
-                        .foregroundStyle(lockScreenChipTextColor(firstChip))
-                        .lineLimit(1)
+            ZStack {
+                Circle()
+                    .fill(.fill.tertiary)
+                VStack(spacing: 4) {
+                    Text(entry.snapshot.primaryText)
+                        .font(.semibold_18)
+                        .foregroundStyle(.textPrimary)
+                        .multilineTextAlignment(.center)
                         .minimumScaleFactor(0.7)
+                    
+                    Group {
+                        if let firstChip = entry.snapshot.chips.first {
+                            lockScreenCircularChip(firstChip)
+                        } else {
+                            Color.clear
+                        }
+                    }
+                    .frame(height: 16)
                 }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 10)
             }
-            .padding(8)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .containerBackground(for: .widget) {
                 Color.clear
@@ -337,6 +345,18 @@ private func lockScreenRectangularChip(_ chip: WidgetChipSnapshot) -> some View 
     }
     .padding(.init(top: 2, leading: 5, bottom: 1, trailing: 5))
     .background(.fill.tertiary, in: Capsule())
+}
+
+private func lockScreenCircularChip(_ chip: WidgetChipSnapshot) -> some View {
+    HStack(spacing: 2) {
+        lockScreenChipIcon(chip)
+            .foregroundStyle(.textPrimary)
+        Text(chip.text)
+            .font(.medium_9)
+            .foregroundStyle(.textPrimary)
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+    }
 }
 
 @ViewBuilder
