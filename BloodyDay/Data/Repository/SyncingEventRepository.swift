@@ -12,20 +12,20 @@ final class SyncingEventRepository: EventRepository {
     private let syncService: AppleCalendarSyncService
     private let settingsRepository: SettingsRepository?
     private let notificationScheduler: NotificationScheduler?
-    private let widgetSnapshotService: WidgetSnapshotService?
+    private let widgetReloader: WidgetReloading?
     
     init(
         base: EventRepository,
         syncService: AppleCalendarSyncService,
         settingsRepository: SettingsRepository? = nil,
         notificationScheduler: NotificationScheduler? = nil,
-        widgetSnapshotService: WidgetSnapshotService? = nil
+        widgetReloader: WidgetReloading? = nil
     ) {
         self.base = base
         self.syncService = syncService
         self.settingsRepository = settingsRepository
         self.notificationScheduler = notificationScheduler
-        self.widgetSnapshotService = widgetSnapshotService
+        self.widgetReloader = widgetReloader
     }
     
     func save(_ event: UserEvent) {
@@ -95,7 +95,7 @@ final class SyncingEventRepository: EventRepository {
     }
     
     private func refreshWidgets() {
-        widgetSnapshotService?.refresh()
+        widgetReloader?.reloadAll()
     }
     
     private func enablePillIfNeeded(for event: UserEvent) {

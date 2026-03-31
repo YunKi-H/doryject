@@ -7,6 +7,7 @@
 
 import SwiftUI
 import UIKit
+import SwiftData
 
 struct BloodyDayRootView: View {
     @Environment(\.modelContext) private var modelContext
@@ -20,7 +21,7 @@ struct BloodyDayRootView: View {
     @State private var appleCalendarClient: EventKitAppleCalendarClient?
     @State private var appleCalendarSyncService: AppleCalendarSyncService?
     @State private var notificationScheduler: UserNotificationScheduler?
-    @State private var widgetSnapshotService: WidgetSnapshotService?
+    @State private var widgetReloadService: WidgetReloadService?
     
     @State private var activeTab: BloodyDayTab = .calendar
     @State private var isPresentedCalendarSheet: Bool = false
@@ -79,8 +80,10 @@ struct BloodyDayRootView: View {
                 let syncStore = UserDefaultsAppleCalendarSyncStore()
                 let calendarClient = appleCalendarClient ?? EventKitAppleCalendarClient()
                 let scheduler = notificationScheduler ?? UserNotificationScheduler()
+                let widgetReloader = widgetReloadService ?? WidgetReloadService()
                 appleCalendarClient = calendarClient
                 notificationScheduler = scheduler
+                widgetReloadService = widgetReloader
                 if appleCalendarSyncService == nil {
                     appleCalendarSyncService = AppleCalendarSyncService(
                         settingsRepository: settingsRepository,
@@ -89,18 +92,12 @@ struct BloodyDayRootView: View {
                         syncStore: syncStore
                     )
                 }
-                if widgetSnapshotService == nil {
-                    widgetSnapshotService = WidgetSnapshotService(
-                        eventRepository: baseEventRepository,
-                        settingsRepository: settingsRepository
-                    )
-                }
                 let syncingRepository = SyncingEventRepository(
                     base: baseEventRepository,
                     syncService: appleCalendarSyncService!,
                     settingsRepository: settingsRepository,
                     notificationScheduler: scheduler,
-                    widgetSnapshotService: widgetSnapshotService
+                    widgetReloader: widgetReloader
                 )
                 if calendarViewModel == nil {
                     calendarViewModel = CalendarViewModel(
@@ -135,11 +132,11 @@ struct BloodyDayRootView: View {
                         syncService: appleCalendarSyncService!
                     )
                 }
-                widgetSnapshotService?.refresh()
+                widgetReloader.reloadAll()
             }
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
                 notificationSettingsViewModel?.refreshSchedules()
-                widgetSnapshotService?.refresh()
+                widgetReloadService?.reloadAll()
             }
         }
     }

@@ -19,10 +19,11 @@ struct Provider: AppIntentTimelineProvider {
     }
     
     func snapshot(for configuration: ConfigurationAppIntent, in context: Context) async -> SimpleEntry {
-        SimpleEntry(
-            date: Date(),
+        let currentDate = Date()
+        return SimpleEntry(
+            date: currentDate,
             configuration: configuration,
-            snapshot: WidgetSnapshotStore().load() ?? .placeholder
+            snapshot: currentSnapshot(at: currentDate)
         )
     }
     
@@ -31,10 +32,17 @@ struct Provider: AppIntentTimelineProvider {
         let entry = SimpleEntry(
             date: currentDate,
             configuration: configuration,
-            snapshot: WidgetSnapshotStore().load() ?? .placeholder
+            snapshot: currentSnapshot(at: currentDate)
         )
-        let refreshDate = Calendar.current.date(byAdding: .minute, value: 15, to: currentDate) ?? currentDate
+        let refreshDate = Calendar.current.startOfDay(for: currentDate)
+            .addingTimeInterval(60 * 60 * 24)
         return Timeline(entries: [entry], policy: .after(refreshDate))
+    }
+
+    private func currentSnapshot(at date: Date) -> WidgetSnapshot {
+        let snapshot = WidgetSnapshotBuilder.build(today: date)
+        WidgetSnapshotStore().save(snapshot)
+        return snapshot
     }
 }
 
