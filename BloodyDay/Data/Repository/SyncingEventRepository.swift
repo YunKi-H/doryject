@@ -6,26 +6,24 @@
 //
 
 import Foundation
+import WidgetKit
 
 final class SyncingEventRepository: EventRepository {
     private let base: EventRepository
     private let syncService: AppleCalendarSyncService
     private let settingsRepository: SettingsRepository?
     private let notificationScheduler: NotificationScheduler?
-    private let widgetSnapshotService: WidgetSnapshotService?
     
     init(
         base: EventRepository,
         syncService: AppleCalendarSyncService,
         settingsRepository: SettingsRepository? = nil,
-        notificationScheduler: NotificationScheduler? = nil,
-        widgetSnapshotService: WidgetSnapshotService? = nil
+        notificationScheduler: NotificationScheduler? = nil
     ) {
         self.base = base
         self.syncService = syncService
         self.settingsRepository = settingsRepository
         self.notificationScheduler = notificationScheduler
-        self.widgetSnapshotService = widgetSnapshotService
     }
     
     func save(_ event: UserEvent) {
@@ -95,7 +93,7 @@ final class SyncingEventRepository: EventRepository {
     }
     
     private func refreshWidgets() {
-        widgetSnapshotService?.refresh()
+        WidgetCenter.shared.reloadAllTimelines()
     }
     
     private func enablePillIfNeeded(for event: UserEvent) {
