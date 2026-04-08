@@ -19,6 +19,7 @@ struct PillCycleCalculatorTests {
         
         let cycles = PillCycleCalculator.groupedCycles(
             pillDates: pillDates,
+            pillCount: 21,
             breakDays: 7,
             calendar: calendar
         )
@@ -30,14 +31,15 @@ struct PillCycleCalculatorTests {
     }
     
     @Test
-    func groupedCycles_keepsSameCycleWhenGapIsWithinBreakDays() {
+    func groupedCycles_keepsSameCycleWhenGapIsWithinFourDays() {
         let start = makeDate(2026, 2, 1)
         let breakDays = 7
-        let allowedGap = breakDays
+        let allowedGap = 4
         let second = addDays(start, allowedGap)
         
         let cycles = PillCycleCalculator.groupedCycles(
             pillDates: [start, second],
+            pillCount: 21,
             breakDays: breakDays,
             calendar: calendar
         )
@@ -47,13 +49,14 @@ struct PillCycleCalculatorTests {
     }
     
     @Test
-    func groupedCycles_splitsCycleWhenGapExceedsBreakDays() {
+    func groupedCycles_splitsCycleWhenGapExceedsFourDaysEvenIfBreakDurationIsLonger() {
         let start = makeDate(2026, 2, 1)
         let breakDays = 7
-        let second = addDays(start, breakDays + 1)
+        let second = addDays(start, 5)
         
         let cycles = PillCycleCalculator.groupedCycles(
             pillDates: [start, second],
+            pillCount: 21,
             breakDays: breakDays,
             calendar: calendar
         )
@@ -64,22 +67,24 @@ struct PillCycleCalculatorTests {
     }
     
     @Test
-    func groupedCycles_doesNotForceSplitAtPillCountBoundary() {
+    func groupedCycles_splitsAtPillCountBoundary() {
         let start = makeDate(2026, 2, 1)
         let pillDates = Set((0..<23).map { addDays(start, $0) }) // 23 consecutive dates
         
         let cycles = PillCycleCalculator.groupedCycles(
             pillDates: pillDates,
+            pillCount: 21,
             breakDays: 7,
             calendar: calendar
         )
         
-        #expect(cycles.count == 1)
-        #expect(cycles.first?.count == 23)
+        #expect(cycles.count == 2)
+        #expect(cycles[0].count == 21)
+        #expect(cycles[1] == [addDays(start, 21), addDays(start, 22)])
     }
     
     @Test
-    func sequenceMap_continuesBeyondPillCount() {
+    func sequenceMap_restartsAfterPillCountBoundary() {
         let start = makeDate(2026, 2, 1)
         let pillDates = Set((0..<23).map { addDays(start, $0) })
         
@@ -91,8 +96,8 @@ struct PillCycleCalculatorTests {
         )
         
         #expect(sequence[addDays(start, 20)] == 21)
-        #expect(sequence[addDays(start, 21)] == 22)
-        #expect(sequence[addDays(start, 22)] == 23)
+        #expect(sequence[addDays(start, 21)] == 1)
+        #expect(sequence[addDays(start, 22)] == 2)
     }
     
     @Test
@@ -106,6 +111,7 @@ struct PillCycleCalculatorTests {
         
         let latest = PillCycleCalculator.latestCycle(
             pillDates: pillDates,
+            pillCount: 21,
             breakDays: 7,
             calendar: calendar
         )
@@ -126,6 +132,7 @@ struct PillCycleCalculatorTests {
         let cycle = PillCycleCalculator.cycle(
             containing: addDays(cycleStart, 1),
             pillDates: pillDates,
+            pillCount: 21,
             breakDays: 7,
             calendar: calendar
         )
@@ -142,6 +149,7 @@ struct PillCycleCalculatorTests {
         let cycle = PillCycleCalculator.cycle(
             containing: addDays(start, 10),
             pillDates: pillDates,
+            pillCount: 21,
             breakDays: 7,
             calendar: calendar
         )

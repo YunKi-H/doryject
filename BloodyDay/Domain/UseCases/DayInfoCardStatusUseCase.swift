@@ -167,16 +167,19 @@ enum DayInfoCardStatusUseCase {
         
         let cycles = PillCycleCalculator.groupedCycles(
             pillDates: pillDates,
+            pillCount: pillCount,
             breakDays: breakDays,
             calendar: calendar
         )
         
-        for cycle in cycles {
+        for (index, cycle) in cycles.enumerated() {
             guard let lastIntake = cycle.last else { continue }
             guard let breakStart = calendar.date(byAdding: .day, value: 1, to: lastIntake.startOfDay),
-                  let breakEndExclusive = calendar.date(byAdding: .day, value: breakDays, to: breakStart.startOfDay) else {
+                  let configuredBreakEndExclusive = calendar.date(byAdding: .day, value: breakDays, to: breakStart.startOfDay) else {
                 continue
             }
+            let nextCycleStart = cycles.indices.contains(index + 1) ? cycles[index + 1].first?.startOfDay : nil
+            let breakEndExclusive = min(configuredBreakEndExclusive.startOfDay, nextCycleStart ?? configuredBreakEndExclusive.startOfDay)
             guard target >= breakStart.startOfDay && target < breakEndExclusive.startOfDay else { continue }
             let breakDay = (calendar.dateComponents([.day], from: breakStart.startOfDay, to: target).day ?? 0) + 1
             return (day: breakDay, total: breakDays)
@@ -206,6 +209,7 @@ enum DayInfoCardStatusUseCase {
         
         guard let currentCycle = PillCycleCalculator.latestCycle(
             pillDates: pillDates,
+            pillCount: pillCount,
             breakDays: breakDays,
             calendar: calendar
         ),

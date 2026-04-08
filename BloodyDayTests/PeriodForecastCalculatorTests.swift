@@ -79,6 +79,29 @@ struct PeriodForecastCalculatorTests {
     }
 
     @Test
+    func latestPillCycleProjection_usesNewCycleAfterPillCountCap() {
+        var settings = UserSettings()
+        settings.pill.pillEnabled = true
+        settings.pill.pillAutoRecordEnabled = true
+        settings.pill.pillCount = 21
+        settings.pill.pillBreakDuration = 7
+
+        let start = makeDate(2026, 2, 1)
+        let pillDates: Set<Date> = Set((0..<23).map { addDays(start, $0) })
+
+        let projection = PeriodForecastCalculator.latestPillCycleProjection(
+            settings: settings,
+            pillDates: pillDates,
+            calendar: calendar
+        )
+
+        #expect(projection?.cycleStart == addDays(start, 21))
+        #expect(projection?.lastIntakeDate == addDays(start, 22))
+        #expect(projection?.projectedLastIntakeDate == addDays(start, 22))
+        #expect(projection?.intakeCount == 2)
+    }
+
+    @Test
     func predictionContext_prefersLatestActualPeriodWhenItIsNewerThanPillAnchor() {
         var settings = UserSettings()
         settings.period.autoCyclePredictionEnabled = false

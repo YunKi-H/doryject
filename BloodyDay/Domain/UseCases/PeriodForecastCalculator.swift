@@ -160,6 +160,7 @@ enum PeriodForecastCalculator {
         if pill.pillAutoRecordEnabled {
             guard let latestCycle = PillCycleCalculator.latestCycle(
                 pillDates: pillDates,
+                pillCount: pillCount,
                 breakDays: breakDays,
                 calendar: calendar
             ),
@@ -184,6 +185,7 @@ enum PeriodForecastCalculator {
         // Auto record OFF: continue current cycle by intake count progression.
         guard let latestCycle = PillCycleCalculator.latestCycle(
             pillDates: pillDates,
+            pillCount: pillCount,
             breakDays: breakDays,
             calendar: calendar
         ),
