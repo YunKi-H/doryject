@@ -167,6 +167,7 @@ enum DayInfoCardStatusUseCase {
         
         let cycles = PillCycleCalculator.groupedCycles(
             pillDates: pillDates,
+            pillCount: pillCount,
             breakDays: breakDays,
             calendar: calendar
         )
@@ -206,6 +207,7 @@ enum DayInfoCardStatusUseCase {
         
         guard let currentCycle = PillCycleCalculator.latestCycle(
             pillDates: pillDates,
+            pillCount: pillCount,
             breakDays: breakDays,
             calendar: calendar
         ),

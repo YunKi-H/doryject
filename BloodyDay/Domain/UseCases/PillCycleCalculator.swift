@@ -10,16 +10,18 @@ import Foundation
 enum PillCycleCalculator {
     static func groupedCycles(
         pillDates: Set<Date>,
+        pillCount: Int,
         breakDays: Int,
         calendar: Calendar = .current
     ) -> [[Date]] {
         let sorted = pillDates.map(\.startOfDay).sorted()
         guard sorted.isEmpty == false else { return [] }
         
-        // `gap` is the day distance between two intake dates. Consecutive intake days
-        // have a gap of 1, while a completed break of `breakDays` creates a gap of
-        // `breakDays + 1` to the next cycle's first intake day.
-        let allowedGap = max(breakDays, 1)
+        // Pill cycles are interpreted more strictly than the configured break length:
+        // a gap of up to 4 days is still treated as the same cycle, and each cycle is
+        // capped at pillCount intake dates.
+        let allowedGap = min(max(breakDays, 1), 4)
+        let maxCycleLength = pillCount > 0 ? pillCount : .max
         var cycles: [[Date]] = [[sorted[0]]]
         
         for day in sorted.dropFirst() {
@@ -27,7 +29,7 @@ enum PillCycleCalculator {
             guard let previous = current.last else { continue }
             let gap = calendar.dateComponents([.day], from: previous, to: day).day ?? .max
             
-            let shouldStartNewCycle = gap > allowedGap
+            let shouldStartNewCycle = gap > allowedGap || current.count >= maxCycleLength
             if shouldStartNewCycle {
                 cycles.append([day])
             } else {
@@ -49,6 +51,7 @@ enum PillCycleCalculator {
         
         let cycles = groupedCycles(
             pillDates: pillDates,
+            pillCount: pillCount,
             breakDays: breakDays,
             calendar: calendar
         )
@@ -64,11 +67,13 @@ enum PillCycleCalculator {
 
     static func latestCycle(
         pillDates: Set<Date>,
+        pillCount: Int,
         breakDays: Int,
         calendar: Calendar = .current
     ) -> [Date]? {
         groupedCycles(
             pillDates: pillDates,
+            pillCount: pillCount,
             breakDays: breakDays,
             calendar: calendar
         ).last
@@ -77,12 +82,14 @@ enum PillCycleCalculator {
     static func cycle(
         containing target: Date,
         pillDates: Set<Date>,
+        pillCount: Int,
         breakDays: Int,
         calendar: Calendar = .current
     ) -> [Date]? {
         let normalizedTarget = target.startOfDay
         return groupedCycles(
             pillDates: pillDates,
+            pillCount: pillCount,
             breakDays: breakDays,
             calendar: calendar
         ).first { $0.contains(normalizedTarget) }

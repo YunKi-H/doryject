@@ -61,6 +61,7 @@ enum CalendarEventTogglePolicyUseCase {
         
         guard let currentCycle = PillCycleCalculator.latestCycle(
             pillDates: pillDates,
+            pillCount: pillCount,
             breakDays: breakDays,
             calendar: calendar
         ),
@@ -199,6 +200,7 @@ enum CalendarEventTogglePolicyUseCase {
             PillCycleCalculator.cycle(
                 containing: start,
                 pillDates: simulatedPillDates,
+                pillCount: pillCount,
                 breakDays: breakDays,
                 calendar: calendar
             ) ?? [start]
@@ -218,6 +220,7 @@ enum CalendarEventTogglePolicyUseCase {
                     PillCycleCalculator.cycle(
                         containing: start,
                         pillDates: simulatedPillDates,
+                        pillCount: pillCount,
                         breakDays: breakDays,
                         calendar: calendar
                     ) ?? [start]
