@@ -205,6 +205,34 @@ struct DayInfoCardStatusUseCaseTests {
         
         #expect(status == .pillBreak(day: 2, total: 7))
     }
+
+    @Test
+    func secondaryStatus_autoRecordOnEndsBreakWhenNextCycleStartsEarly() {
+        var settings = UserSettings()
+        settings.pill.pillEnabled = true
+        settings.pill.pillAutoRecordEnabled = true
+        settings.pill.pillCount = 21
+        settings.pill.pillBreakDuration = 7
+
+        let firstCycleStart = makeDate(2026, 2, 1)
+        let secondCycleStart = makeDate(2026, 2, 17) // 5-day gap from 2/12 -> new cycle under 4-day rule
+        let pillDates: Set<Date> = Set((0...11).map { addDays(firstCycleStart, $0) })
+            .union([secondCycleStart])
+
+        let formerBreakDay = makeDate(2026, 2, 17)
+
+        let status = DayInfoCardStatusUseCase.secondaryStatus(
+            for: formerBreakDay,
+            allEventsEmpty: false,
+            isPillEnabled: true,
+            dayEvents: nil,
+            pillDates: pillDates,
+            settings: settings,
+            calendar: calendar
+        )
+
+        #expect(status == .pill(day: 1, total: 21))
+    }
     
     @Test
     func secondaryStatus_fallsBackToFertilityEventWhenNoPillStatus() {
