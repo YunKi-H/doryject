@@ -128,6 +128,32 @@ struct DayInfoCardStatusUseCaseTests {
 
         #expect(status == .countdown(days: 23))
     }
+
+    @Test
+    func primaryStatus_usesSharedForecastWhenLatestActualPeriodOverridesPillAnchor() {
+        var settings = UserSettings()
+        settings.period.autoCyclePredictionEnabled = true
+        settings.pill.pillEnabled = true
+        settings.pill.pillAutoRecordEnabled = true
+        settings.pill.pillCount = 21
+        settings.pill.pillBreakDuration = 7
+
+        let periodDates =
+            (0..<4).map { addDays(makeDate(2026, 3, 2), $0) } +
+            (0..<5).map { addDays(makeDate(2026, 3, 19), $0) }
+        let pillDates: Set<Date> = Set((0..<21).map { addDays(makeDate(2026, 3, 9), $0) })
+
+        let status = DayInfoCardStatusUseCase.primaryStatus(
+            for: makeDate(2026, 4, 5),
+            today: makeDate(2026, 3, 19),
+            periodDates: periodDates,
+            pillDates: pillDates,
+            settings: settings,
+            calendar: calendar
+        )
+
+        #expect(status == .bDay)
+    }
     
     @Test
     func secondaryStatus_returnsPillWhenExactPillEventExists() {

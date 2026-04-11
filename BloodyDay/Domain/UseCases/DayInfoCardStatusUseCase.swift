@@ -33,39 +33,51 @@ enum DayInfoCardStatusUseCase {
         }
         
         guard let context = PeriodForecastCalculator.predictionContext(
-            target: target,
+            target: normalizedToday,
             settings: settings,
             periodSummaries: summaries,
             pillDates: pillDates,
             calendar: calendar
-        ),
-              let predictedStart = PeriodForecastCalculator.expectedStartDate(
-                target: target,
-                today: normalizedToday,
-                context: context,
-                calendar: calendar
-              ) else {
+        ) else {
             return .unknown
         }
         
+        let predictedStarts = predictedStartsForPrimaryStatus(
+            target: target,
+            today: normalizedToday,
+            settings: settings,
+            summaries: summaries,
+            pillDates: pillDates,
+            context: context,
+            calendar: calendar
+        )
+        guard predictedStarts.isEmpty == false else {
+            return .unknown
+        }
+
         let predictedLength = max(context.predictedLength, 1)
-        guard let predictedEndExclusive = calendar.date(byAdding: .day, value: predictedLength, to: predictedStart.startOfDay) else {
-            return .unknown
-        }
-        
-        if target == predictedStart.startOfDay {
-            return .bDay
-        }
-        if target > predictedStart.startOfDay && target < predictedEndExclusive {
-            let dayIndex = (calendar.dateComponents([.day], from: predictedStart.startOfDay, to: target).day ?? 0) + 1
+        if let containingStart = predictedStarts.first(where: { start in
+            guard let endExclusive = calendar.date(byAdding: .day, value: predictedLength, to: start.startOfDay) else {
+                return false
+            }
+            return target >= start.startOfDay && target < endExclusive.startOfDay
+        }) {
+            if target == containingStart.startOfDay {
+                return .bDay
+            }
+            let dayIndex = (calendar.dateComponents([.day], from: containingStart.startOfDay, to: target).day ?? 0) + 1
             return .ongoing(day: max(dayIndex, 1))
         }
-        if target >= predictedStart.startOfDay && target <= normalizedToday {
-            let delayedDays = calendar.dateComponents([.day], from: predictedStart.startOfDay, to: target).day ?? 0
+
+        if target <= normalizedToday, let delayedStart = predictedStarts.last(where: { $0.startOfDay <= target }) {
+            let delayedDays = calendar.dateComponents([.day], from: delayedStart.startOfDay, to: target).day ?? 0
             return .delayed(days: max(delayedDays, 0))
         }
-        
-        let daysUntil = calendar.dateComponents([.day], from: target, to: predictedStart.startOfDay).day ?? 0
+
+        guard let nextStart = predictedStarts.first(where: { $0.startOfDay > target }) else {
+            return .unknown
+        }
+        let daysUntil = calendar.dateComponents([.day], from: target, to: nextStart.startOfDay).day ?? 0
         return .countdown(days: max(daysUntil, 0))
     }
     
@@ -131,6 +143,42 @@ enum DayInfoCardStatusUseCase {
         )
         guard let sequence = sequenceByDate[target] else { return nil }
         return (day: sequence, total: pillCount > 0 ? pillCount : nil)
+    }
+
+    private static func predictedStartsForPrimaryStatus(
+        target: Date,
+        today: Date,
+        settings: UserSettings,
+        summaries: [PeriodSummary],
+        pillDates: Set<Date>,
+        context: PeriodPredictionContext,
+        calendar: Calendar
+    ) -> [Date] {
+        let cycleLength = max(context.cycleLength, 1)
+        let searchBase = min(target.startOfDay, today.startOfDay)
+        let searchEndBase = max(target.startOfDay, today.startOfDay)
+        guard let rangeStart = calendar.date(
+            byAdding: .day,
+            value: -cycleLength,
+            to: searchBase
+        )?.startOfDay,
+              let rangeEndExclusive = calendar.date(
+                byAdding: .day,
+                value: cycleLength * 2 + max(context.predictedLength, 1),
+                to: searchEndBase
+              )?.startOfDay else {
+            return []
+        }
+
+        return PeriodForecastCalculator.predictedPeriodStarts(
+            rangeStart: rangeStart,
+            rangeEndExclusive: rangeEndExclusive,
+            today: today,
+            settings: settings,
+            periodSummaries: summaries,
+            pillDates: pillDates,
+            calendar: calendar
+        )
     }
     
     private static func pillBreakInfo(
