@@ -67,11 +67,13 @@ enum BuildCalendarMonthComputationContextUseCase {
         )
         var predictedEventsByDay = prediction.predictedEventsByDay
         
-        if let pillPrediction = pillBasedPeriodPrediction(
+        if projection != nil,
+           let sharedPrediction = sharedPeriodPrediction(
             rangeStart: bounds.start,
             rangeEndExclusive: bounds.endExclusive,
             settings: settings,
-            projection: projection,
+            periodSummaries: periodSummaries,
+            pillDates: allPillDates,
             today: normalizedToday,
             predictedLengthDays: PeriodForecastCalculator.predictedPeriodLengthDays(
                 settings: settings,
@@ -84,7 +86,7 @@ enum BuildCalendarMonthComputationContextUseCase {
                     $0 != .period && $0 != .delayed && $0 != .ovulation && $0 != .fertile
                 } ?? []
             }
-            for (key, types) in pillPrediction {
+            for (key, types) in sharedPrediction {
                 var merged = predictedEventsByDay[key, default: []]
                 for type in types where !merged.contains(type) {
                     merged.append(type)
@@ -156,24 +158,26 @@ enum BuildCalendarMonthComputationContextUseCase {
         return rounded > 0 ? rounded : nil
     }
     
-    private static func pillBasedPeriodPrediction(
+    private static func sharedPeriodPrediction(
         rangeStart: Date,
         rangeEndExclusive: Date,
         settings: UserSettings,
-        projection: PillCycleProjection?,
+        periodSummaries: [PeriodSummary],
+        pillDates: Set<Date>,
         today: Date,
         predictedLengthDays: Int,
         calendar: Calendar
     ) -> [Date: [EventType]]? {
-        let pillSettings = settings.pill
-        guard pillSettings.pillEnabled else { return nil }
-        let pillCount = max(pillSettings.pillCount, 0)
-        let breakDays = max(pillSettings.pillBreakDuration, 0)
-        let cycleLength = pillCount + breakDays
-        guard pillCount > 0, cycleLength > 0 else { return nil }
-        guard let projection else { return nil }
-        guard let firstPredictedStart = calendar.date(byAdding: .day, value: 3, to: projection.projectedLastIntakeDate),
-              firstPredictedStart.startOfDay >= projection.cycleStart.startOfDay else {
+        let starts = PeriodForecastCalculator.predictedPeriodStarts(
+            rangeStart: rangeStart,
+            rangeEndExclusive: rangeEndExclusive,
+            today: today,
+            settings: settings,
+            periodSummaries: periodSummaries,
+            pillDates: pillDates,
+            calendar: calendar
+        )
+        guard starts.isEmpty == false else {
             return nil
         }
         
@@ -182,25 +186,20 @@ enum BuildCalendarMonthComputationContextUseCase {
         let lengthDays = max(predictedLengthDays, 1)
         let lutealDays = 14
         var predicted: [Date: [EventType]] = [:]
-        var cyclePredictedStart = firstPredictedStart.startOfDay
         
-        while true {
+        for cyclePredictedStart in starts.map(\.startOfDay) {
             guard let cycleEndExclusive = calendar.date(byAdding: .day, value: lengthDays, to: cyclePredictedStart) else {
-                break
+                continue
             }
             let ovulation = calendar.date(byAdding: .day, value: -lutealDays, to: cyclePredictedStart)!.startOfDay
             let fertileStart = calendar.date(byAdding: .day, value: -5, to: ovulation)!.startOfDay
             let fertileEnd = calendar.date(byAdding: .day, value: 1, to: ovulation)!.startOfDay
             
             if cycleEndExclusive <= normalizedStart {
-                guard let nextCycleStart = calendar.date(byAdding: .day, value: cycleLength, to: cyclePredictedStart) else {
-                    break
-                }
-                cyclePredictedStart = nextCycleStart.startOfDay
                 continue
             }
             if fertileStart >= normalizedEnd {
-                break
+                continue
             }
             
             for day in Date.dates(from: cyclePredictedStart, toExclusive: cycleEndExclusive) {
@@ -217,11 +216,6 @@ enum BuildCalendarMonthComputationContextUseCase {
             if ovulation >= normalizedStart && ovulation < normalizedEnd {
                 predicted[ovulation, default: []].append(.ovulation)
             }
-            
-            guard let nextCycleStart = calendar.date(byAdding: .day, value: cycleLength, to: cyclePredictedStart) else {
-                break
-            }
-            cyclePredictedStart = nextCycleStart.startOfDay
         }
         
         return predicted.mapValues { types in
