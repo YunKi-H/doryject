@@ -57,9 +57,7 @@ struct BloodyDayWidgetEntryView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            if entry.snapshot.chips.isEmpty == false {
-                chipRow(entry.snapshot.chips)
-            }
+            chipRow(entry.snapshot.chips)
             
             VStack(alignment: .leading, spacing: 1) {
                 WidgetPrimaryStatusText(text: entry.snapshot.primaryText, color: .mainRed)
@@ -104,6 +102,7 @@ struct BloodyDayWidgetEntryView: View {
                 chipView(chip)
             }
         }
+        .frame(height: 22, alignment: .leading)
     }
     
     private func chipView(_ chip: WidgetChipSnapshot) -> some View {
