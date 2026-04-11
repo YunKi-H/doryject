@@ -411,14 +411,7 @@ struct BloodyDayLockScreenRectangularWidget: Widget {
 }
 
 private func lockScreenChipTextColor(_ chip: WidgetChipSnapshot) -> Color {
-    switch chip.kind {
-    case .period:
-        return .pointRed
-    case .pill:
-        return .pointBlue
-    case .fertility:
-        return .textPrimary
-    }
+    .primary
 }
 
 private func lockScreenPrimarySubText(_ text: String?) -> String? {
