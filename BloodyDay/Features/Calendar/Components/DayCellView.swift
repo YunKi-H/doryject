@@ -19,16 +19,16 @@ struct DayCellView: View {
     private var isToday: Bool { day.date.isSameDay(as: .now) }
     private var pill: DayEvent? { day.events.first(where: { $0.type == .pill }) }
     private var love: DayEvent? { day.events.first(where: { $0.type == .love }) }
+    private var isInCurrentMonth: Bool { day.date.isInSameMonth(as: monthDate) }
     private var dateFontColor: Color {
         if isToday { return .bgSecondary }
         if isSelected && day.events.contains(where: { $0.type == .period }) { return .textPrimary }
         if isPredictedPeriodDay {
-            return day.date.isInSameMonth(as: monthDate) ? .textPrimary : .textQuaternary
+            return .textPrimary
         }
         if day.events.contains(where: { $0.type == .period }) {
-            return day.date.isInSameMonth(as: monthDate) ? .textPoint : .textPoint50
+            return .textPoint
         }
-        if !day.date.isInSameMonth(as: monthDate) { return .textQuaternary }
         return .textPrimary
     }
     
@@ -42,19 +42,19 @@ struct DayCellView: View {
                         if day.events.contains(where: { $0.type.isCycleRelated }) {
                             Capsule(style: .continuous)
                                 .frame(width: 38, height: 20)
-                                .glassEffect(.clear.tint(isToday ? .textPrimary : .mainNeutral))
-                                .opacity(day.date.isInSameMonth(as: monthDate) ? 1 : 0.3)
+                                .glassEffect(.clear.tint(isToday ? .textPrimary : .bgSecondary))
+                                .opacity(isInCurrentMonth ? 1 : 0.3)
                         } else {
                             Circle()
                                 .frame(width: 30, height: 30)
-                                .glassEffect(.clear.tint(isToday ? .textPrimary : .mainNeutral), in: .circle)
+                                .glassEffect(.clear.tint(isToday ? .textPrimary : .bgSecondary), in: .circle)
                                 .shadow(color: .textTertiary8, radius: 2)
-                                .opacity(day.date.isInSameMonth(as: monthDate) ? 1 : 0.3)
+                                .opacity(isInCurrentMonth ? 1 : 0.3)
                         }
                     }
                 }
+                .opacity(isInCurrentMonth ? 1 : 0.3)
                 .padding(.top, 12)
-            
             
             Spacer()
             
@@ -81,7 +81,7 @@ struct DayCellView: View {
                 }
             }
             .padding(.init(top: 0, leading: 6, bottom: 10, trailing: 6))
-            .opacity(day.date.isInSameMonth(as: monthDate) ? 1 : 0.3)
+            .opacity(isInCurrentMonth ? 1 : 0.3)
         }
         .frame(maxWidth: .infinity)
         .contentShape(Rectangle())

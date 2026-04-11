@@ -57,9 +57,7 @@ struct BloodyDayWidgetEntryView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            if entry.snapshot.chips.isEmpty == false {
-                chipRow(entry.snapshot.chips)
-            }
+            chipRow(entry.snapshot.chips)
             
             VStack(alignment: .leading, spacing: 1) {
                 WidgetPrimaryStatusText(text: entry.snapshot.primaryText, color: .mainRed)
@@ -90,6 +88,12 @@ struct BloodyDayWidgetEntryView: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background {
+            Image(.widgetBlur)
+                .resizable()
+                .scaledToFit()
+                .offset(x: -33, y: -10)
+        }
     }
     
     private func chipRow(_ chips: [WidgetChipSnapshot]) -> some View {
@@ -98,6 +102,7 @@ struct BloodyDayWidgetEntryView: View {
                 chipView(chip)
             }
         }
+        .frame(height: 22, alignment: .leading)
     }
     
     private func chipView(_ chip: WidgetChipSnapshot) -> some View {
@@ -268,10 +273,10 @@ private struct WidgetPrimaryStatusText: View {
             }
         }
         
-        var iconBaselineOffset: CGFloat {
+        var iconTopPadding: CGFloat {
             switch self {
-            case .regular: return 6
-            case .compact: return 4
+            case .regular: return 2
+            case .compact: return 2
             }
         }
     }
@@ -281,7 +286,7 @@ private struct WidgetPrimaryStatusText: View {
     var style: Style = .regular
     
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 0) {
+        HStack(alignment: .center, spacing: 0) {
             if text.hasPrefix("B-") {
                 bIcon
                 symbol("-")
@@ -300,7 +305,6 @@ private struct WidgetPrimaryStatusText: View {
         }
         .foregroundStyle(color)
         .lineLimit(1)
-        .minimumScaleFactor(0.7)
     }
     
     private var bIcon: some View {
@@ -309,9 +313,8 @@ private struct WidgetPrimaryStatusText: View {
             .scaledToFit()
             .frame(width: style.iconSize, height: style.iconSize)
             .foregroundStyle(color)
-            .alignmentGuide(.firstTextBaseline) { context in
-                context[VerticalAlignment.center] + style.iconBaselineOffset
-            }
+            .padding(.top, style.iconTopPadding)
+            .padding(.trailing, 1)
     }
     
     private func symbol(_ text: String) -> Text {
@@ -440,10 +443,9 @@ private func lockScreenRectangularChip(_ chip: WidgetChipSnapshot) -> some View 
 private func lockScreenCircularChip(_ chip: WidgetChipSnapshot) -> some View {
     HStack(spacing: 2) {
         lockScreenChipIcon(chip)
-            .foregroundStyle(.textPrimary)
         Text(chip.text)
             .font(.medium_9)
-            .foregroundStyle(.textPrimary)
+            .foregroundStyle(.primary)
             .lineLimit(1)
             .minimumScaleFactor(0.7)
     }
