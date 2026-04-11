@@ -274,6 +274,12 @@ private struct WidgetPrimaryStatusText: View {
             }
         }
         
+        var iconTopPadding: CGFloat {
+            switch self {
+            case .regular: return 2
+            case .compact: return 2
+            }
+        }
     }
     
     let text: String
@@ -308,7 +314,7 @@ private struct WidgetPrimaryStatusText: View {
             .scaledToFit()
             .frame(width: style.iconSize, height: style.iconSize)
             .foregroundStyle(color)
-            .padding(.top, 2)
+            .padding(.top, style.iconTopPadding)
             .padding(.trailing, 1)
     }
     
@@ -438,10 +444,9 @@ private func lockScreenRectangularChip(_ chip: WidgetChipSnapshot) -> some View 
 private func lockScreenCircularChip(_ chip: WidgetChipSnapshot) -> some View {
     HStack(spacing: 2) {
         lockScreenChipIcon(chip)
-            .foregroundStyle(.textPrimary)
         Text(chip.text)
             .font(.medium_9)
-            .foregroundStyle(.textPrimary)
+            .foregroundStyle(.primary)
             .lineLimit(1)
             .minimumScaleFactor(0.7)
     }
