@@ -149,6 +149,7 @@ struct BloodyDayRootView: View {
                     BloodyDayTabBar(size: $0.size, activeTab: $activeTab) { tab in
                         VStack(spacing: 3) {
                             Image(systemName: tab.symbol)
+                                .foregroundStyle(.icon)
                                 .font(.title3)
                             
                             Text(tab.rawValue)
