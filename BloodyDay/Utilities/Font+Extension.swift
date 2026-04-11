@@ -90,4 +90,30 @@ extension Font {
     static var semibold_32: Font {
         return pretendard(.semibold, fixedSize: 32)
     }
+    
+    static var bold_22: Font {
+        return pretendard(.bold, fixedSize: 22)
+    }
+}
+
+extension Font {
+    static func clarendon(size fontSize: CGFloat) -> Font {
+        return Font.custom("Clarendon Bold", fixedSize: fontSize)
+    }
+    
+    static func clarendon(fixedSize fontSize: CGFloat) -> Font {
+        return Font.custom("Clarendon Bold", fixedSize: fontSize)
+    }
+    
+    static var clarendon_16: Font {
+        return Font.clarendon(fixedSize: 16)
+    }
+    
+    static var clarendon_24: Font {
+        return Font.clarendon(fixedSize: 24)
+    }
+    
+    static var clarendon_26: Font {
+        return Font.clarendon(fixedSize: 26)
+    }
 }
