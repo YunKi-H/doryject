@@ -226,7 +226,7 @@ struct BloodyDayWidget: Widget {
         AppIntentConfiguration(kind: kind, intent: ConfigurationAppIntent.self, provider: Provider()) { entry in
             BloodyDayWidgetEntryView(entry: entry)
                 .containerBackground(for: .widget) {
-                    Color.clear
+                    Color(uiColor: .bgSecondary)
                 }
         }
         .supportedFamilies([.systemSmall])
@@ -359,7 +359,7 @@ struct BloodyDayLockScreenCircularWidget: Widget {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .containerBackground(for: .widget) {
-                Color.clear
+                Color(uiColor: .bgSecondary)
             }
         }
         .supportedFamilies([.accessoryCircular])
@@ -402,7 +402,7 @@ struct BloodyDayLockScreenRectangularWidget: Widget {
             .padding(.vertical, 8)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             .containerBackground(for: .widget) {
-                Color.clear
+                Color(uiColor: .bgSecondary)
             }
         }
         .supportedFamilies([.accessoryRectangular])
