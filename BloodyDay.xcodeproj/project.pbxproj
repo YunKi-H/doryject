@@ -72,6 +72,7 @@
 				Domain/UseCases/PeriodForecastCalculator.swift,
 				Domain/UseCases/PeriodSummaryBuilder.swift,
 				Domain/UseCases/PillCycleCalculator.swift,
+				Domain/UseCases/PredictedCycleEventBuilder.swift,
 				Features/Calendar/UseCases/BuildCalendarMonthComputationContextUseCase.swift,
 				Resources/Assets.xcassets,
 				"Resources/Fonts/Clarendon Bold.otf",
@@ -79,7 +80,6 @@
 				"Resources/Fonts/Pretendard-Medium.otf",
 				"Resources/Fonts/Pretendard-Regular.otf",
 				"Resources/Fonts/Pretendard-SemiBold.otf",
-				Utilities/CyclePrediction.swift,
 				"Utilities/Date+Extension.swift",
 				"Utilities/Font+Extension.swift",
 			);

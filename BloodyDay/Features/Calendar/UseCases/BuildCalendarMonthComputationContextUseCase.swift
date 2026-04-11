@@ -57,43 +57,27 @@ enum BuildCalendarMonthComputationContextUseCase {
         )
         
         let periodSummaries = PeriodSummaryBuilder.build(from: allPeriodEvents.map(\.date))
-        let manualAverages = manualCycleAverages(for: settings)
-        let prediction = CyclePrediction.predictEvents(
-            periodEvents: allPeriodEvents,
-            rangeStart: bounds.start,
-            rangeEndExclusive: bounds.endExclusive,
-            avgCycleDays: manualAverages.cycleDays,
-            avgPeriodDays: manualAverages.periodDays
+        let predictedLengthDays = PeriodForecastCalculator.predictedPeriodLengthDays(
+            settings: settings,
+            periodSummaries: periodSummaries
         )
-        var predictedEventsByDay = prediction.predictedEventsByDay
-        
-        if projection != nil,
-           let sharedPrediction = sharedPeriodPrediction(
+        let predictedPeriodStarts = PeriodForecastCalculator.predictedPeriodStarts(
             rangeStart: bounds.start,
             rangeEndExclusive: bounds.endExclusive,
+            today: normalizedToday,
             settings: settings,
             periodSummaries: periodSummaries,
             pillDates: allPillDates,
-            today: normalizedToday,
-            predictedLengthDays: PeriodForecastCalculator.predictedPeriodLengthDays(
-                settings: settings,
-                periodSummaries: periodSummaries
-            ),
             calendar: calendar
-        ) {
-            for key in predictedEventsByDay.keys {
-                predictedEventsByDay[key] = predictedEventsByDay[key]?.filter {
-                    $0 != .period && $0 != .delayed && $0 != .ovulation && $0 != .fertile
-                } ?? []
-            }
-            for (key, types) in sharedPrediction {
-                var merged = predictedEventsByDay[key, default: []]
-                for type in types where !merged.contains(type) {
-                    merged.append(type)
-                }
-                predictedEventsByDay[key] = merged
-            }
-        }
+        )
+        var predictedEventsByDay = PredictedCycleEventBuilder.buildEvents(
+            predictedPeriodStarts: predictedPeriodStarts,
+            rangeStart: bounds.start,
+            rangeEndExclusive: bounds.endExclusive,
+            predictedLengthDays: predictedLengthDays,
+            today: normalizedToday,
+            calendar: calendar
+        )
         
         if let pillCycleRange {
             for key in predictedEventsByDay.keys {
@@ -116,7 +100,7 @@ enum BuildCalendarMonthComputationContextUseCase {
         
         let estimatedCycleLength =
         projection?.cycleLength ??
-        manualAverages.cycleDays ??
+        manualCycleDays(for: settings) ??
         averageCycleLengthDays(from: periodSummaries)
         
         PeriodForecastCalculator.suppressPredictedCycleArtifactsOverlappingActualPeriods(
@@ -142,12 +126,12 @@ enum BuildCalendarMonthComputationContextUseCase {
         )
     }
     
-    private static func manualCycleAverages(for settings: UserSettings) -> (cycleDays: Int?, periodDays: Int?) {
+    private static func manualCycleDays(for settings: UserSettings) -> Int? {
         let periodSettings = settings.period
         guard periodSettings.autoCyclePredictionEnabled == false else {
-            return (nil, nil)
+            return nil
         }
-        return (periodSettings.averageCycleDays, periodSettings.averagePeriodDays)
+        return periodSettings.averageCycleDays
     }
     
     private static func averageCycleLengthDays(from summaries: [PeriodSummary]) -> Int? {
@@ -156,77 +140,6 @@ enum BuildCalendarMonthComputationContextUseCase {
         let avg = Double(cycleDays.reduce(0, +)) / Double(cycleDays.count)
         let rounded = Int(round(avg))
         return rounded > 0 ? rounded : nil
-    }
-    
-    private static func sharedPeriodPrediction(
-        rangeStart: Date,
-        rangeEndExclusive: Date,
-        settings: UserSettings,
-        periodSummaries: [PeriodSummary],
-        pillDates: Set<Date>,
-        today: Date,
-        predictedLengthDays: Int,
-        calendar: Calendar
-    ) -> [Date: [EventType]]? {
-        let starts = PeriodForecastCalculator.predictedPeriodStarts(
-            rangeStart: rangeStart,
-            rangeEndExclusive: rangeEndExclusive,
-            today: today,
-            settings: settings,
-            periodSummaries: periodSummaries,
-            pillDates: pillDates,
-            calendar: calendar
-        )
-        guard starts.isEmpty == false else {
-            return nil
-        }
-        
-        let normalizedStart = rangeStart.startOfDay
-        let normalizedEnd = rangeEndExclusive.startOfDay
-        let lengthDays = max(predictedLengthDays, 1)
-        let lutealDays = 14
-        var predicted: [Date: [EventType]] = [:]
-        
-        for cyclePredictedStart in starts.map(\.startOfDay) {
-            guard let cycleEndExclusive = calendar.date(byAdding: .day, value: lengthDays, to: cyclePredictedStart) else {
-                continue
-            }
-            let ovulation = calendar.date(byAdding: .day, value: -lutealDays, to: cyclePredictedStart)!.startOfDay
-            let fertileStart = calendar.date(byAdding: .day, value: -5, to: ovulation)!.startOfDay
-            let fertileEnd = calendar.date(byAdding: .day, value: 1, to: ovulation)!.startOfDay
-            
-            if cycleEndExclusive <= normalizedStart {
-                continue
-            }
-            if fertileStart >= normalizedEnd {
-                continue
-            }
-            
-            for day in Date.dates(from: cyclePredictedStart, toExclusive: cycleEndExclusive) {
-                guard day >= normalizedStart && day < normalizedEnd else { continue }
-                let type: EventType = day < today ? .delayed : .period
-                predicted[day, default: []].append(type)
-            }
-            
-            for day in Date.dates(from: fertileStart, to: fertileEnd) {
-                guard day >= normalizedStart && day < normalizedEnd else { continue }
-                predicted[day, default: []].append(.fertile)
-            }
-            
-            if ovulation >= normalizedStart && ovulation < normalizedEnd {
-                predicted[ovulation, default: []].append(.ovulation)
-            }
-        }
-        
-        return predicted.mapValues { types in
-            var seen: Set<EventType> = []
-            var unique: [EventType] = []
-            for type in types where !seen.contains(type) {
-                seen.insert(type)
-                unique.append(type)
-            }
-            return unique
-        }
     }
     
     private static func projectedPillCycleRangeForFertilitySuppression(
