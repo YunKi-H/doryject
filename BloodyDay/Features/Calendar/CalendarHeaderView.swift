@@ -62,7 +62,7 @@ struct CalendarHeaderView: View {
                     NavigationLink {
                         NotificationSettingView(viewModel: notificationViewModel)
                     } label: {
-                        Label("알림 설정", systemImage: "bell")
+                        Label("알림 설정", systemImage: "bell.fill")
                     }
                     
                     NavigationLink {
