@@ -62,11 +62,7 @@ struct BloodyDayWidgetEntryView: View {
             }
             
             VStack(alignment: .leading, spacing: 1) {
-                Text(entry.snapshot.primaryText)
-                    .font(.semibold_32)
-                    .foregroundStyle(.textPrimary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
+                WidgetPrimaryStatusText(text: entry.snapshot.primaryText, color: .mainRed)
                 
                 Group {
                     if let primarySubText = entry.snapshot.primarySubText {
@@ -239,6 +235,101 @@ struct BloodyDayWidget: Widget {
     }
 }
 
+private struct WidgetPrimaryStatusText: View {
+    enum Style {
+        case regular
+        case compact
+        
+        var iconSize: CGFloat {
+            switch self {
+            case .regular: return 17.5
+            case .compact: return 11.5
+            }
+        }
+        
+        var valueFont: Font {
+            switch self {
+            case .regular: return .clarendon_26
+            case .compact: return .clarendon_16
+            }
+        }
+        
+        var lateFont: Font {
+            switch self {
+            case .regular: return .clarendon_24
+            case .compact: return .clarendon_16
+            }
+        }
+        
+        var symbolFont: Font {
+            switch self {
+            case .regular: return .bold_22
+            case .compact: return .semibold_14
+            }
+        }
+        
+        var iconBaselineOffset: CGFloat {
+            switch self {
+            case .regular: return 6
+            case .compact: return 4
+            }
+        }
+    }
+    
+    let text: String
+    let color: Color
+    var style: Style = .regular
+    
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 0) {
+            if text.hasPrefix("B-") {
+                bIcon
+                symbol("-")
+                value(String(text.dropFirst(2)))
+            } else if text.hasPrefix("B+") {
+                bIcon
+                symbol("+")
+                value(String(text.dropFirst(2)))
+            } else if text.hasPrefix("Late+") {
+                lateValue("Late")
+                symbol("+")
+                value(String(text.dropFirst(5)))
+            } else {
+                value(text)
+            }
+        }
+        .foregroundStyle(color)
+        .lineLimit(1)
+        .minimumScaleFactor(0.7)
+    }
+    
+    private var bIcon: some View {
+        Image(.widgetIcon)
+            .resizable()
+            .scaledToFit()
+            .frame(width: style.iconSize, height: style.iconSize)
+            .foregroundStyle(color)
+            .alignmentGuide(.firstTextBaseline) { context in
+                context[VerticalAlignment.center] + style.iconBaselineOffset
+            }
+    }
+    
+    private func symbol(_ text: String) -> Text {
+        Text(text)
+            .font(style.symbolFont)
+    }
+    
+    private func value(_ text: String) -> Text {
+        Text(text)
+            .font(style.valueFont)
+    }
+    
+    private func lateValue(_ text: String) -> Text {
+        Text(text)
+            .font(style.lateFont)
+    }
+}
+
 struct BloodyDayLockScreenCircularWidget: Widget {
     let kind: String = "BloodyDayLockScreenCircularWidget"
     
@@ -248,11 +339,11 @@ struct BloodyDayLockScreenCircularWidget: Widget {
                 Circle()
                     .fill(.fill.tertiary)
                 VStack(spacing: 4) {
-                    Text(entry.snapshot.primaryText)
-                        .font(.semibold_18)
-                        .foregroundStyle(.textPrimary)
-                        .multilineTextAlignment(.center)
-                        .minimumScaleFactor(0.7)
+                    WidgetPrimaryStatusText(
+                        text: entry.snapshot.primaryText,
+                        color: .primary,
+                        style: .compact
+                    )
                     
                     Group {
                         if let firstChip = entry.snapshot.chips.first {
@@ -283,9 +374,7 @@ struct BloodyDayLockScreenRectangularWidget: Widget {
         AppIntentConfiguration(kind: kind, intent: ConfigurationAppIntent.self, provider: Provider()) { entry in
             VStack(alignment: .leading, spacing: 2) {
                 VStack(alignment: .leading, spacing: 0) {
-                    Text(entry.snapshot.primaryText)
-                        .font(.semibold_32)
-                        .lineLimit(1)
+                    WidgetPrimaryStatusText(text: entry.snapshot.primaryText, color: .primary)
                     
                     Group {
                         if let primarySubText = lockScreenPrimarySubText(entry.snapshot.primarySubText) {

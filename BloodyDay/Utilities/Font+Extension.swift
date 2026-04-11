@@ -98,11 +98,19 @@ extension Font {
 
 extension Font {
     static func clarendon(size fontSize: CGFloat) -> Font {
-        return Font.custom("Clalendon Bold", fixedSize: fontSize)
+        return Font.custom("Clarendon Bold", fixedSize: fontSize)
     }
     
     static func clarendon(fixedSize fontSize: CGFloat) -> Font {
-        return Font.custom("Clalendon Bold", fixedSize: fontSize)
+        return Font.custom("Clarendon Bold", fixedSize: fontSize)
+    }
+    
+    static var clarendon_16: Font {
+        return Font.clarendon(fixedSize: 16)
+    }
+    
+    static var clarendon_24: Font {
+        return Font.clarendon(fixedSize: 24)
     }
     
     static var clarendon_26: Font {

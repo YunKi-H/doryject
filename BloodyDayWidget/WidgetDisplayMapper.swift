@@ -16,8 +16,8 @@ enum WidgetDisplayMapper {
             return "B+\(day)"
         case .bDay:
             return "B-DAY"
-        case .delayed:
-            return "생리 지연"
+        case .delayed(let days):
+            return "Late+\(days)"
         case .unknown:
             return "B-DAY"
         }
