@@ -274,12 +274,6 @@ private struct WidgetPrimaryStatusText: View {
             }
         }
         
-        var iconBaselineOffset: CGFloat {
-            switch self {
-            case .regular: return 6
-            case .compact: return 4
-            }
-        }
     }
     
     let text: String
@@ -287,7 +281,7 @@ private struct WidgetPrimaryStatusText: View {
     var style: Style = .regular
     
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 0) {
+        HStack(alignment: .center, spacing: 1) {
             if text.hasPrefix("B-") {
                 bIcon
                 symbol("-")
@@ -306,7 +300,6 @@ private struct WidgetPrimaryStatusText: View {
         }
         .foregroundStyle(color)
         .lineLimit(1)
-        .minimumScaleFactor(0.7)
     }
     
     private var bIcon: some View {
@@ -315,9 +308,7 @@ private struct WidgetPrimaryStatusText: View {
             .scaledToFit()
             .frame(width: style.iconSize, height: style.iconSize)
             .foregroundStyle(color)
-            .alignmentGuide(.firstTextBaseline) { context in
-                context[VerticalAlignment.center] + style.iconBaselineOffset
-            }
+            .padding(.top, 2)
     }
     
     private func symbol(_ text: String) -> Text {
