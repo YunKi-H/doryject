@@ -90,6 +90,12 @@ struct BloodyDayWidgetEntryView: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background {
+            Image(.widgetBlur)
+                .resizable()
+                .scaledToFit()
+                .offset(x: -33, y: -10)
+        }
     }
     
     private func chipRow(_ chips: [WidgetChipSnapshot]) -> some View {
