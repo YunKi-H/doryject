@@ -281,7 +281,7 @@ private struct WidgetPrimaryStatusText: View {
     var style: Style = .regular
     
     var body: some View {
-        HStack(alignment: .center, spacing: 1) {
+        HStack(alignment: .center, spacing: 0) {
             if text.hasPrefix("B-") {
                 bIcon
                 symbol("-")
@@ -309,6 +309,7 @@ private struct WidgetPrimaryStatusText: View {
             .frame(width: style.iconSize, height: style.iconSize)
             .foregroundStyle(color)
             .padding(.top, 2)
+            .padding(.trailing, 1)
     }
     
     private func symbol(_ text: String) -> Text {
