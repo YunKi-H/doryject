@@ -29,36 +29,40 @@ final class AppleCalendarSettingViewModel {
     }
     
     func setEnabled(_ enabled: Bool) async {
-        settings = repo.update {
+        let updated = repo.update {
             $0.appleCalendar.isEnabled = enabled
         }
+        settings = updated
         if enabled {
             await setupCalendarsIfNeeded()
             await syncService.syncAll()
         } else {
-            let identifiers = ownedCalendarIdentifiers()
+            let identifiers = ownedCalendarIdentifiers(from: updated.appleCalendar)
             await syncService.disableAll(calendarIdentifiers: identifiers)
-            settings.appleCalendar.calendarIdentifiers = [:]
-            settings.appleCalendar.calendarOwnership = [:]
-            repo.save(settings)
+            settings = repo.update {
+                $0.appleCalendar.calendarIdentifiers = [:]
+                $0.appleCalendar.calendarOwnership = [:]
+            }
         }
     }
     
     func setEventEnabled(_ type: EventType, _ enabled: Bool) async {
         guard supportedTypes.contains(type) else { return }
-        settings = repo.update {
+        let updated = repo.update {
             $0.appleCalendar.eventSyncEnabled[type] = enabled
         }
-        if enabled && settings.appleCalendar.isEnabled {
+        settings = updated
+        if enabled && updated.appleCalendar.isEnabled {
             await ensureCalendar(for: type)
             await syncService.syncAll()
         } else if !enabled {
-            if settings.appleCalendar.calendarOwnership[type] == true {
-                await syncService.disable(type: type, calendarIdentifier: settings.appleCalendar.calendarIdentifiers[type])
+            if updated.appleCalendar.calendarOwnership[type] == true {
+                await syncService.disable(type: type, calendarIdentifier: updated.appleCalendar.calendarIdentifiers[type])
             }
-            settings.appleCalendar.calendarIdentifiers[type] = nil
-            settings.appleCalendar.calendarOwnership[type] = nil
-            repo.save(settings)
+            settings = repo.update {
+                $0.appleCalendar.calendarIdentifiers[type] = nil
+                $0.appleCalendar.calendarOwnership[type] = nil
+            }
             await syncService.syncAll()
         }
     }
@@ -66,14 +70,15 @@ final class AppleCalendarSettingViewModel {
     func setCalendarName(_ type: EventType, _ name: String) async {
         guard supportedTypes.contains(type) else { return }
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        settings = repo.update {
+        let updated = repo.update {
             if trimmed.isEmpty {
                 $0.appleCalendar.calendarNames[type] = nil
             } else {
                 $0.appleCalendar.calendarNames[type] = trimmed
             }
         }
-        if settings.appleCalendar.isEnabled && isEventEnabled(type) {
+        settings = updated
+        if updated.appleCalendar.isEnabled && isEventEnabled(type) {
             await ensureCalendar(for: type)
             await syncService.syncAll()
         }
@@ -113,25 +118,27 @@ final class AppleCalendarSettingViewModel {
         let existing = settings.appleCalendar.calendarIdentifiers[type]
         let identifier = calendarClient.createOrFetchCalendar(name: name, existingIdentifier: existing)
         if let identifier {
-            settings.appleCalendar.calendarIdentifiers[type] = identifier
-            if existing == nil {
-                settings.appleCalendar.calendarOwnership[type] = true
+            settings = repo.update {
+                $0.appleCalendar.calendarIdentifiers[type] = identifier
+                if existing == nil {
+                    $0.appleCalendar.calendarOwnership[type] = true
+                }
             }
-            repo.save(settings)
         }
     }
     
     private func ensureDefaults() {
-        if settings.appleCalendar.calendarNames.isEmpty {
-            settings.appleCalendar.calendarNames = AppleCalendarSettings.defaultCalendarNames
+        settings = repo.update {
+            if $0.appleCalendar.calendarNames.isEmpty {
+                $0.appleCalendar.calendarNames = AppleCalendarSettings.defaultCalendarNames
+            }
+            if $0.appleCalendar.eventSyncEnabled.isEmpty {
+                $0.appleCalendar.eventSyncEnabled = AppleCalendarSettings.defaultEventSyncEnabled
+            }
         }
-        if settings.appleCalendar.eventSyncEnabled.isEmpty {
-            settings.appleCalendar.eventSyncEnabled = AppleCalendarSettings.defaultEventSyncEnabled
-        }
-        repo.save(settings)
     }
     
-    private func ownedCalendarIdentifiers() -> [EventType: String] {
-        settings.appleCalendar.calendarIdentifiers.filter { settings.appleCalendar.calendarOwnership[$0.key] == true }
+    private func ownedCalendarIdentifiers(from appleCalendar: AppleCalendarSettings) -> [EventType: String] {
+        appleCalendar.calendarIdentifiers.filter { appleCalendar.calendarOwnership[$0.key] == true }
     }
 }
