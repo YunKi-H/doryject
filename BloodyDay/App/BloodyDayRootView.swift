@@ -121,7 +121,6 @@ struct BloodyDayRootView: View {
                         eventRepository: syncingRepository
                     )
                 }
-                notificationSettingsViewModel?.refreshSchedules()
                 if pillSettingsViewModel == nil {
                     pillSettingsViewModel = PillSettingsViewModel(repo: settingsRepository)
                 }
@@ -132,13 +131,23 @@ struct BloodyDayRootView: View {
                         syncService: appleCalendarSyncService!
                     )
                 }
-                widgetReloader.reloadAll()
+                refreshAppStateAfterExternalChanges()
             }
-            .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
-                notificationSettingsViewModel?.refreshSchedules()
-                widgetReloadService?.reloadAll()
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+                refreshAppStateAfterExternalChanges()
             }
         }
+    }
+    
+    private func refreshAppStateAfterExternalChanges() {
+        calendarViewModel?.refresh()
+        periodListViewModel?.refresh()
+        pillSettingsViewModel?.reload()
+        notificationSettingsViewModel?.refreshSchedules()
+        Task {
+            await appleCalendarSyncService?.syncAll()
+        }
+        widgetReloadService?.reloadAll()
     }
     
     @ViewBuilder

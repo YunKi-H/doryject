@@ -38,20 +38,34 @@ struct DayCellView: View {
                 .font(.medium_16)
                 .foregroundStyle(dateFontColor)
                 .background {
-                    if isToday || isSelected {
-                        if day.events.contains(where: { $0.type.isCycleRelated }) {
-                            Capsule(style: .continuous)
-                                .frame(width: 38, height: 20)
-                                .glassEffect(.clear.tint(isToday ? .textPrimary : .bgSecondary))
-                                .opacity(isInCurrentMonth ? 1 : 0.3)
-                        } else {
-                            Circle()
-                                .frame(width: 30, height: 30)
-                                .glassEffect(.clear.tint(isToday ? .textPrimary : .bgSecondary), in: .circle)
-                                .shadow(color: .textTertiary8, radius: 2)
-                                .opacity(isInCurrentMonth ? 1 : 0.3)
+                    ZStack {
+                        if isSelected {
+                            if day.events.contains(where: { $0.type.isCycleRelated }) {
+                                Capsule(style: .continuous)
+                                    .frame(width: isToday ? 42 : 38, height: isToday ? 24 : 20)
+                                    .glassEffect(.clear.tint(.mainNeutral))
+                            } else {
+                                Circle()
+                                    .frame(width: isToday ? 34 : 30, height: isToday ? 34 : 30)
+                                    .glassEffect(.clear.tint(.mainNeutral), in: .circle)
+                                    .shadow(color: .textTertiary8, radius: 2)
+                            }
+                        }
+                        
+                        if isToday {
+                            if day.events.contains(where: { $0.type.isCycleRelated }) {
+                                Capsule(style: .continuous)
+                                    .frame(width: 38, height: 20)
+                                    .glassEffect(.clear.tint(.textPrimary))
+                            } else {
+                                Circle()
+                                    .frame(width: 30, height: 30)
+                                    .glassEffect(.clear.tint(.textPrimary), in: .circle)
+                                    .shadow(color: .textTertiary8, radius: 2)
+                            }
                         }
                     }
+                    .opacity(isInCurrentMonth ? 1 : 0.3)
                 }
                 .opacity(isInCurrentMonth ? 1 : 0.3)
                 .padding(.top, 12)
