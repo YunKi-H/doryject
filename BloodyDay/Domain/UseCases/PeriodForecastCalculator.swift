@@ -335,6 +335,55 @@ enum PeriodForecastCalculator {
             .sorted()
     }
     
+    static func predictedPeriodStarts(
+        rangeStart: Date,
+        rangeEndExclusive: Date,
+        today: Date,
+        settings: UserSettings,
+        periodSummaries: [PeriodSummary],
+        pillDates: Set<Date>,
+        calendar: Calendar = .current
+    ) -> [Date] {
+        let normalizedToday = today.startOfDay
+        guard let context = predictionContext(
+            target: normalizedToday,
+            settings: settings,
+            periodSummaries: periodSummaries,
+            pillDates: pillDates,
+            calendar: calendar
+        ) else {
+            return []
+        }
+        
+        let rawStarts = rawPredictedPeriodStarts(
+            rangeStart: rangeStart,
+            rangeEndExclusive: rangeEndExclusive,
+            today: normalizedToday,
+            context: context,
+            calendar: calendar
+        )
+        guard rawStarts.isEmpty == false else { return [] }
+        
+        return validPredictedPeriodStarts(
+            rawStarts: rawStarts,
+            today: normalizedToday,
+            predictedLength: context.predictedLength,
+            actualPeriodSummaries: periodSummaries,
+            estimatedCycleLength: context.cycleLength,
+            calendar: calendar
+        )
+        .filter { start in
+            guard let endExclusive = calendar.date(
+                byAdding: .day,
+                value: max(context.predictedLength, 1),
+                to: start.startOfDay
+            )?.startOfDay else {
+                return false
+            }
+            return endExclusive > rangeStart.startOfDay && start.startOfDay < rangeEndExclusive.startOfDay
+        }
+    }
+    
     private static func pillPredictionContext(
         target: Date,
         settings: UserSettings,
@@ -354,6 +403,53 @@ enum PeriodForecastCalculator {
         }
         
         return (firstExpected: firstExpected, cycleLength: projection.cycleLength)
+    }
+    
+    private static func rawPredictedPeriodStarts(
+        rangeStart: Date,
+        rangeEndExclusive: Date,
+        today: Date,
+        context: PeriodPredictionContext,
+        calendar: Calendar
+    ) -> [Date] {
+        guard let currentOrContaining = expectedStartDate(
+            target: today,
+            today: today,
+            context: context,
+            calendar: calendar
+        )?.startOfDay else {
+            return []
+        }
+        
+        var rawStarts: [Date] = []
+        var cursor = currentOrContaining
+        if let previous = calendar.date(
+            byAdding: .day,
+            value: -context.cycleLength,
+            to: currentOrContaining
+        )?.startOfDay {
+            rawStarts.append(previous)
+        }
+        rawStarts.append(cursor)
+        
+        guard context.cycleLength > 0 else { return rawStarts }
+        while let following = calendar.date(byAdding: .day, value: context.cycleLength, to: cursor)?.startOfDay {
+            if following >= rangeEndExclusive.startOfDay {
+                break
+            }
+            rawStarts.append(following)
+            cursor = following
+        }
+        return rawStarts.filter { start in
+            guard let endExclusive = calendar.date(
+                byAdding: .day,
+                value: max(context.predictedLength, 1),
+                to: start.startOfDay
+            )?.startOfDay else {
+                return false
+            }
+            return endExclusive > rangeStart.startOfDay && start.startOfDay < rangeEndExclusive.startOfDay
+        }
     }
     
     private static func cycleLengthDays(

@@ -80,6 +80,43 @@ struct BuildCalendarMonthComputationContextUseCaseTests {
         
         #expect(context.predictedPeriodDates.allSatisfy { $0 >= bounds.start && $0 < bounds.endExclusive })
     }
+
+    @Test
+    func execute_alignsPillPredictionWithLatestActualPeriodAnchor() {
+        let actualStart = makeDate(2026, 3, 6)
+        let bounds = (start: makeDate(2026, 4, 1), endExclusive: makeDate(2026, 5, 1))
+
+        var settings = UserSettings()
+        settings.period.autoCyclePredictionEnabled = false
+        settings.period.averageCycleDays = 28
+        settings.period.averagePeriodDays = 5
+        settings.pill.pillEnabled = true
+        settings.pill.pillAutoRecordEnabled = true
+        settings.pill.pillCount = 21
+        settings.pill.pillBreakDuration = 7
+
+        let allPeriodEvents = periodRun(start: actualStart, length: 5)
+        let pillCycleStart = makeDate(2026, 2, 14)
+        let allPillDates: Set<Date> = Set((0..<18).map { addDays(pillCycleStart, $0) })
+
+        let context = BuildCalendarMonthComputationContextUseCase.execute(
+            bounds: bounds,
+            userEvents: [],
+            allPeriodEvents: allPeriodEvents,
+            allPillDates: allPillDates,
+            settings: settings,
+            today: makeDate(2026, 3, 11),
+            calendar: calendar
+        )
+
+        let expectedStart = makeDate(2026, 4, 3)
+        let expectedDates = Set((0..<5).map { addDays(expectedStart, $0) })
+
+        for date in expectedDates {
+            #expect(context.predictedPeriodDates.contains(date))
+            #expect(context.predictedEventsByDay[date]?.contains(.period) == true)
+        }
+    }
     
     private func userEvent(_ type: EventType, on date: Date) -> UserEvent {
         UserEvent(id: UUID(), date: date.startOfDay, type: type)

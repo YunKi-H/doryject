@@ -77,7 +77,7 @@ struct AppleCalendarSyncServiceTests {
     }
 
     @Test
-    func syncAll_usesPillBasedPredictionSequenceLikeCalendarView() async {
+    func syncAll_usesSharedPeriodForecastWhenLatestActualPeriodOverridesPillAnchor() async {
         let today = makeDate(2026, 3, 19)
         var settings = UserSettings()
         settings.period.autoCyclePredictionEnabled = true
@@ -112,8 +112,8 @@ struct AppleCalendarSyncServiceTests {
                 .map(\.start)
         )
 
-        #expect(predictedStarts.contains(makeDate(2026, 4, 29)))
-        #expect(predictedStarts.contains(makeDate(2026, 4, 5)) == false)
+        #expect(predictedStarts.contains(makeDate(2026, 4, 5)))
+        #expect(predictedStarts.contains(makeDate(2026, 4, 29)) == false)
     }
 
     private func makeEvents(type: EventType, start: Date, length: Int) -> [UserEvent] {
