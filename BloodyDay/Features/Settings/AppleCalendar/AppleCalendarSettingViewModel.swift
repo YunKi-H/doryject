@@ -29,6 +29,7 @@ final class AppleCalendarSettingViewModel {
     }
     
     func setEnabled(_ enabled: Bool) async {
+        settings = repo.load()
         settings.appleCalendar.isEnabled = enabled
         repo.save(settings)
         if enabled {
@@ -45,6 +46,7 @@ final class AppleCalendarSettingViewModel {
     
     func setEventEnabled(_ type: EventType, _ enabled: Bool) async {
         guard supportedTypes.contains(type) else { return }
+        settings = repo.load()
         settings.appleCalendar.eventSyncEnabled[type] = enabled
         repo.save(settings)
         if enabled && settings.appleCalendar.isEnabled {
@@ -63,6 +65,7 @@ final class AppleCalendarSettingViewModel {
     
     func setCalendarName(_ type: EventType, _ name: String) async {
         guard supportedTypes.contains(type) else { return }
+        settings = repo.load()
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty {
             settings.appleCalendar.calendarNames[type] = nil

@@ -21,14 +21,18 @@ final class PeriodSettingViewModel {
     }
     
     func setAutoPrediction(_ enabled: Bool) {
-        settings.period.autoCyclePredictionEnabled = enabled
-        repo.save(settings)
+        var latest = repo.load()
+        latest.period.autoCyclePredictionEnabled = enabled
+        settings = latest
+        repo.save(latest)
     }
     
     func updateAverages(cycle: Int?, period: Int?) {
-        settings.period.averageCycleDays = cycle
-        settings.period.averagePeriodDays = period
-        repo.save(settings)
+        var latest = repo.load()
+        latest.period.averageCycleDays = cycle
+        latest.period.averagePeriodDays = period
+        settings = latest
+        repo.save(latest)
     }
     
     func resetAllEvents() {
