@@ -14,6 +14,7 @@ struct CalendarHeaderView: View {
     let periodSettingViewModel: PeriodSettingViewModel
     let pillViewModel: PillSettingsViewModel
     let appleCalendarViewModel: AppleCalendarSettingViewModel
+    let appearanceViewModel: AppearanceSettingViewModel
     
     @State private var datePickerPresented: Bool = false
     @State private var newDate: Date = .now
@@ -63,6 +64,12 @@ struct CalendarHeaderView: View {
                         NotificationSettingView(viewModel: notificationViewModel)
                     } label: {
                         Label("알림 설정", systemImage: "bell.fill")
+                    }
+                    
+                    NavigationLink {
+                        AppearanceSettingView(viewModel: appearanceViewModel)
+                    } label: {
+                        Label("화면 테마", systemImage: "circle.lefthalf.filled")
                     }
                     
                     NavigationLink {
@@ -172,6 +179,7 @@ struct CalendarHeaderView: View {
                 calendarClient: NoopAppleCalendarClient(),
                 syncStore: UserDefaultsAppleCalendarSyncStore()
             )
-        )
+        ),
+        appearanceViewModel: .init(repo: UserDefaultsSettingsRepository())
     )
 }

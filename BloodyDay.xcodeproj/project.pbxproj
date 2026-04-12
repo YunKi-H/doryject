@@ -60,6 +60,7 @@
 				Data/DTO/UserEvent.swift,
 				Domain/Entities/DayEvent.swift,
 				Domain/Entities/EventType.swift,
+				Domain/Entities/Settings/AppearanceSettings.swift,
 				Domain/Entities/Settings/AppleCalendarSettings.swift,
 				Domain/Entities/Settings/NotificationSettings.swift,
 				Domain/Entities/Settings/PeriodSettings.swift,
