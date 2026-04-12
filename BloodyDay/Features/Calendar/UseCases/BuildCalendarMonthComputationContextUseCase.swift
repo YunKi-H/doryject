@@ -98,18 +98,6 @@ enum BuildCalendarMonthComputationContextUseCase {
             }
         }
         
-        let estimatedCycleLength =
-        projection?.cycleLength ??
-        manualCycleDays(for: settings) ??
-        averageCycleLengthDays(from: periodSummaries)
-        
-        PeriodForecastCalculator.suppressPredictedCycleArtifactsOverlappingActualPeriods(
-            predictedEventsByDay: &predictedEventsByDay,
-            actualPeriodSummaries: periodSummaries,
-            estimatedCycleLength: estimatedCycleLength,
-            calendar: calendar
-        )
-        
         var predictedPeriodDates: Set<Date> = []
         for (date, types) in predictedEventsByDay where date >= bounds.start && date < bounds.endExclusive {
             if types.contains(.period) || types.contains(.delayed) {
@@ -124,22 +112,6 @@ enum BuildCalendarMonthComputationContextUseCase {
             predictedEventsByDay: predictedEventsByDay,
             predictedPeriodDates: predictedPeriodDates
         )
-    }
-    
-    private static func manualCycleDays(for settings: UserSettings) -> Int? {
-        let periodSettings = settings.period
-        guard periodSettings.autoCyclePredictionEnabled == false else {
-            return nil
-        }
-        return periodSettings.averageCycleDays
-    }
-    
-    private static func averageCycleLengthDays(from summaries: [PeriodSummary]) -> Int? {
-        let cycleDays = summaries.compactMap(\.cycleDays).filter { $0 > 0 }
-        guard cycleDays.isEmpty == false else { return nil }
-        let avg = Double(cycleDays.reduce(0, +)) / Double(cycleDays.count)
-        let rounded = Int(round(avg))
-        return rounded > 0 ? rounded : nil
     }
     
     private static func projectedPillCycleRangeForFertilitySuppression(
