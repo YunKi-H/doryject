@@ -1,15 +1,15 @@
 //
-//  PillSettingViewModel.swift
+//  AppearanceSettingViewModel.swift
 //  BloodyDay
 //
-//  Created by Yunki on 1/8/26.
+//  Created by Yunki on 4/12/26.
 //
 
 import Foundation
 import Observation
 
 @Observable
-final class PillSettingsViewModel {
+final class AppearanceSettingViewModel {
     private let repo: SettingsRepository
     private(set) var settings: UserSettings
     
@@ -18,12 +18,16 @@ final class PillSettingsViewModel {
         self.settings = repo.load()
     }
     
-    func updatePill(_ update: (inout PillSettings) -> Void) {
+    var selectedAppearance: AppAppearance {
+        settings.appearance.mode
+    }
+    
+    func select(_ appearance: AppAppearance) {
         settings = repo.update {
-            update(&$0.pill)
+            $0.appearance.mode = appearance
         }
     }
-
+    
     func reload() {
         settings = repo.load()
     }

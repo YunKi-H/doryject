@@ -27,8 +27,9 @@ final class NotificationSettingsViewModel {
     }
     
     func updateNotifications(_ update: (inout NotificationSettings) -> Void) {
-        update(&settings.notifications)
-        repo.save(settings)
+        settings = repo.update {
+            update(&$0.notifications)
+        }
         scheduler.apply(settings: settings, eventRepository: eventRepository)
     }
     

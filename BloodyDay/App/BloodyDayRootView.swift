@@ -18,6 +18,7 @@ struct BloodyDayRootView: View {
     @State private var notificationSettingsViewModel: NotificationSettingsViewModel?
     @State private var pillSettingsViewModel: PillSettingsViewModel?
     @State private var appleCalendarSettingsViewModel: AppleCalendarSettingViewModel?
+    @State private var appearanceSettingViewModel: AppearanceSettingViewModel?
     @State private var appleCalendarClient: EventKitAppleCalendarClient?
     @State private var appleCalendarSyncService: AppleCalendarSyncService?
     @State private var notificationScheduler: UserNotificationScheduler?
@@ -34,13 +35,15 @@ struct BloodyDayRootView: View {
                        let notificationViewModel = notificationSettingsViewModel,
                        let periodSettingViewModel = periodSettingViewModel,
                        let pillViewModel = pillSettingsViewModel,
-                       let appleCalendarViewModel = appleCalendarSettingsViewModel {
+                       let appleCalendarViewModel = appleCalendarSettingsViewModel,
+                       let appearanceViewModel = appearanceSettingViewModel {
                         CalendarMainView(
                             viewModel: viewModel,
                             notificationViewModel: notificationViewModel,
                             periodSettingViewModel: periodSettingViewModel,
                             pillViewModel: pillViewModel,
                             appleCalendarViewModel: appleCalendarViewModel,
+                            appearanceViewModel: appearanceViewModel,
                             isPresentedEventSheet: $isPresentedCalendarSheet
                         )
                         .toolbarVisibility(.hidden, for: .tabBar)
@@ -131,23 +134,39 @@ struct BloodyDayRootView: View {
                         syncService: appleCalendarSyncService!
                     )
                 }
+                if appearanceSettingViewModel == nil {
+                    appearanceSettingViewModel = AppearanceSettingViewModel(repo: settingsRepository)
+                }
                 refreshAppStateAfterExternalChanges()
             }
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
                 refreshAppStateAfterExternalChanges()
             }
         }
+        .preferredColorScheme(preferredColorScheme)
     }
     
     private func refreshAppStateAfterExternalChanges() {
         calendarViewModel?.refresh()
         periodListViewModel?.refresh()
         pillSettingsViewModel?.reload()
+        appearanceSettingViewModel?.reload()
         notificationSettingsViewModel?.refreshSchedules()
         Task {
             await appleCalendarSyncService?.syncAll()
         }
         widgetReloadService?.reloadAll()
+    }
+    
+    private var preferredColorScheme: ColorScheme? {
+        switch appearanceSettingViewModel?.selectedAppearance {
+        case .light:
+            return .light
+        case .dark:
+            return .dark
+        case .system, .none:
+            return nil
+        }
     }
     
     @ViewBuilder
