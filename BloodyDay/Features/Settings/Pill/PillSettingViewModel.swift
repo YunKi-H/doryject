@@ -19,10 +19,9 @@ final class PillSettingsViewModel {
     }
     
     func updatePill(_ update: (inout PillSettings) -> Void) {
-        var latest = repo.load()
-        update(&latest.pill)
-        settings = latest
-        repo.save(latest)
+        settings = repo.update {
+            update(&$0.pill)
+        }
     }
 
     func reload() {

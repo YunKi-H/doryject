@@ -29,9 +29,9 @@ final class AppleCalendarSettingViewModel {
     }
     
     func setEnabled(_ enabled: Bool) async {
-        settings = repo.load()
-        settings.appleCalendar.isEnabled = enabled
-        repo.save(settings)
+        settings = repo.update {
+            $0.appleCalendar.isEnabled = enabled
+        }
         if enabled {
             await setupCalendarsIfNeeded()
             await syncService.syncAll()
@@ -46,9 +46,9 @@ final class AppleCalendarSettingViewModel {
     
     func setEventEnabled(_ type: EventType, _ enabled: Bool) async {
         guard supportedTypes.contains(type) else { return }
-        settings = repo.load()
-        settings.appleCalendar.eventSyncEnabled[type] = enabled
-        repo.save(settings)
+        settings = repo.update {
+            $0.appleCalendar.eventSyncEnabled[type] = enabled
+        }
         if enabled && settings.appleCalendar.isEnabled {
             await ensureCalendar(for: type)
             await syncService.syncAll()
@@ -65,14 +65,14 @@ final class AppleCalendarSettingViewModel {
     
     func setCalendarName(_ type: EventType, _ name: String) async {
         guard supportedTypes.contains(type) else { return }
-        settings = repo.load()
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.isEmpty {
-            settings.appleCalendar.calendarNames[type] = nil
-        } else {
-            settings.appleCalendar.calendarNames[type] = trimmed
+        settings = repo.update {
+            if trimmed.isEmpty {
+                $0.appleCalendar.calendarNames[type] = nil
+            } else {
+                $0.appleCalendar.calendarNames[type] = trimmed
+            }
         }
-        repo.save(settings)
         if settings.appleCalendar.isEnabled && isEventEnabled(type) {
             await ensureCalendar(for: type)
             await syncService.syncAll()

@@ -27,11 +27,10 @@ final class NotificationSettingsViewModel {
     }
     
     func updateNotifications(_ update: (inout NotificationSettings) -> Void) {
-        var latest = repo.load()
-        update(&latest.notifications)
-        settings = latest
-        repo.save(latest)
-        scheduler.apply(settings: latest, eventRepository: eventRepository)
+        settings = repo.update {
+            update(&$0.notifications)
+        }
+        scheduler.apply(settings: settings, eventRepository: eventRepository)
     }
     
     func refreshSchedules() {

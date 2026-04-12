@@ -23,10 +23,9 @@ final class AppearanceSettingViewModel {
     }
     
     func select(_ appearance: AppAppearance) {
-        var latest = repo.load()
-        latest.appearance.mode = appearance
-        settings = latest
-        repo.save(latest)
+        settings = repo.update {
+            $0.appearance.mode = appearance
+        }
     }
     
     func reload() {
