@@ -12,23 +12,19 @@ import Testing
 struct UserSettingsTests {
     @Test
     func decodingLegacySettingsWithoutAppearancePreservesPillSettings() throws {
-        let json = """
-        {
-          "period": {
-            "autoCyclePredictionEnabled": true
-          },
-          "pill": {
-            "pillEnabled": true,
-            "pillAutoRecordEnabled": true,
-            "pillCount": 21,
-            "pillBreakDuration": 7
-          },
-          "notifications": {},
-          "appleCalendar": {}
-        }
-        """
+        var original = UserSettings()
+        original.pill.pillEnabled = true
+        original.pill.pillAutoRecordEnabled = true
+        original.pill.pillCount = 21
+        original.pill.pillBreakDuration = 7
         
-        let settings = try JSONDecoder().decode(UserSettings.self, from: Data(json.utf8))
+        var legacyPayload = try JSONSerialization.jsonObject(
+            with: JSONEncoder().encode(original)
+        ) as? [String: Any]
+        legacyPayload?["appearance"] = nil
+        let legacyData = try JSONSerialization.data(withJSONObject: legacyPayload ?? [:])
+        
+        let settings = try JSONDecoder().decode(UserSettings.self, from: legacyData)
         
         #expect(settings.pill.pillEnabled == true)
         #expect(settings.pill.pillAutoRecordEnabled == true)
