@@ -51,11 +51,21 @@ enum AppDeepLink {
         let parts = value.split(separator: "-").compactMap { Int($0) }
         guard parts.count == 3 else { return nil }
         
+        let calendar = Calendar.current
         var dateComponents = DateComponents()
-        dateComponents.calendar = .current
+        dateComponents.calendar = calendar
         dateComponents.year = parts[0]
         dateComponents.month = parts[1]
         dateComponents.day = parts[2]
-        return dateComponents.date?.startOfDay
+        
+        guard let date = dateComponents.date?.startOfDay else { return nil }
+        let validatedComponents = calendar.dateComponents([.year, .month, .day], from: date)
+        guard validatedComponents.year == parts[0],
+              validatedComponents.month == parts[1],
+              validatedComponents.day == parts[2] else {
+            return nil
+        }
+        
+        return date
     }
 }
