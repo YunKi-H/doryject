@@ -1,0 +1,42 @@
+//
+//  AppDeepLink.swift
+//  BloodyDay
+//
+//  Created by Yunki on 4/19/26.
+//
+
+import Foundation
+
+enum AppDeepLink {
+    case calendar(date: Date)
+    
+    init?(url: URL) {
+        guard url.scheme == "bloodyday" else { return nil }
+        
+        switch url.host {
+        case "calendar":
+            guard let date = Self.calendarDate(from: url) else { return nil }
+            self = .calendar(date: date)
+            
+        default:
+            return nil
+        }
+    }
+    
+    private static func calendarDate(from url: URL) -> Date? {
+        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              let value = components.queryItems?.first(where: { $0.name == "date" })?.value else {
+            return nil
+        }
+        
+        let parts = value.split(separator: "-").compactMap { Int($0) }
+        guard parts.count == 3 else { return nil }
+        
+        var dateComponents = DateComponents()
+        dateComponents.calendar = .current
+        dateComponents.year = parts[0]
+        dateComponents.month = parts[1]
+        dateComponents.day = parts[2]
+        return dateComponents.date?.startOfDay
+    }
+}
