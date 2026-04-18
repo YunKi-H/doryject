@@ -26,6 +26,7 @@ struct BloodyDayRootView: View {
     
     @State private var activeTab: BloodyDayTab = .calendar
     @State private var isPresentedCalendarSheet: Bool = false
+    @State private var pendingDeepLink: AppDeepLink?
     
     var body: some View {
         NavigationStack {
@@ -138,12 +139,16 @@ struct BloodyDayRootView: View {
                     appearanceSettingViewModel = AppearanceSettingViewModel(repo: settingsRepository)
                 }
                 refreshAppStateAfterExternalChanges()
+                consumePendingDeepLinkIfNeeded()
             }
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
                 refreshAppStateAfterExternalChanges()
             }
         }
         .preferredColorScheme(preferredColorScheme)
+        .onOpenURL { url in
+            handleDeepLink(url)
+        }
     }
     
     private func refreshAppStateAfterExternalChanges() {
@@ -167,6 +172,36 @@ struct BloodyDayRootView: View {
         case .system, .none:
             return nil
         }
+    }
+    
+    private func handleDeepLink(_ url: URL) {
+        guard let deepLink = AppDeepLink(url: url) else { return }
+        
+        if calendarViewModel == nil {
+            pendingDeepLink = deepLink
+            return
+        }
+        
+        open(deepLink)
+    }
+    
+    private func consumePendingDeepLinkIfNeeded() {
+        guard let deepLink = pendingDeepLink else { return }
+        pendingDeepLink = nil
+        open(deepLink)
+    }
+    
+    private func open(_ deepLink: AppDeepLink) {
+        switch deepLink {
+        case .calendar(let date):
+            openCalendarTab(on: date)
+        }
+    }
+    
+    private func openCalendarTab(on date: Date) {
+        activeTab = .calendar
+        isPresentedCalendarSheet = false
+        calendarViewModel?.selectDate(date.startOfDay)
     }
     
     @ViewBuilder

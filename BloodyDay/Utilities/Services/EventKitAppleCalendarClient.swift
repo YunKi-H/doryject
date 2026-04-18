@@ -71,7 +71,7 @@ final class EventKitAppleCalendarClient: AppleCalendarClient {
             ekEvent.startDate = event.date.startOfDay
             ekEvent.endDate = event.date.endOfDay
         }
-        ekEvent.url = URL(string: "bloodyday://event/\(event.id.uuidString)")
+        ekEvent.url = AppDeepLink.calendarURL(for: event.date)
         do {
             try eventStore.save(ekEvent, span: .thisEvent, commit: true)
             return ekEvent.eventIdentifier
