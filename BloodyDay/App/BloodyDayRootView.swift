@@ -26,6 +26,7 @@ struct BloodyDayRootView: View {
     
     @State private var activeTab: BloodyDayTab = .calendar
     @State private var isPresentedCalendarSheet: Bool = false
+    @State private var pendingDeepLinkDate: Date?
     
     var body: some View {
         NavigationStack {
@@ -138,12 +139,16 @@ struct BloodyDayRootView: View {
                     appearanceSettingViewModel = AppearanceSettingViewModel(repo: settingsRepository)
                 }
                 refreshAppStateAfterExternalChanges()
+                consumePendingDeepLinkIfNeeded()
             }
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
                 refreshAppStateAfterExternalChanges()
             }
         }
         .preferredColorScheme(preferredColorScheme)
+        .onOpenURL { url in
+            handleDeepLink(url)
+        }
     }
     
     private func refreshAppStateAfterExternalChanges() {
@@ -167,6 +172,50 @@ struct BloodyDayRootView: View {
         case .system, .none:
             return nil
         }
+    }
+    
+    private func handleDeepLink(_ url: URL) {
+        guard url.scheme == "bloodyday",
+              url.host == "calendar",
+              let date = calendarDeepLinkDate(from: url) else {
+            return
+        }
+        
+        if calendarViewModel == nil {
+            pendingDeepLinkDate = date
+            return
+        }
+        
+        openCalendarTab(on: date)
+    }
+    
+    private func consumePendingDeepLinkIfNeeded() {
+        guard let date = pendingDeepLinkDate else { return }
+        pendingDeepLinkDate = nil
+        openCalendarTab(on: date)
+    }
+    
+    private func openCalendarTab(on date: Date) {
+        activeTab = .calendar
+        isPresentedCalendarSheet = false
+        calendarViewModel?.selectDate(date.startOfDay)
+    }
+    
+    private func calendarDeepLinkDate(from url: URL) -> Date? {
+        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              let value = components.queryItems?.first(where: { $0.name == "date" })?.value else {
+            return nil
+        }
+        
+        let parts = value.split(separator: "-").compactMap { Int($0) }
+        guard parts.count == 3 else { return nil }
+        
+        var dateComponents = DateComponents()
+        dateComponents.calendar = .current
+        dateComponents.year = parts[0]
+        dateComponents.month = parts[1]
+        dateComponents.day = parts[2]
+        return dateComponents.date?.startOfDay
     }
     
     @ViewBuilder
