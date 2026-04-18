@@ -8,10 +8,12 @@
 import Foundation
 
 enum AppDeepLink {
+    private static let scheme = "bloodyday"
+    
     case calendar(date: Date)
     
     init?(url: URL) {
-        guard url.scheme == "bloodyday" else { return nil }
+        guard url.scheme == Self.scheme else { return nil }
         
         switch url.host {
         case "calendar":
@@ -21,6 +23,23 @@ enum AppDeepLink {
         default:
             return nil
         }
+    }
+    
+    static func calendarURL(for date: Date) -> URL? {
+        let components = Calendar.current.dateComponents([.year, .month, .day], from: date.startOfDay)
+        guard let year = components.year,
+              let month = components.month,
+              let day = components.day else {
+            return nil
+        }
+        
+        var urlComponents = URLComponents()
+        urlComponents.scheme = scheme
+        urlComponents.host = "calendar"
+        urlComponents.queryItems = [
+            URLQueryItem(name: "date", value: String(format: "%04d-%02d-%02d", year, month, day))
+        ]
+        return urlComponents.url
     }
     
     private static func calendarDate(from url: URL) -> Date? {

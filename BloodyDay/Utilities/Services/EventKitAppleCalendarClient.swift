@@ -71,7 +71,7 @@ final class EventKitAppleCalendarClient: AppleCalendarClient {
             ekEvent.startDate = event.date.startOfDay
             ekEvent.endDate = event.date.endOfDay
         }
-        ekEvent.url = calendarDeepLinkURL(for: event.date)
+        ekEvent.url = AppDeepLink.calendarURL(for: event.date)
         do {
             try eventStore.save(ekEvent, span: .thisEvent, commit: true)
             return ekEvent.eventIdentifier
@@ -96,22 +96,5 @@ final class EventKitAppleCalendarClient: AppleCalendarClient {
             return icloud
         }
         return eventStore.defaultCalendarForNewEvents?.source ?? eventStore.sources.first!
-    }
-    
-    private func calendarDeepLinkURL(for date: Date) -> URL? {
-        let components = Calendar.current.dateComponents([.year, .month, .day], from: date.startOfDay)
-        guard let year = components.year,
-              let month = components.month,
-              let day = components.day else {
-            return nil
-        }
-        
-        var urlComponents = URLComponents()
-        urlComponents.scheme = "bloodyday"
-        urlComponents.host = "calendar"
-        urlComponents.queryItems = [
-            URLQueryItem(name: "date", value: String(format: "%04d-%02d-%02d", year, month, day))
-        ]
-        return urlComponents.url
     }
 }
