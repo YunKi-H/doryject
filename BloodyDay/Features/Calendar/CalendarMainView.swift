@@ -13,6 +13,7 @@ struct CalendarMainView: View {
     @Bindable var periodSettingViewModel: PeriodSettingViewModel
     @Bindable var pillViewModel: PillSettingsViewModel
     @Bindable var appleCalendarViewModel: AppleCalendarSettingViewModel
+    @Bindable var calendarSharingViewModel: CalendarSharingSettingViewModel
     @Bindable var appearanceViewModel: AppearanceSettingViewModel
     @State private var selectionMonth: Date?
     
@@ -38,6 +39,7 @@ struct CalendarMainView: View {
                 periodSettingViewModel: periodSettingViewModel,
                 pillViewModel: pillViewModel,
                 appleCalendarViewModel: appleCalendarViewModel,
+                calendarSharingViewModel: calendarSharingViewModel,
                 appearanceViewModel: appearanceViewModel
             )
             
@@ -96,6 +98,9 @@ struct CalendarMainView: View {
                 @unknown default:
                     break
                 }
+            }
+            .onChange(of: calendarSharingViewModel.selectedScope) { _, _ in
+                viewModel.refresh()
             }
             
             DayInfoCardView(
@@ -276,6 +281,10 @@ struct CalendarMainView: View {
                 calendarClient: NoopAppleCalendarClient(),
                 syncStore: UserDefaultsAppleCalendarSyncStore()
             )
+        ),
+        calendarSharingViewModel: .init(
+            repo: UserDefaultsSettingsRepository(),
+            sharedCalendarRepository: MockSharedCalendarRepository()
         ),
         appearanceViewModel: .init(repo: UserDefaultsSettingsRepository()),
         isPresentedEventSheet: .constant(false)

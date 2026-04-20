@@ -104,7 +104,7 @@ final class MockSharedCalendarRepository: SharedCalendarRepository, SharedCalend
     
     private static var sampleEventsByCalendarId: [String: [SharedCalendarEvent]] {
         let today = Date().startOfDay
-        guard let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: today)?.startOfDay else {
+        guard let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: today)?.startOfDay else {
             return [:]
         }
         
@@ -131,7 +131,7 @@ final class MockSharedCalendarRepository: SharedCalendarRepository, SharedCalend
                     calendarId: sampleCalendarId,
                     sourceEventId: "source-love-1",
                     type: .love,
-                    date: tomorrow,
+                    date: yesterday,
                     updatedAt: Date()
                 )
             ]

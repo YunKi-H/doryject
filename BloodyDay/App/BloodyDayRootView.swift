@@ -18,6 +18,7 @@ struct BloodyDayRootView: View {
     @State private var notificationSettingsViewModel: NotificationSettingsViewModel?
     @State private var pillSettingsViewModel: PillSettingsViewModel?
     @State private var appleCalendarSettingsViewModel: AppleCalendarSettingViewModel?
+    @State private var calendarSharingSettingViewModel: CalendarSharingSettingViewModel?
     @State private var appearanceSettingViewModel: AppearanceSettingViewModel?
     @State private var appleCalendarClient: EventKitAppleCalendarClient?
     @State private var appleCalendarSyncService: AppleCalendarSyncService?
@@ -37,6 +38,7 @@ struct BloodyDayRootView: View {
                        let periodSettingViewModel = periodSettingViewModel,
                        let pillViewModel = pillSettingsViewModel,
                        let appleCalendarViewModel = appleCalendarSettingsViewModel,
+                       let calendarSharingViewModel = calendarSharingSettingViewModel,
                        let appearanceViewModel = appearanceSettingViewModel {
                         CalendarMainView(
                             viewModel: viewModel,
@@ -44,6 +46,7 @@ struct BloodyDayRootView: View {
                             periodSettingViewModel: periodSettingViewModel,
                             pillViewModel: pillViewModel,
                             appleCalendarViewModel: appleCalendarViewModel,
+                            calendarSharingViewModel: calendarSharingViewModel,
                             appearanceViewModel: appearanceViewModel,
                             isPresentedEventSheet: $isPresentedCalendarSheet
                         )
@@ -82,7 +85,7 @@ struct BloodyDayRootView: View {
                 let baseEventRepository = SwiftDataEventRepository(context: modelContext)
                 let settingsRepository = UserDefaultsSettingsRepository()
                 let syncStore = UserDefaultsAppleCalendarSyncStore()
-                let sharedCalendarRepository = LocalSharedCalendarRepository()
+                let sharedCalendarRepository = MockSharedCalendarRepository()
                 let calendarClient = appleCalendarClient ?? EventKitAppleCalendarClient()
                 let scheduler = notificationScheduler ?? UserNotificationScheduler()
                 let widgetReloader = widgetReloadService ?? WidgetReloadService()
@@ -135,6 +138,12 @@ struct BloodyDayRootView: View {
                         repo: settingsRepository,
                         calendarClient: calendarClient,
                         syncService: appleCalendarSyncService!
+                    )
+                }
+                if calendarSharingSettingViewModel == nil {
+                    calendarSharingSettingViewModel = CalendarSharingSettingViewModel(
+                        repo: settingsRepository,
+                        sharedCalendarRepository: sharedCalendarRepository
                     )
                 }
                 if appearanceSettingViewModel == nil {
