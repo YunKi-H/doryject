@@ -223,7 +223,7 @@ struct BloodyDayRootView: View {
                     .glassEffect(.regular.interactive(), in: .capsule)
                 }
                 
-                if activeTab == .calendar {
+                if activeTab == .calendar, calendarViewModel?.canEditEvents == true {
                     Circle()
                         .fill(.mainRed)
                         .overlay {

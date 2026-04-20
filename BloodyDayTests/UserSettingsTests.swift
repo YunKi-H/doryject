@@ -11,7 +11,7 @@ import Testing
 
 struct UserSettingsTests {
     @Test
-    func decodingLegacySettingsWithoutAppearancePreservesPillSettings() throws {
+    func decodingLegacySettingsWithoutNewSectionsPreservesPillSettings() throws {
         var original = UserSettings()
         original.pill.pillEnabled = true
         original.pill.pillAutoRecordEnabled = true
@@ -22,6 +22,7 @@ struct UserSettingsTests {
             with: JSONEncoder().encode(original)
         ) as? [String: Any]
         legacyPayload?["appearance"] = nil
+        legacyPayload?["calendarScope"] = nil
         let legacyData = try JSONSerialization.data(withJSONObject: legacyPayload ?? [:])
         
         let settings = try JSONDecoder().decode(UserSettings.self, from: legacyData)
@@ -31,5 +32,6 @@ struct UserSettingsTests {
         #expect(settings.pill.pillCount == 21)
         #expect(settings.pill.pillBreakDuration == 7)
         #expect(settings.appearance.mode == .system)
+        #expect(settings.calendarScope.selectedScope == .mine)
     }
 }

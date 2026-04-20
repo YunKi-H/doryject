@@ -48,7 +48,7 @@ struct CalendarMainView: View {
                             month: month,
                             selectedDate: viewModel.selectedDate,
                             onSelectDate: {
-                                if viewModel.selectedDate.isSameDay(as: $0) {
+                                if viewModel.canEditEvents, viewModel.selectedDate.isSameDay(as: $0) {
                                     isPresentedEventSheet = true
                                 }
                                 viewModel.selectDate($0)
@@ -199,6 +199,11 @@ struct CalendarMainView: View {
             }
             .onChange(of: viewModel.selectedDate) { _, _ in
                 syncToggleState()
+            }
+            .onChange(of: viewModel.canEditEvents) { _, canEdit in
+                if !canEdit {
+                    isPresentedEventSheet = false
+                }
             }
         }
         .confirmationDialog(
