@@ -18,10 +18,16 @@ final class CalendarViewModel {
     
     private let eventRepository: EventRepository
     private let settingsRepository: SettingsRepository?
+    private let sharedCalendarRepository: SharedCalendarRepository?
     
-    init(eventRepository: EventRepository, settingsRepository: SettingsRepository? = nil) {
+    init(
+        eventRepository: EventRepository,
+        settingsRepository: SettingsRepository? = nil,
+        sharedCalendarRepository: SharedCalendarRepository? = nil
+    ) {
         self.eventRepository = eventRepository
         self.settingsRepository = settingsRepository
+        self.sharedCalendarRepository = sharedCalendarRepository
         self.calendarScope = settingsRepository?.load().calendarScope.selectedScope ?? .mine
         
         bootstrapMonths(anchor: selectedDate)
@@ -138,8 +144,10 @@ extension CalendarViewModel {
         switch calendarScope {
         case .mine:
             return eventRepository.allEvents()
-        case .shared:
-            return []
+        case .shared(let id):
+            return sharedCalendarRepository?
+                .visibleEvents(calendarId: id)
+                .map(makeDisplayEvent(from:)) ?? []
         }
     }
     
@@ -147,9 +155,20 @@ extension CalendarViewModel {
         switch calendarScope {
         case .mine:
             return eventRepository.events(of: type)
-        case .shared:
-            return []
+        case .shared(let id):
+            return sharedCalendarRepository?
+                .visibleEvents(calendarId: id)
+                .filter { $0.type == type }
+                .map(makeDisplayEvent(from:)) ?? []
         }
+    }
+    
+    private func makeDisplayEvent(from sharedEvent: SharedCalendarEvent) -> UserEvent {
+        UserEvent(
+            id: UUID(uuidString: sharedEvent.id) ?? UUID(),
+            date: sharedEvent.date,
+            type: sharedEvent.type
+        )
     }
     
     private func applyMutationPlan(_ plan: CalendarEventMutationPlan) {

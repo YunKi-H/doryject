@@ -256,7 +256,10 @@ struct CalendarMainView: View {
 
 #Preview {
     CalendarMainView(
-        viewModel: .init(eventRepository: MockEventRepository()),
+        viewModel: .init(
+            eventRepository: MockEventRepository(),
+            sharedCalendarRepository: MockSharedCalendarRepository()
+        ),
         notificationViewModel: .init(
             repo: UserDefaultsSettingsRepository(),
             scheduler: NoopNotificationScheduler(),

@@ -82,6 +82,7 @@ struct BloodyDayRootView: View {
                 let baseEventRepository = SwiftDataEventRepository(context: modelContext)
                 let settingsRepository = UserDefaultsSettingsRepository()
                 let syncStore = UserDefaultsAppleCalendarSyncStore()
+                let sharedCalendarRepository = LocalSharedCalendarRepository()
                 let calendarClient = appleCalendarClient ?? EventKitAppleCalendarClient()
                 let scheduler = notificationScheduler ?? UserNotificationScheduler()
                 let widgetReloader = widgetReloadService ?? WidgetReloadService()
@@ -106,7 +107,8 @@ struct BloodyDayRootView: View {
                 if calendarViewModel == nil {
                     calendarViewModel = CalendarViewModel(
                         eventRepository: syncingRepository,
-                        settingsRepository: settingsRepository
+                        settingsRepository: settingsRepository,
+                        sharedCalendarRepository: sharedCalendarRepository
                     )
                 }
                 if periodListViewModel == nil {
