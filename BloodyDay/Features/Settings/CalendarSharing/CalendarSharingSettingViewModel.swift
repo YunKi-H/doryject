@@ -39,7 +39,9 @@ final class CalendarSharingSettingViewModel {
         self.eventRepository = eventRepository
         self.sharedCalendarRepository = sharedCalendarRepository
         self.cloudSharingService = cloudSharingService
-        self.selectedScope = repo.load().calendarScope.selectedScope
+        let settings = repo.load()
+        self.selectedScope = settings.calendarScope.selectedScope
+        self.sharedEventTypeSelection = settings.calendarSharing.defaultSharedEventTypes
         reload()
     }
     
@@ -129,6 +131,10 @@ final class CalendarSharingSettingViewModel {
 
     func setSharedEventType(_ type: EventType, enabled: Bool) {
         sharedEventTypeSelection.set(type, enabled: enabled)
+        let selection = sharedEventTypeSelection
+        repo.update {
+            $0.calendarSharing.defaultSharedEventTypes = selection
+        }
     }
     
     func presentShareSheet() {

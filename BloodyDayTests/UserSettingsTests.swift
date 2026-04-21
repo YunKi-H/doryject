@@ -23,6 +23,7 @@ struct UserSettingsTests {
         ) as? [String: Any]
         legacyPayload?["appearance"] = nil
         legacyPayload?["calendarScope"] = nil
+        legacyPayload?["calendarSharing"] = nil
         let legacyData = try JSONSerialization.data(withJSONObject: legacyPayload ?? [:])
         
         let settings = try JSONDecoder().decode(UserSettings.self, from: legacyData)
@@ -33,5 +34,23 @@ struct UserSettingsTests {
         #expect(settings.pill.pillBreakDuration == 7)
         #expect(settings.appearance.mode == .system)
         #expect(settings.calendarScope.selectedScope == .mine)
+        #expect(settings.calendarSharing.defaultSharedEventTypes == .all)
+    }
+    
+    @Test
+    func decodingCalendarSharingSettingsPreservesDefaultSharedEventTypes() throws {
+        var original = UserSettings()
+        original.calendarSharing.defaultSharedEventTypes = SharedEventTypeSelection(
+            period: true,
+            pill: false,
+            love: true
+        )
+        
+        let data = try JSONEncoder().encode(original)
+        let settings = try JSONDecoder().decode(UserSettings.self, from: data)
+        
+        #expect(settings.calendarSharing.defaultSharedEventTypes.period == true)
+        #expect(settings.calendarSharing.defaultSharedEventTypes.pill == false)
+        #expect(settings.calendarSharing.defaultSharedEventTypes.love == true)
     }
 }

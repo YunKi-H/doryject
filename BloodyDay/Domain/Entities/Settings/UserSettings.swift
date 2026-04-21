@@ -14,6 +14,7 @@ struct UserSettings: Codable {
     var appleCalendar: AppleCalendarSettings = .init()
     var appearance: AppearanceSettings = .init()
     var calendarScope: CalendarScopeSettings = .init()
+    var calendarSharing: CalendarSharingSettings = .init()
     
     init(
         period: PeriodSettings = .init(),
@@ -21,7 +22,8 @@ struct UserSettings: Codable {
         notifications: NotificationSettings = .init(),
         appleCalendar: AppleCalendarSettings = .init(),
         appearance: AppearanceSettings = .init(),
-        calendarScope: CalendarScopeSettings = .init()
+        calendarScope: CalendarScopeSettings = .init(),
+        calendarSharing: CalendarSharingSettings = .init()
     ) {
         self.period = period
         self.pill = pill
@@ -29,6 +31,7 @@ struct UserSettings: Codable {
         self.appleCalendar = appleCalendar
         self.appearance = appearance
         self.calendarScope = calendarScope
+        self.calendarSharing = calendarSharing
     }
     
     private enum CodingKeys: String, CodingKey {
@@ -38,6 +41,7 @@ struct UserSettings: Codable {
         case appleCalendar
         case appearance
         case calendarScope
+        case calendarSharing
     }
     
     init(from decoder: Decoder) throws {
@@ -48,5 +52,6 @@ struct UserSettings: Codable {
         appleCalendar = try container.decodeIfPresent(AppleCalendarSettings.self, forKey: .appleCalendar) ?? .init()
         appearance = try container.decodeIfPresent(AppearanceSettings.self, forKey: .appearance) ?? .init()
         calendarScope = try container.decodeIfPresent(CalendarScopeSettings.self, forKey: .calendarScope) ?? .init()
+        calendarSharing = try container.decodeIfPresent(CalendarSharingSettings.self, forKey: .calendarSharing) ?? .init()
     }
 }
