@@ -39,12 +39,23 @@ protocol CloudSharingService {
         sharedEventTypes: SharedEventTypeSelection,
         settings: UserSettings,
         events: [UserEvent]
-    ) async throws -> CKShare
+    ) async throws -> PreparedCloudShare
 }
 
 struct SharedCalendarSnapshot {
     let calendars: [SharedCalendar]
     let eventsByCalendarId: [String: [SharedCalendarEvent]]
+}
+
+struct PreparedCloudShare {
+    let share: CKShare
+    let eventSyncResult: CloudSharingEventSyncResult
+}
+
+enum CloudSharingEventSyncResult: Equatable {
+    case synced
+    case partiallyFailed
+    case failed
 }
 
 final class CloudKitSharingService: CloudSharingService {
@@ -147,7 +158,7 @@ final class CloudKitSharingService: CloudSharingService {
         sharedEventTypes: SharedEventTypeSelection,
         settings: UserSettings,
         events: [UserEvent]
-    ) async throws -> CKShare {
+    ) async throws -> PreparedCloudShare {
         try await ensureOwnedZoneExists()
         let rootRecord = try await fetchOrMakeOwnedCalendarRecord()
         applyOwnedCalendarFields(
@@ -185,12 +196,15 @@ final class CloudKitSharingService: CloudSharingService {
             throw CloudSharingError.missingShareURL
         }
         
-        await syncOwnedEventRecords(
+        let eventSyncResult = await syncOwnedEventRecords(
             events: events,
             sharedEventTypes: sharedEventTypes,
             calendarRecord: rootRecord
         )
-        return resolvedShare
+        return PreparedCloudShare(
+            share: resolvedShare,
+            eventSyncResult: eventSyncResult
+        )
     }
     
     private func accountStatus() async throws -> CKAccountStatus {
@@ -309,26 +323,49 @@ final class CloudKitSharingService: CloudSharingService {
         events: [UserEvent],
         sharedEventTypes: SharedEventTypeSelection,
         calendarRecord: CKRecord
-    ) async {
+    ) async -> CloudSharingEventSyncResult {
         let sharedEvents = events.filter { sharedEventTypes.contains($0.type) }
         let desiredRecordIDs = Set(sharedEvents.map(\.id).map(makeOwnedEventRecordID(for:)))
-        let existingEventRecords = (try? await fetchOwnedEventRecords()) ?? []
+        let existingEventRecords: [CKRecord]
+        do {
+            existingEventRecords = try await fetchOwnedEventRecords()
+        } catch {
+            return .failed
+        }
+        
         let staleRecordIDs = existingEventRecords
             .map(\.recordID)
             .filter { desiredRecordIDs.contains($0) == false }
         let eventRecords = sharedEvents
             .map { makeOwnedEventRecord(from: $0, calendarRecord: calendarRecord) }
-        guard eventRecords.isEmpty == false || staleRecordIDs.isEmpty == false else { return }
+        guard eventRecords.isEmpty == false || staleRecordIDs.isEmpty == false else {
+            return .synced
+        }
         
         do {
-            _ = try await privateDatabase.modifyRecords(
+            let result = try await privateDatabase.modifyRecords(
                 saving: eventRecords,
                 deleting: staleRecordIDs,
                 savePolicy: .changedKeys,
                 atomically: false
             )
+            let failedSaveCount = result.saveResults.values.filter {
+                guard case .failure = $0 else { return false }
+                return true
+            }.count
+            let failedDeleteCount = result.deleteResults.values.filter {
+                guard case .failure = $0 else { return false }
+                return true
+            }.count
+            let failureCount = failedSaveCount + failedDeleteCount
+            if failureCount == 0 {
+                return .synced
+            }
+            
+            let requestedCount = eventRecords.count + staleRecordIDs.count
+            return failureCount < requestedCount ? .partiallyFailed : .failed
         } catch {
-            // Sharing can still proceed even if event mirroring needs a later retry.
+            return .failed
         }
     }
     

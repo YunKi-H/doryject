@@ -120,10 +120,17 @@ struct CalendarSharingSettingView: View {
                 } header: {
                     Text("내 캘린더 공유")
                 } footer: {
-                    Text("선택한 항목을 기준으로 CloudKit 공유 레코드에 업로드할 예정입니다.")
-                        .font(.regular_14)
-                        .foregroundStyle(.textSecondary40)
-                        .padding(.top, 14)
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("선택한 항목을 기준으로 CloudKit 공유 레코드에 업로드할 예정입니다.")
+                            .foregroundStyle(.textSecondary40)
+                        
+                        if let eventSyncWarningMessage = viewModel.eventSyncWarningMessage {
+                            Text(eventSyncWarningMessage)
+                                .foregroundStyle(.mainRed)
+                        }
+                    }
+                    .font(.regular_14)
+                    .padding(.top, 14)
                 }
                 .listRowBackground(Color.bgSecondary)
             }
@@ -158,7 +165,7 @@ struct CalendarSharingSettingView: View {
         .background {
             if let sharePresentationID = viewModel.sharePresentationID {
                 CloudSharingControllerPresenter(
-                    existingShare: viewModel.existingShare ?? viewModel.preparedShare,
+                    existingShare: viewModel.preparedShare,
                     shouldPresentOnAppear: viewModel.shouldPresentShareController(for: sharePresentationID),
                     prepareShare: {
                         try await viewModel.prepareOwnedShare()

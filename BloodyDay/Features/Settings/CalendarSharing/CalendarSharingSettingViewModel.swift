@@ -24,10 +24,10 @@ final class CalendarSharingSettingViewModel {
     private(set) var iCloudAvailability: CloudSharingAvailability = .couldNotDetermine
     var sharePresentationID: UUID?
     private var presentedSharePresentationID: UUID?
-    var existingShare: CKShare?
     var preparedShare: CKShare?
     var isPreparingShare: Bool = false
     var sharePresentationErrorMessage: String?
+    private(set) var eventSyncWarningMessage: String?
     
     init(
         repo: SettingsRepository,
@@ -132,16 +132,14 @@ final class CalendarSharingSettingViewModel {
         
         isPreparingShare = true
         sharePresentationErrorMessage = nil
+        eventSyncWarningMessage = nil
         presentedSharePresentationID = nil
         Task {
             do {
-                existingShare = try await cloudSharingService.fetchOwnedShare()
-                if existingShare == nil {
-                    preparedShare = try await prepareOwnedShare()
-                }
+                let preparedShare = try await prepareOwnedShare()
+                self.preparedShare = preparedShare
                 sharePresentationID = UUID()
             } catch {
-                existingShare = nil
                 preparedShare = nil
                 sharePresentationID = nil
                 presentedSharePresentationID = nil
@@ -154,14 +152,12 @@ final class CalendarSharingSettingViewModel {
     func dismissShareSheet() {
         sharePresentationID = nil
         presentedSharePresentationID = nil
-        existingShare = nil
         preparedShare = nil
     }
     
     func handleSharePreparationFailure(_ error: Error) {
         sharePresentationID = nil
         presentedSharePresentationID = nil
-        existingShare = nil
         preparedShare = nil
         sharePresentationErrorMessage = error.localizedDescription
     }
@@ -171,11 +167,13 @@ final class CalendarSharingSettingViewModel {
     }
     
     func prepareOwnedShare() async throws -> CKShare {
-        try await cloudSharingService.prepareOwnedShare(
+        let preparedShare = try await cloudSharingService.prepareOwnedShare(
             sharedEventTypes: sharedEventTypeSelection,
             settings: repo.load(),
             events: eventRepository.allEvents()
         )
+        eventSyncWarningMessage = warningMessage(for: preparedShare.eventSyncResult)
+        return preparedShare.share
     }
     
     func shouldPresentShareController(for id: UUID) -> Bool {
@@ -192,6 +190,17 @@ final class CalendarSharingSettingViewModel {
         selectedScope = scope
         repo.update {
             $0.calendarScope.selectedScope = scope
+        }
+    }
+    
+    private func warningMessage(for result: CloudSharingEventSyncResult) -> String? {
+        switch result {
+        case .synced:
+            return nil
+        case .partiallyFailed:
+            return "공유는 준비됐지만 일부 이벤트가 아직 iCloud에 동기화되지 않았어요. 잠시 후 다시 공유 관리를 열어 동기화할 수 있습니다."
+        case .failed:
+            return "공유는 준비됐지만 이벤트가 아직 iCloud에 동기화되지 않았어요. 네트워크 상태를 확인한 뒤 다시 공유 관리를 열어주세요."
         }
     }
     
