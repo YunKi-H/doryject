@@ -166,6 +166,7 @@ struct CalendarSharingSettingView: View {
             if let sharePresentationID = viewModel.sharePresentationID {
                 CloudSharingControllerPresenter(
                     existingShare: viewModel.preparedShare,
+                    containerIdentifier: viewModel.cloudContainerIdentifier,
                     shouldPresentOnAppear: viewModel.shouldPresentShareController(for: sharePresentationID),
                     prepareShare: {
                         try await viewModel.prepareOwnedShare()

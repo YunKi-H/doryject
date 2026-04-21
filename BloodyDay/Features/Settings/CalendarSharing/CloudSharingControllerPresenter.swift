@@ -11,6 +11,7 @@ import UIKit
 
 struct CloudSharingControllerPresenter: UIViewControllerRepresentable {
     let existingShare: CKShare?
+    let containerIdentifier: String
     let shouldPresentOnAppear: Bool
     let prepareShare: @MainActor () async throws -> CKShare
     let onDidPresent: @MainActor () -> Void
@@ -37,18 +38,19 @@ struct CloudSharingControllerPresenter: UIViewControllerRepresentable {
             },
             shouldPresentOnAppear: shouldPresentOnAppear,
             makeSharingController: {
+                let container = CKContainer(identifier: containerIdentifier)
                 let controller: UICloudSharingController
                 if let existingShare {
                     controller = UICloudSharingController(
                         share: existingShare,
-                        container: CKContainer(identifier: CloudKitSharingService.containerIdentifier)
+                        container: container
                     )
                 } else {
                     controller = UICloudSharingController { _, completion in
                         Task { @MainActor in
                             do {
                                 let share = try await prepareShare()
-                                completion(share, CKContainer(identifier: CloudKitSharingService.containerIdentifier), nil)
+                                completion(share, container, nil)
                             } catch {
                                 onDidFailToSaveShare(error)
                                 completion(nil, nil, error)

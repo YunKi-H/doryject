@@ -31,6 +31,8 @@ enum CloudSharingError: LocalizedError {
 }
 
 protocol CloudSharingService {
+    var containerIdentifier: String { get }
+    
     func fetchAvailability() async -> CloudSharingAvailability
     func accept(_ metadata: CKShare.Metadata) async throws
     func fetchSharedSnapshot() async throws -> SharedCalendarSnapshot
@@ -64,11 +66,13 @@ final class CloudKitSharingService: CloudSharingService {
     static let ownedZoneName = "BloodyDaySharedCalendar"
     static let ownedCalendarRecordName = "owned-shared-calendar"
     
+    let containerIdentifier: String
     private let container: CKContainer
     private let privateDatabase: CKDatabase
     private let sharedDatabase: CKDatabase
     
     init(containerIdentifier: String = CloudKitSharingService.containerIdentifier) {
+        self.containerIdentifier = containerIdentifier
         self.container = CKContainer(identifier: containerIdentifier)
         self.privateDatabase = container.privateCloudDatabase
         self.sharedDatabase = container.sharedCloudDatabase

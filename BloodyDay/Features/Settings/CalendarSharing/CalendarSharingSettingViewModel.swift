@@ -87,6 +87,10 @@ final class CalendarSharingSettingViewModel {
         }
     }
     
+    var cloudContainerIdentifier: String {
+        cloudSharingService.containerIdentifier
+    }
+    
     var isICloudAvailable: Bool {
         iCloudAvailability == .available
     }
