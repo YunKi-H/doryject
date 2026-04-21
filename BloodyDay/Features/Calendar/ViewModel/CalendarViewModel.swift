@@ -319,20 +319,15 @@ extension CalendarViewModel {
         case .mine:
             return settingsRepository?.load() ?? .init()
         case .shared(let id):
-            let sharedEvents = sharedCalendarRepository?.visibleEvents(calendarId: id) ?? []
-            let hasPillEvents = sharedEvents.contains { $0.type == .pill }
-            return UserSettings(
-                period: .init(
-                    autoCyclePredictionEnabled: true,
-                    averageCycleDays: nil,
-                    averagePeriodDays: nil
-                ),
-                pill: .init(),
-                notifications: .init(),
-                appleCalendar: .init(),
-                appearance: .init(),
-                calendarScope: .init(selectedScope: calendarScope)
-            ).withPillEnabled(hasPillEvents)
+            guard let sharedCalendar = sharedCalendarRepository?.calendar(id: id) else {
+                return .init(calendarScope: .init(selectedScope: calendarScope))
+            }
+            return sharedCalendar
+                .predictionSettings
+                .asUserSettings(
+                    for: calendarScope,
+                    sharedEventTypes: sharedCalendar.sharedEventTypes
+                )
         }
     }
 }
@@ -381,11 +376,30 @@ extension CalendarViewModel {
     
 }
 
-private extension UserSettings {
-    func withPillEnabled(_ enabled: Bool) -> UserSettings {
-        var copy = self
-        copy.pill.pillEnabled = enabled
-        return copy
+private extension SharedCalendarPredictionSettings {
+    func asUserSettings(
+        for scope: CalendarScope,
+        sharedEventTypes: SharedEventTypeSelection
+    ) -> UserSettings {
+        var periodSettings = PeriodSettings()
+        periodSettings.autoCyclePredictionEnabled = autoCyclePredictionEnabled
+        periodSettings.averageCycleDays = averageCycleDays
+        periodSettings.averagePeriodDays = averagePeriodDays
+        
+        var pillSettings = PillSettings()
+        pillSettings.pillEnabled = pillEnabled && sharedEventTypes.pill
+        pillSettings.pillAutoRecordEnabled = pillAutoRecordEnabled && sharedEventTypes.pill
+        pillSettings.pillCount = pillCount
+        pillSettings.pillBreakDuration = pillBreakDuration
+        
+        return UserSettings(
+            period: periodSettings,
+            pill: pillSettings,
+            notifications: .init(),
+            appleCalendar: .init(),
+            appearance: .init(),
+            calendarScope: .init(selectedScope: scope)
+        )
     }
 }
 

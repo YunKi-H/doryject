@@ -95,6 +95,15 @@ final class MockSharedCalendarRepository: SharedCalendarRepository, SharedCalend
                 remoteTitle: "민지의 B-Day",
                 localDisplayName: "민지",
                 sharedEventTypes: SharedEventTypeSelection(period: true, pill: true, love: true),
+                predictionSettings: SharedCalendarPredictionSettings(
+                    autoCyclePredictionEnabled: true,
+                    averageCycleDays: 28,
+                    averagePeriodDays: 5,
+                    pillEnabled: true,
+                    pillAutoRecordEnabled: true,
+                    pillCount: 21,
+                    pillBreakDuration: 7
+                ),
                 permission: .readOnly,
                 acceptedAt: Date(),
                 updatedAt: Date()
@@ -104,37 +113,58 @@ final class MockSharedCalendarRepository: SharedCalendarRepository, SharedCalend
     
     private static var sampleEventsByCalendarId: [String: [SharedCalendarEvent]] {
         let today = Date().startOfDay
-        guard let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: today)?.startOfDay else {
+        guard
+            let loveDate = Calendar.current.date(byAdding: .day, value: -1, to: today)?.startOfDay,
+            let recentPeriodStart = Calendar.current.date(byAdding: .day, value: -26, to: today)?.startOfDay,
+            let previousPeriodStart = Calendar.current.date(byAdding: .day, value: -54, to: today)?.startOfDay,
+            let pillStart = Calendar.current.date(byAdding: .day, value: -15, to: today)?.startOfDay
+        else {
             return [:]
         }
         
+        let recentPeriodDates = (0..<5).compactMap {
+            Calendar.current.date(byAdding: .day, value: $0, to: recentPeriodStart)?.startOfDay
+        }
+        let previousPeriodDates = (0..<5).compactMap {
+            Calendar.current.date(byAdding: .day, value: $0, to: previousPeriodStart)?.startOfDay
+        }
+        let pillDates = (0..<16).compactMap {
+            Calendar.current.date(byAdding: .day, value: $0, to: pillStart)?.startOfDay
+        }
+        
+        let periodEvents = (previousPeriodDates + recentPeriodDates).enumerated().map { index, date in
+            SharedCalendarEvent(
+                id: "mock-period-\(index)",
+                calendarId: sampleCalendarId,
+                sourceEventId: "source-period-\(index)",
+                type: .period,
+                date: date,
+                updatedAt: Date()
+            )
+        }
+        let pillEvents = pillDates.enumerated().map { index, date in
+            SharedCalendarEvent(
+                id: "mock-pill-\(index)",
+                calendarId: sampleCalendarId,
+                sourceEventId: "source-pill-\(index)",
+                type: .pill,
+                date: date,
+                updatedAt: Date()
+            )
+        }
+        let loveEvents = [
+            SharedCalendarEvent(
+                id: "mock-love-0",
+                calendarId: sampleCalendarId,
+                sourceEventId: "source-love-0",
+                type: .love,
+                date: loveDate,
+                updatedAt: Date()
+            )
+        ]
+        
         return [
-            sampleCalendarId: [
-                SharedCalendarEvent(
-                    id: "mock-period-1",
-                    calendarId: sampleCalendarId,
-                    sourceEventId: "source-period-1",
-                    type: .period,
-                    date: today,
-                    updatedAt: Date()
-                ),
-                SharedCalendarEvent(
-                    id: "mock-pill-1",
-                    calendarId: sampleCalendarId,
-                    sourceEventId: "source-pill-1",
-                    type: .pill,
-                    date: today,
-                    updatedAt: Date()
-                ),
-                SharedCalendarEvent(
-                    id: "mock-love-1",
-                    calendarId: sampleCalendarId,
-                    sourceEventId: "source-love-1",
-                    type: .love,
-                    date: yesterday,
-                    updatedAt: Date()
-                )
-            ]
+            sampleCalendarId: periodEvents + pillEvents + loveEvents
         ]
     }
 }
