@@ -151,6 +151,7 @@ struct BloodyDayRootView: View {
                 if calendarSharingSettingViewModel == nil {
                     calendarSharingSettingViewModel = CalendarSharingSettingViewModel(
                         repo: settingsRepository,
+                        eventRepository: syncingRepository,
                         sharedCalendarRepository: sharedCalendarRepository,
                         cloudSharingService: sharingService
                     )

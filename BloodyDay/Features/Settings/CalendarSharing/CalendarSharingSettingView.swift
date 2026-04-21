@@ -95,6 +95,28 @@ struct CalendarSharingSettingView: View {
                         ),
                         tint: .subPink
                     )
+                    
+                    Button {
+                        viewModel.presentShareSheet()
+                    } label: {
+                        HStack {
+                            Text(viewModel.isPreparingShare ? "공유 준비 중" : "공유 시작 / 관리")
+                                .font(.regular_18)
+                                .foregroundStyle(.textPrimary)
+                            
+                            Spacer()
+                            
+                            if viewModel.isPreparingShare {
+                                ProgressView()
+                            } else {
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundStyle(.textSecondary40)
+                            }
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(viewModel.isPreparingShare)
                 } header: {
                     Text("내 캘린더 공유")
                 } footer: {
@@ -124,11 +146,54 @@ struct CalendarSharingSettingView: View {
             viewModel.reload()
             viewModel.refreshICloudAvailability()
         }
+        .onDisappear {
+            viewModel.dismissShareSheet()
+        }
         .onReceive(NotificationCenter.default.publisher(for: CloudKitSharingService.acceptedShareNotification)) { _ in
             viewModel.reload()
         }
         .sheet(item: $viewModel.managingCalendar) { calendar in
             managingSheet(for: calendar)
+        }
+        .background {
+            if let sharePresentationID = viewModel.sharePresentationID {
+                CloudSharingControllerSheet(
+                    existingShare: viewModel.existingShare ?? viewModel.preparedShare,
+                    shouldPresentOnAppear: viewModel.shouldPresentShareController(for: sharePresentationID),
+                    prepareShare: {
+                        try await viewModel.prepareOwnedShare()
+                    },
+                    onDidPresent: {
+                        viewModel.markShareControllerPresented(id: sharePresentationID)
+                    },
+                    onDidSaveShare: {
+                        viewModel.dismissShareSheet()
+                        viewModel.reload()
+                    },
+                    onDidStopSharing: {
+                        viewModel.dismissShareSheet()
+                        viewModel.reload()
+                    },
+                    onDidFailToSaveShare: { error in
+                        viewModel.handleSharePreparationFailure(error)
+                    }
+                )
+                .id(sharePresentationID)
+                .frame(width: 0, height: 0)
+            }
+        }
+        .alert(
+            "공유를 시작할 수 없어요",
+            isPresented: Binding(
+                get: { viewModel.sharePresentationErrorMessage != nil },
+                set: { if $0 == false { viewModel.dismissSharePresentationError() } }
+            )
+        ) {
+            Button("확인", role: .cancel) {
+                viewModel.dismissSharePresentationError()
+            }
+        } message: {
+            Text(viewModel.sharePresentationErrorMessage ?? "")
         }
     }
     
@@ -259,6 +324,7 @@ struct CalendarSharingSettingView: View {
         CalendarSharingSettingView(
             viewModel: .init(
                 repo: UserDefaultsSettingsRepository(),
+                eventRepository: MockEventRepository(),
                 sharedCalendarRepository: MockSharedCalendarRepository(),
                 cloudSharingService: CloudKitSharingService()
             )

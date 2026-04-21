@@ -284,6 +284,7 @@ struct CalendarMainView: View {
         ),
         calendarSharingViewModel: .init(
             repo: UserDefaultsSettingsRepository(),
+            eventRepository: MockEventRepository(),
             sharedCalendarRepository: MockSharedCalendarRepository(),
             cloudSharingService: CloudKitSharingService()
         ),

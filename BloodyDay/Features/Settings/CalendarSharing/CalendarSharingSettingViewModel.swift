@@ -13,21 +13,31 @@ import Observation
 @Observable
 final class CalendarSharingSettingViewModel {
     private let repo: SettingsRepository
+    private let eventRepository: EventRepository
     private let sharedCalendarRepository: SharedCalendarRepository
     private let cloudSharingService: CloudSharingService
     
     private(set) var selectedScope: CalendarScope
     private(set) var sharedCalendars: [SharedCalendar] = []
     var managingCalendar: SharedCalendar?
-    var sharedEventTypeSelection: SharedEventTypeSelection = .none
+    var sharedEventTypeSelection: SharedEventTypeSelection = .init(period: true, pill: true, love: true)
     private(set) var iCloudAvailability: CloudSharingAvailability = .couldNotDetermine
+    var isShareSheetPresented: Bool = false
+    var sharePresentationID: UUID?
+    private var presentedSharePresentationID: UUID?
+    var existingShare: CKShare?
+    var preparedShare: CKShare?
+    var isPreparingShare: Bool = false
+    var sharePresentationErrorMessage: String?
     
     init(
         repo: SettingsRepository,
+        eventRepository: EventRepository,
         sharedCalendarRepository: SharedCalendarRepository,
         cloudSharingService: CloudSharingService
     ) {
         self.repo = repo
+        self.eventRepository = eventRepository
         self.sharedCalendarRepository = sharedCalendarRepository
         self.cloudSharingService = cloudSharingService
         self.selectedScope = repo.load().calendarScope.selectedScope
@@ -116,6 +126,71 @@ final class CalendarSharingSettingViewModel {
 
     func setSharedEventType(_ type: EventType, enabled: Bool) {
         sharedEventTypeSelection.set(type, enabled: enabled)
+    }
+    
+    func presentShareSheet() {
+        guard isPreparingShare == false else { return }
+        
+        isPreparingShare = true
+        sharePresentationErrorMessage = nil
+        presentedSharePresentationID = nil
+        Task {
+            do {
+                existingShare = try await cloudSharingService.fetchOwnedShare()
+                if existingShare == nil {
+                    preparedShare = try await prepareOwnedShare()
+                }
+                sharePresentationID = UUID()
+                isShareSheetPresented = true
+            } catch {
+                existingShare = nil
+                preparedShare = nil
+                sharePresentationID = nil
+                presentedSharePresentationID = nil
+                isShareSheetPresented = false
+                sharePresentationErrorMessage = error.localizedDescription
+            }
+            isPreparingShare = false
+        }
+    }
+    
+    func dismissShareSheet() {
+        isShareSheetPresented = false
+        sharePresentationID = nil
+        presentedSharePresentationID = nil
+        existingShare = nil
+        preparedShare = nil
+    }
+    
+    func handleSharePreparationFailure(_ error: Error) {
+        isShareSheetPresented = false
+        sharePresentationID = nil
+        presentedSharePresentationID = nil
+        existingShare = nil
+        preparedShare = nil
+        sharePresentationErrorMessage = error.localizedDescription
+    }
+    
+    func dismissSharePresentationError() {
+        sharePresentationErrorMessage = nil
+    }
+    
+    func prepareOwnedShare() async throws -> CKShare {
+        try await cloudSharingService.prepareOwnedShare(
+            sharedEventTypes: sharedEventTypeSelection,
+            settings: repo.load(),
+            events: eventRepository.allEvents()
+        )
+    }
+    
+    func shouldPresentShareController(for id: UUID) -> Bool {
+        presentedSharePresentationID != id
+    }
+    
+    func markShareControllerPresented(id: UUID) {
+        guard sharePresentationID == id else { return }
+        
+        presentedSharePresentationID = id
     }
     
     private func updateScope(_ scope: CalendarScope) {
