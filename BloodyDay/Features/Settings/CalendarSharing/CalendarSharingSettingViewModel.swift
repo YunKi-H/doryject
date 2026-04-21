@@ -35,17 +35,13 @@ final class CalendarSharingSettingViewModel {
     }
     
     func reload() {
-        sharedCalendars = sharedCalendarRepository.calendars()
-        
-        let storedScope = repo.load().calendarScope.selectedScope
-        switch storedScope {
-        case .mine:
-            selectedScope = .mine
-        case .shared(let id):
-            selectedScope = sharedCalendars.contains(where: { $0.id == id }) ? .shared(id: id) : .mine
-            if selectedScope == .mine {
-                repo.update { $0.calendarScope.selectedScope = .mine }
+        if let reloadingRepository = sharedCalendarRepository as? SharedCalendarReloading {
+            Task {
+                await reloadingRepository.refresh()
+                reloadStoredState()
             }
+        } else {
+            reloadStoredState()
         }
     }
     
@@ -126,6 +122,21 @@ final class CalendarSharingSettingViewModel {
         selectedScope = scope
         repo.update {
             $0.calendarScope.selectedScope = scope
+        }
+    }
+    
+    private func reloadStoredState() {
+        sharedCalendars = sharedCalendarRepository.calendars()
+        
+        let storedScope = repo.load().calendarScope.selectedScope
+        switch storedScope {
+        case .mine:
+            selectedScope = .mine
+        case .shared(let id):
+            selectedScope = sharedCalendars.contains(where: { $0.id == id }) ? .shared(id: id) : .mine
+            if selectedScope == .mine {
+                repo.update { $0.calendarScope.selectedScope = .mine }
+            }
         }
     }
 }

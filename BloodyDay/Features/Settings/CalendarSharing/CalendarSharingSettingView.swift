@@ -5,7 +5,6 @@
 //  Created by Yunki on 4/21/26.
 //
 
-import CloudKit
 import SwiftUI
 
 struct CalendarSharingSettingView: View {
@@ -127,10 +126,6 @@ struct CalendarSharingSettingView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: CloudKitSharingService.acceptedShareNotification)) { _ in
             viewModel.reload()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: BloodyDayAppDelegate.didAcceptShareNotification)) { notification in
-            guard let metadata = notification.userInfo?["metadata"] as? CKShare.Metadata else { return }
-            viewModel.accept(metadata)
         }
         .sheet(item: $viewModel.managingCalendar) { calendar in
             managingSheet(for: calendar)

@@ -26,6 +26,7 @@ struct BloodyDayRootView: View {
     @State private var notificationScheduler: UserNotificationScheduler?
     @State private var widgetReloadService: WidgetReloadService?
     @State private var cloudSharingService: CloudSharingService?
+    @State private var cloudSharedCalendarRepository: CloudKitSharedCalendarRepository?
     
     @State private var activeTab: BloodyDayTab = .calendar
     @State private var isPresentedCalendarSheet: Bool = false
@@ -87,15 +88,18 @@ struct BloodyDayRootView: View {
                 let baseEventRepository = SwiftDataEventRepository(context: modelContext)
                 let settingsRepository = UserDefaultsSettingsRepository()
                 let syncStore = UserDefaultsAppleCalendarSyncStore()
-                let sharedCalendarRepository = MockSharedCalendarRepository()
                 let calendarClient = appleCalendarClient ?? EventKitAppleCalendarClient()
                 let scheduler = notificationScheduler ?? UserNotificationScheduler()
                 let widgetReloader = widgetReloadService ?? WidgetReloadService()
                 let sharingService = cloudSharingService ?? CloudKitSharingService()
+                let sharedCalendarRepository = cloudSharedCalendarRepository ?? CloudKitSharedCalendarRepository(
+                    cloudSharingService: sharingService
+                )
                 appleCalendarClient = calendarClient
                 notificationScheduler = scheduler
                 widgetReloadService = widgetReloader
                 cloudSharingService = sharingService
+                cloudSharedCalendarRepository = sharedCalendarRepository
                 if appleCalendarSyncService == nil {
                     appleCalendarSyncService = AppleCalendarSyncService(
                         settingsRepository: settingsRepository,
@@ -165,8 +169,10 @@ struct BloodyDayRootView: View {
                 Task {
                     do {
                         try await cloudSharingService?.accept(metadata)
+                        await cloudSharedCalendarRepository?.refresh()
                         await MainActor.run {
                             calendarSharingSettingViewModel?.reload()
+                            calendarViewModel?.refresh()
                             calendarSharingSettingViewModel?.refreshICloudAvailability()
                         }
                     } catch {
@@ -185,6 +191,13 @@ struct BloodyDayRootView: View {
         periodListViewModel?.refresh()
         pillSettingsViewModel?.reload()
         appearanceSettingViewModel?.reload()
+        Task {
+            await cloudSharedCalendarRepository?.refresh()
+            await MainActor.run {
+                calendarSharingSettingViewModel?.reload()
+                calendarViewModel?.refresh()
+            }
+        }
         notificationSettingsViewModel?.refreshSchedules()
         Task {
             await appleCalendarSyncService?.syncAll()
