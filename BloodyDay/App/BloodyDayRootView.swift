@@ -170,12 +170,7 @@ struct BloodyDayRootView: View {
                 Task {
                     do {
                         try await cloudSharingService?.accept(metadata)
-                        await cloudSharedCalendarRepository?.refresh()
-                        await MainActor.run {
-                            calendarSharingSettingViewModel?.reload()
-                            calendarViewModel?.refresh()
-                            calendarSharingSettingViewModel?.refreshICloudAvailability()
-                        }
+                        await refreshSharedCalendarState()
                     } catch {
                     }
                 }
@@ -193,17 +188,20 @@ struct BloodyDayRootView: View {
         pillSettingsViewModel?.reload()
         appearanceSettingViewModel?.reload()
         Task {
-            await cloudSharedCalendarRepository?.refresh()
-            await MainActor.run {
-                calendarSharingSettingViewModel?.reload()
-                calendarViewModel?.refresh()
-            }
+            await refreshSharedCalendarState()
         }
         notificationSettingsViewModel?.refreshSchedules()
         Task {
             await appleCalendarSyncService?.syncAll()
         }
         widgetReloadService?.reloadAll()
+    }
+    
+    @MainActor
+    private func refreshSharedCalendarState() async {
+        await calendarSharingSettingViewModel?.refreshSharedCalendars()
+        calendarViewModel?.refresh()
+        calendarSharingSettingViewModel?.refreshICloudAvailability()
     }
     
     private var preferredColorScheme: ColorScheme? {

@@ -61,7 +61,6 @@ enum CloudSharingEventSyncResult: Equatable {
 }
 
 final class CloudKitSharingService: CloudSharingService {
-    static let acceptedShareNotification = Notification.Name("CloudKitSharingService.acceptedShare")
     static let containerIdentifier = "iCloud.dorypawn.BDaySharing"
     static let ownedZoneName = "BloodyDaySharedCalendar"
     static let ownedCalendarRecordName = "owned-shared-calendar"
@@ -107,12 +106,6 @@ final class CloudKitSharingService: CloudSharingService {
                     continuation.resume(throwing: error)
                     return
                 }
-                
-                NotificationCenter.default.post(
-                    name: Self.acceptedShareNotification,
-                    object: nil,
-                    userInfo: ["metadata": metadata]
-                )
                 continuation.resume(returning: ())
             }
         }

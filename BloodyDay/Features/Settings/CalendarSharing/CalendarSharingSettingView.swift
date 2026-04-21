@@ -150,14 +150,13 @@ struct CalendarSharingSettingView: View {
         }
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
-            viewModel.reload()
             viewModel.refreshICloudAvailability()
+            Task {
+                await viewModel.refreshSharedCalendars()
+            }
         }
         .onDisappear {
             viewModel.dismissShareSheet()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: CloudKitSharingService.acceptedShareNotification)) { _ in
-            viewModel.reload()
         }
         .sheet(item: $viewModel.managingCalendar) { calendar in
             managingSheet(for: calendar)
@@ -179,11 +178,15 @@ struct CalendarSharingSettingView: View {
                     },
                     onDidSaveShare: {
                         viewModel.dismissShareSheet()
-                        viewModel.reload()
+                        Task {
+                            await viewModel.refreshSharedCalendars()
+                        }
                     },
                     onDidStopSharing: {
                         viewModel.dismissShareSheet()
-                        viewModel.reload()
+                        Task {
+                            await viewModel.refreshSharedCalendars()
+                        }
                     },
                     onDidFailToSaveShare: { error in
                         viewModel.handleSharePreparationFailure(error)

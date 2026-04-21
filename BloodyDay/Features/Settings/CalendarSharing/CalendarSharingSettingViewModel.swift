@@ -46,14 +46,14 @@ final class CalendarSharingSettingViewModel {
     }
     
     func reload() {
+        reloadStoredState()
+    }
+    
+    func refreshSharedCalendars() async {
         if let reloadingRepository = sharedCalendarRepository as? SharedCalendarReloading {
-            Task {
-                await reloadingRepository.refresh()
-                reloadStoredState()
-            }
-        } else {
-            reloadStoredState()
+            await reloadingRepository.refresh()
         }
+        reloadStoredState()
     }
     
     func selectMine() {
@@ -115,17 +115,6 @@ final class CalendarSharingSettingViewModel {
     func refreshICloudAvailability() {
         Task {
             iCloudAvailability = await cloudSharingService.fetchAvailability()
-        }
-    }
-
-    func accept(_ metadata: CKShare.Metadata) {
-        Task {
-            do {
-                try await cloudSharingService.accept(metadata)
-                refreshICloudAvailability()
-            } catch {
-                iCloudAvailability = .couldNotDetermine
-            }
         }
     }
 
