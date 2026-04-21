@@ -66,7 +66,12 @@ final class CalendarViewModel {
     }
     
     var calendarScopeDisplayName: String {
-        calendarScope.fallbackDisplayName
+        switch calendarScope {
+        case .mine:
+            return calendarScope.fallbackDisplayName
+        case .shared(let id):
+            return sharedCalendarRepository?.calendar(id: id)?.displayName ?? calendarScope.fallbackDisplayName
+        }
     }
     
     func selectCalendarScope(_ scope: CalendarScope) {
@@ -145,9 +150,7 @@ extension CalendarViewModel {
         case .mine:
             return eventRepository.allEvents()
         case .shared(let id):
-            return sharedCalendarRepository?
-                .visibleEvents(calendarId: id)
-                .map(makeDisplayEvent(from:)) ?? []
+            return sharedDisplayEvents(calendarId: id)
         }
     }
     
@@ -156,11 +159,14 @@ extension CalendarViewModel {
         case .mine:
             return eventRepository.events(of: type)
         case .shared(let id):
-            return sharedCalendarRepository?
-                .visibleEvents(calendarId: id)
-                .filter { $0.type == type }
-                .map(makeDisplayEvent(from:)) ?? []
+            return sharedDisplayEvents(calendarId: id).filter { $0.type == type }
         }
+    }
+    
+    private func sharedDisplayEvents(calendarId: String) -> [UserEvent] {
+        sharedCalendarRepository?
+            .visibleEvents(calendarId: calendarId)
+            .map(makeDisplayEvent(from:)) ?? []
     }
     
     private func makeDisplayEvent(from sharedEvent: SharedCalendarEvent) -> UserEvent {
@@ -282,7 +288,7 @@ extension CalendarViewModel {
         bounds: (start: Date, endExclusive: Date),
         userEvents: [UserEvent]
     ) -> MonthComputationContext {
-        let settings = settingsRepository?.load() ?? .init()
+        let settings = effectiveSettingsForCurrentScope()
         let pillDates = Set(events(of: .pill).map { $0.date.startOfDay })
         let allPeriodEvents = events(of: .period)
         return BuildCalendarMonthComputationContextUseCase.execute(
@@ -305,19 +311,36 @@ extension CalendarViewModel {
     }
     
     private var isPillEnabled: Bool {
-        guard calendarScope == .mine else { return false }
-        return settingsRepository?.load().pill.pillEnabled == true
+        effectiveSettingsForCurrentScope().pill.pillEnabled
+    }
+    
+    private func effectiveSettingsForCurrentScope() -> UserSettings {
+        switch calendarScope {
+        case .mine:
+            return settingsRepository?.load() ?? .init()
+        case .shared(let id):
+            let sharedEvents = sharedCalendarRepository?.visibleEvents(calendarId: id) ?? []
+            let hasPillEvents = sharedEvents.contains { $0.type == .pill }
+            return UserSettings(
+                period: .init(
+                    autoCyclePredictionEnabled: true,
+                    averageCycleDays: nil,
+                    averagePeriodDays: nil
+                ),
+                pill: .init(),
+                notifications: .init(),
+                appleCalendar: .init(),
+                appearance: .init(),
+                calendarScope: .init(selectedScope: calendarScope)
+            ).withPillEnabled(hasPillEvents)
+        }
     }
 }
 
 // DayInfoCard
 extension CalendarViewModel {
     func primaryStatus(for date: Date) -> CalendarPrimaryStatus {
-        guard calendarScope == .mine else {
-            return .unknown
-        }
-        
-        let settings = settingsRepository?.load() ?? .init()
+        let settings = effectiveSettingsForCurrentScope()
         let periodDates = events(of: .period).map(\.date)
         let pillDates = Set(events(of: .pill).map { $0.date.startOfDay })
         let snapshot = DayInfoCardStatusUseCase.primaryStatus(
@@ -332,11 +355,7 @@ extension CalendarViewModel {
     }
     
     func secondaryStatus(for date: Date) -> CalendarSecondaryStatus {
-        guard calendarScope == .mine else {
-            return .unknown
-        }
-        
-        let settings = settingsRepository?.load() ?? .init()
+        let settings = effectiveSettingsForCurrentScope()
         let pillDates = Set(events(of: .pill).map { $0.date.startOfDay })
         let dayEvents = months
             .flatMap(\.days)
@@ -360,6 +379,14 @@ extension CalendarViewModel {
         return PeriodSummaryBuilder.build(from: events.map { $0.date })
     }
     
+}
+
+private extension UserSettings {
+    func withPillEnabled(_ enabled: Bool) -> UserSettings {
+        var copy = self
+        copy.pill.pillEnabled = enabled
+        return copy
+    }
 }
 
 enum CalendarPrimaryStatus: Equatable {
