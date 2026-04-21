@@ -22,7 +22,6 @@ final class CalendarSharingSettingViewModel {
     var managingCalendar: SharedCalendar?
     var sharedEventTypeSelection: SharedEventTypeSelection = .init(period: true, pill: true, love: true)
     private(set) var iCloudAvailability: CloudSharingAvailability = .couldNotDetermine
-    var isShareSheetPresented: Bool = false
     var sharePresentationID: UUID?
     private var presentedSharePresentationID: UUID?
     var existingShare: CKShare?
@@ -141,13 +140,11 @@ final class CalendarSharingSettingViewModel {
                     preparedShare = try await prepareOwnedShare()
                 }
                 sharePresentationID = UUID()
-                isShareSheetPresented = true
             } catch {
                 existingShare = nil
                 preparedShare = nil
                 sharePresentationID = nil
                 presentedSharePresentationID = nil
-                isShareSheetPresented = false
                 sharePresentationErrorMessage = error.localizedDescription
             }
             isPreparingShare = false
@@ -155,7 +152,6 @@ final class CalendarSharingSettingViewModel {
     }
     
     func dismissShareSheet() {
-        isShareSheetPresented = false
         sharePresentationID = nil
         presentedSharePresentationID = nil
         existingShare = nil
@@ -163,7 +159,6 @@ final class CalendarSharingSettingViewModel {
     }
     
     func handleSharePreparationFailure(_ error: Error) {
-        isShareSheetPresented = false
         sharePresentationID = nil
         presentedSharePresentationID = nil
         existingShare = nil
