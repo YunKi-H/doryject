@@ -163,50 +163,18 @@ final class CloudKitSharingService: CloudSharingService {
         settings: UserSettings,
         events: [UserEvent]
     ) async throws -> PreparedCloudShare {
-        try await ensureOwnedZoneExists()
-        let rootRecord = try await fetchOrMakeOwnedCalendarRecord()
-        applyOwnedCalendarFields(
-            to: rootRecord,
+        let preparedRootShare = try await prepareOwnedRootShare(
             sharedEventTypes: sharedEventTypes,
             settings: settings
         )
         
-        let existingShare = try await fetchOwnedShare(for: rootRecord)
-        let share = existingShare ?? CKShare(rootRecord: rootRecord)
-        rootRecord[SharedCloudKitSchema.CalendarField.shareRecordName] = share.recordID.recordName as CKRecordValue
-        share[CKShare.SystemFieldKey.title] = "BloodyDay 캘린더 공유" as CKRecordValue
-        share.publicPermission = .none
-
-        let result = try await privateDatabase.modifyRecords(
-            saving: [rootRecord, share],
-            deleting: [],
-            savePolicy: .changedKeys,
-            atomically: true
-        )
-        
-        let savedShareResult = result.saveResults[share.recordID]
-        guard let savedShareResult else {
-            throw CloudSharingError.shareSaveFailed
-        }
-        
-        guard case .success(let savedShareRecord) = savedShareResult,
-              let savedShare = savedShareRecord as? CKShare else {
-            throw CloudSharingError.shareSaveFailed
-        }
-        
-        let fetchedShare = try await fetchShare(recordID: savedShare.recordID)
-        let resolvedShare = fetchedShare ?? savedShare
-        guard resolvedShare.url != nil else {
-            throw CloudSharingError.missingShareURL
-        }
-        
         let eventSyncResult = await syncOwnedEventRecords(
             events: events,
             sharedEventTypes: sharedEventTypes,
-            calendarRecord: rootRecord
+            calendarRecord: preparedRootShare.rootRecord
         )
         return PreparedCloudShare(
-            share: resolvedShare,
+            share: preparedRootShare.share,
             eventSyncResult: eventSyncResult
         )
     }
@@ -259,6 +227,65 @@ final class CloudKitSharingService: CloudSharingService {
         }
         
         return records
+    }
+    
+    private struct PreparedOwnedRootShare {
+        let rootRecord: CKRecord
+        let share: CKShare
+    }
+    
+    private func prepareOwnedRootShare(
+        sharedEventTypes: SharedEventTypeSelection,
+        settings: UserSettings
+    ) async throws -> PreparedOwnedRootShare {
+        try await ensureOwnedZoneExists()
+        let rootRecord = try await fetchOrMakeOwnedCalendarRecord()
+        applyOwnedCalendarFields(
+            to: rootRecord,
+            sharedEventTypes: sharedEventTypes,
+            settings: settings
+        )
+        
+        let share = try await resolveOwnedShare(for: rootRecord)
+        let savedShare = try await saveOwnedRootShare(
+            rootRecord: rootRecord,
+            share: share
+        )
+        return PreparedOwnedRootShare(
+            rootRecord: rootRecord,
+            share: savedShare
+        )
+    }
+    
+    private func resolveOwnedShare(for rootRecord: CKRecord) async throws -> CKShare {
+        let share = try await fetchOwnedShare(for: rootRecord) ?? CKShare(rootRecord: rootRecord)
+        rootRecord[SharedCloudKitSchema.CalendarField.shareRecordName] = share.recordID.recordName as CKRecordValue
+        share[CKShare.SystemFieldKey.title] = "BloodyDay 캘린더 공유" as CKRecordValue
+        share.publicPermission = .none
+        return share
+    }
+    
+    private func saveOwnedRootShare(rootRecord: CKRecord, share: CKShare) async throws -> CKShare {
+        let result = try await privateDatabase.modifyRecords(
+            saving: [rootRecord, share],
+            deleting: [],
+            savePolicy: .changedKeys,
+            atomically: true
+        )
+        
+        let savedShareResult = result.saveResults[share.recordID]
+        guard let savedShareResult,
+              case .success(let savedShareRecord) = savedShareResult,
+              let savedShare = savedShareRecord as? CKShare else {
+            throw CloudSharingError.shareSaveFailed
+        }
+        
+        let fetchedShare = try await fetchShare(recordID: savedShare.recordID)
+        let resolvedShare = fetchedShare ?? savedShare
+        guard resolvedShare.url != nil else {
+            throw CloudSharingError.missingShareURL
+        }
+        return resolvedShare
     }
     
     private func ensureOwnedZoneExists() async throws {
@@ -353,24 +380,33 @@ final class CloudKitSharingService: CloudSharingService {
                 savePolicy: .changedKeys,
                 atomically: false
             )
-            let failedSaveCount = result.saveResults.values.filter {
-                guard case .failure = $0 else { return false }
-                return true
-            }.count
-            let failedDeleteCount = result.deleteResults.values.filter {
-                guard case .failure = $0 else { return false }
-                return true
-            }.count
-            let failureCount = failedSaveCount + failedDeleteCount
-            if failureCount == 0 {
-                return .synced
-            }
-            
-            let requestedCount = eventRecords.count + staleRecordIDs.count
-            return failureCount < requestedCount ? .partiallyFailed : .failed
+            return eventSyncResult(
+                saveResults: Array(result.saveResults.values),
+                deleteResults: Array(result.deleteResults.values),
+                requestedCount: eventRecords.count + staleRecordIDs.count
+            )
         } catch {
             return .failed
         }
+    }
+    
+    private func eventSyncResult(
+        saveResults: [Result<CKRecord, Error>],
+        deleteResults: [Result<Void, Error>],
+        requestedCount: Int
+    ) -> CloudSharingEventSyncResult {
+        let failureCount = failureCount(in: saveResults) + failureCount(in: deleteResults)
+        if failureCount == 0 {
+            return .synced
+        }
+        return failureCount < requestedCount ? .partiallyFailed : .failed
+    }
+    
+    private func failureCount<Success>(in results: [Result<Success, Error>]) -> Int {
+        results.filter {
+            guard case .failure = $0 else { return false }
+            return true
+        }.count
     }
     
     private func applyOwnedCalendarFields(
