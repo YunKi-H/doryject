@@ -1,5 +1,5 @@
 //
-//  CloudSharingControllerSheet.swift
+//  CloudSharingControllerPresenter.swift
 //  BloodyDay
 //
 //  Created by Yunki on 4/21/26.
@@ -9,7 +9,7 @@ import CloudKit
 import SwiftUI
 import UIKit
 
-struct CloudSharingControllerSheet: UIViewControllerRepresentable {
+struct CloudSharingControllerPresenter: UIViewControllerRepresentable {
     let existingShare: CKShare?
     let shouldPresentOnAppear: Bool
     let prepareShare: @MainActor () async throws -> CKShare
