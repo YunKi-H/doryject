@@ -15,6 +15,8 @@ final class CalendarSharingSettingViewModel {
     
     private(set) var selectedScope: CalendarScope
     private(set) var sharedCalendars: [SharedCalendar] = []
+    var managingCalendar: SharedCalendar?
+    var sharedEventTypeSelection: SharedEventTypeSelection = .none
     
     init(
         repo: SettingsRepository,
@@ -57,6 +59,14 @@ final class CalendarSharingSettingViewModel {
         calendar.displayName
     }
     
+    func manage(calendarId: String) {
+        managingCalendar = sharedCalendars.first(where: { $0.id == calendarId })
+    }
+    
+    func dismissManagement() {
+        managingCalendar = nil
+    }
+    
     var selectedScopeDisplayName: String {
         switch selectedScope {
         case .mine:
@@ -69,9 +79,9 @@ final class CalendarSharingSettingViewModel {
     var isICloudAvailable: Bool {
         false
     }
-    
-    var sharedEventTypeSelection: SharedEventTypeSelection {
-        .none
+
+    func setSharedEventType(_ type: EventType, enabled: Bool) {
+        sharedEventTypeSelection.set(type, enabled: enabled)
     }
     
     private func updateScope(_ scope: CalendarScope) {

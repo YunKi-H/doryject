@@ -44,7 +44,18 @@ struct CalendarSharingSettingView: View {
                     ForEach(viewModel.sharedCalendars) { calendar in
                         scopeRow(
                             title: calendar.displayName,
-                            isSelected: viewModel.isSelected(.shared(id: calendar.id))
+                            subtitle: sharedCalendarSummary(for: calendar),
+                            isSelected: viewModel.isSelected(.shared(id: calendar.id)),
+                            accessory: {
+                                Button {
+                                    viewModel.manage(calendarId: calendar.id)
+                                } label: {
+                                    Image(systemName: "info.circle")
+                                        .font(.system(size: 18))
+                                        .foregroundStyle(.textSecondary40)
+                                }
+                                .buttonStyle(.plain)
+                            }
                         ) {
                             viewModel.selectSharedCalendar(id: calendar.id)
                         }
@@ -60,9 +71,30 @@ struct CalendarSharingSettingView: View {
                 .listRowBackground(Color.bgSecondary)
                 
                 Section {
-                    sharingTypeRow(title: "생리", enabled: viewModel.sharedEventTypeSelection.period, tint: .mainRed)
-                    sharingTypeRow(title: "피임약 복용", enabled: viewModel.sharedEventTypeSelection.pill, tint: .subBlue)
-                    sharingTypeRow(title: "사랑한 날", enabled: viewModel.sharedEventTypeSelection.love, tint: .subPink)
+                    sharingTypeRow(
+                        title: "생리",
+                        isOn: Binding(
+                            get: { viewModel.sharedEventTypeSelection.period },
+                            set: { viewModel.setSharedEventType(.period, enabled: $0) }
+                        ),
+                        tint: .mainRed
+                    )
+                    sharingTypeRow(
+                        title: "피임약 복용",
+                        isOn: Binding(
+                            get: { viewModel.sharedEventTypeSelection.pill },
+                            set: { viewModel.setSharedEventType(.pill, enabled: $0) }
+                        ),
+                        tint: .subBlue
+                    )
+                    sharingTypeRow(
+                        title: "사랑한 날",
+                        isOn: Binding(
+                            get: { viewModel.sharedEventTypeSelection.love },
+                            set: { viewModel.setSharedEventType(.love, enabled: $0) }
+                        ),
+                        tint: .subPink
+                    )
                 } header: {
                     Text("내 캘린더 공유")
                 } footer: {
@@ -72,26 +104,6 @@ struct CalendarSharingSettingView: View {
                         .padding(.top, 14)
                 }
                 .listRowBackground(Color.bgSecondary)
-                
-                if viewModel.sharedCalendars.isEmpty == false {
-                    Section {
-                        ForEach(viewModel.sharedCalendars) { calendar in
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(calendar.displayName)
-                                    .font(.regular_18)
-                                    .foregroundStyle(.textPrimary)
-                                
-                                Text(sharedEventTypeText(for: calendar.sharedEventTypes))
-                                    .font(.regular_14)
-                                    .foregroundStyle(.textSecondary40)
-                            }
-                            .padding(.vertical, 2)
-                        }
-                    } header: {
-                        Text("받은 캘린더")
-                    }
-                    .listRowBackground(Color.bgSecondary)
-                }
             }
             .listSectionSpacing(14)
             .contentMargins(.top, 14)
@@ -111,31 +123,44 @@ struct CalendarSharingSettingView: View {
         .onAppear {
             viewModel.reload()
         }
+        .sheet(item: $viewModel.managingCalendar) { calendar in
+            managingSheet(for: calendar)
+        }
     }
     
     private func scopeRow(
         title: String,
+        subtitle: String? = nil,
         isSelected: Bool,
+        @ViewBuilder accessory: () -> some View = { EmptyView() },
         action: @escaping () -> Void
     ) -> some View {
-        Button(action: action) {
-            HStack(spacing: 10) {
-                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                    .foregroundStyle(isSelected ? .mainRed : .textQuaternary)
-                    .font(.system(size: 18))
-                
+        HStack(spacing: 10) {
+            Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                .foregroundStyle(isSelected ? .mainRed : .textQuaternary)
+                .font(.system(size: 18))
+            
+            VStack(alignment: .leading, spacing: 4) {
                 Text(title)
                     .font(.regular_18)
                     .foregroundStyle(.textPrimary)
                 
-                Spacer()
+                if let subtitle, subtitle.isEmpty == false {
+                    Text(subtitle)
+                        .font(.regular_14)
+                        .foregroundStyle(.textSecondary40)
+                }
             }
-            .contentShape(Rectangle())
+            
+            Spacer()
+            
+            accessory()
         }
-        .buttonStyle(.plain)
+        .contentShape(Rectangle())
+        .onTapGesture(perform: action)
     }
     
-    private func sharingTypeRow(title: String, enabled: Bool, tint: Color) -> some View {
+    private func sharingTypeRow(title: String, isOn: Binding<Bool>, tint: Color) -> some View {
         HStack {
             Text(title)
                 .font(.regular_18)
@@ -143,9 +168,9 @@ struct CalendarSharingSettingView: View {
             
             Spacer()
             
-            Text(enabled ? "ON" : "OFF")
-                .font(.regular_16)
-                .foregroundStyle(tint.opacity(enabled ? 1 : 0.35))
+            Toggle("", isOn: isOn)
+                .labelsHidden()
+                .tint(tint)
         }
     }
     
@@ -158,6 +183,70 @@ struct CalendarSharingSettingView: View {
         .compactMap { $0 }
         
         return labels.isEmpty ? "공유 항목 없음" : labels.joined(separator: ", ")
+    }
+    
+    private func sharedCalendarSummary(for calendar: SharedCalendar) -> String {
+        "\(sharedEventTypeText(for: calendar.sharedEventTypes)) · \(permissionText(for: calendar.permission))"
+    }
+    
+    private func permissionText(for permission: SharedCalendarPermission) -> String {
+        switch permission {
+        case .readOnly:
+            return "읽기 전용"
+        case .readWrite:
+            return "편집 가능"
+        }
+    }
+    
+    @ViewBuilder
+    private func managingSheet(for calendar: SharedCalendar) -> some View {
+        NavigationStack {
+            List {
+                Section {
+                    detailRow(title: "이름", value: calendar.displayName)
+                    detailRow(title: "공유 항목", value: sharedEventTypeText(for: calendar.sharedEventTypes))
+                    detailRow(title: "권한", value: permissionText(for: calendar.permission))
+                } footer: {
+                    Text("이름 변경과 공유 나가기는 CloudKit 연동 단계에서 추가됩니다.")
+                        .font(.regular_14)
+                        .foregroundStyle(.textSecondary40)
+                        .padding(.top, 14)
+                }
+                .listRowBackground(Color.bgSecondary)
+            }
+            .listSectionSpacing(14)
+            .contentMargins(.top, 14)
+            .scrollContentBackground(.hidden)
+            .background {
+                Color.bgPrimary
+                    .ignoresSafeArea()
+            }
+            .appGradientOverlay()
+            .navigationTitle(calendar.displayName)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("닫기") {
+                        viewModel.dismissManagement()
+                    }
+                    .foregroundStyle(.mainRed)
+                }
+            }
+        }
+    }
+    
+    private func detailRow(title: String, value: String) -> some View {
+        HStack {
+            Text(title)
+                .font(.regular_18)
+                .foregroundStyle(.textPrimary)
+            
+            Spacer()
+            
+            Text(value)
+                .font(.regular_16)
+                .foregroundStyle(.textSecondary40)
+        }
     }
 }
 
