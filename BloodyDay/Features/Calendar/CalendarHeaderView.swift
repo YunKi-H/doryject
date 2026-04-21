@@ -189,7 +189,8 @@ struct CalendarHeaderView: View {
         ),
         calendarSharingViewModel: .init(
             repo: UserDefaultsSettingsRepository(),
-            sharedCalendarRepository: MockSharedCalendarRepository()
+            sharedCalendarRepository: MockSharedCalendarRepository(),
+            cloudSharingService: CloudKitSharingService()
         ),
         appearanceViewModel: .init(repo: UserDefaultsSettingsRepository())
     )

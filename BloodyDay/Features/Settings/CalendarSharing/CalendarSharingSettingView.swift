@@ -5,6 +5,7 @@
 //  Created by Yunki on 4/21/26.
 //
 
+import CloudKit
 import SwiftUI
 
 struct CalendarSharingSettingView: View {
@@ -21,12 +22,12 @@ struct CalendarSharingSettingView: View {
                         
                         Spacer()
                         
-                        Text(viewModel.isICloudAvailable ? "사용 가능" : "준비 중")
+                        Text(viewModel.iCloudStatusText)
                             .font(.regular_16)
-                            .foregroundStyle(.textSecondary40)
+                            .foregroundStyle(viewModel.isICloudAvailable ? .subBlue : .textSecondary40)
                     }
                 } footer: {
-                    Text("CloudKit 공유 연동 전 단계입니다.")
+                    Text("iCloud 계정 상태를 확인해 공유 기능 가능 여부를 표시합니다.")
                         .font(.regular_14)
                         .foregroundStyle(.textSecondary40)
                         .padding(.top, 14)
@@ -98,7 +99,7 @@ struct CalendarSharingSettingView: View {
                 } header: {
                     Text("내 캘린더 공유")
                 } footer: {
-                    Text("공유할 이벤트 타입 선택은 CloudKit 연동 단계에서 활성화됩니다.")
+                    Text("선택한 항목을 기준으로 CloudKit 공유 레코드에 업로드할 예정입니다.")
                         .font(.regular_14)
                         .foregroundStyle(.textSecondary40)
                         .padding(.top, 14)
@@ -122,6 +123,14 @@ struct CalendarSharingSettingView: View {
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             viewModel.reload()
+            viewModel.refreshICloudAvailability()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: CloudKitSharingService.acceptedShareNotification)) { _ in
+            viewModel.reload()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: BloodyDayAppDelegate.didAcceptShareNotification)) { notification in
+            guard let metadata = notification.userInfo?["metadata"] as? CKShare.Metadata else { return }
+            viewModel.accept(metadata)
         }
         .sheet(item: $viewModel.managingCalendar) { calendar in
             managingSheet(for: calendar)
@@ -255,7 +264,8 @@ struct CalendarSharingSettingView: View {
         CalendarSharingSettingView(
             viewModel: .init(
                 repo: UserDefaultsSettingsRepository(),
-                sharedCalendarRepository: MockSharedCalendarRepository()
+                sharedCalendarRepository: MockSharedCalendarRepository(),
+                cloudSharingService: CloudKitSharingService()
             )
         )
     }

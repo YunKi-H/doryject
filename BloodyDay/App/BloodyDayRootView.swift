@@ -5,6 +5,7 @@
 //  Created by Yunki on 10/31/25.
 //
 
+import CloudKit
 import SwiftUI
 import UIKit
 import SwiftData
@@ -24,6 +25,7 @@ struct BloodyDayRootView: View {
     @State private var appleCalendarSyncService: AppleCalendarSyncService?
     @State private var notificationScheduler: UserNotificationScheduler?
     @State private var widgetReloadService: WidgetReloadService?
+    @State private var cloudSharingService: CloudSharingService?
     
     @State private var activeTab: BloodyDayTab = .calendar
     @State private var isPresentedCalendarSheet: Bool = false
@@ -89,9 +91,11 @@ struct BloodyDayRootView: View {
                 let calendarClient = appleCalendarClient ?? EventKitAppleCalendarClient()
                 let scheduler = notificationScheduler ?? UserNotificationScheduler()
                 let widgetReloader = widgetReloadService ?? WidgetReloadService()
+                let sharingService = cloudSharingService ?? CloudKitSharingService()
                 appleCalendarClient = calendarClient
                 notificationScheduler = scheduler
                 widgetReloadService = widgetReloader
+                cloudSharingService = sharingService
                 if appleCalendarSyncService == nil {
                     appleCalendarSyncService = AppleCalendarSyncService(
                         settingsRepository: settingsRepository,
@@ -143,7 +147,8 @@ struct BloodyDayRootView: View {
                 if calendarSharingSettingViewModel == nil {
                     calendarSharingSettingViewModel = CalendarSharingSettingViewModel(
                         repo: settingsRepository,
-                        sharedCalendarRepository: sharedCalendarRepository
+                        sharedCalendarRepository: sharedCalendarRepository,
+                        cloudSharingService: sharingService
                     )
                 }
                 if appearanceSettingViewModel == nil {
@@ -154,6 +159,19 @@ struct BloodyDayRootView: View {
             }
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
                 refreshAppStateAfterExternalChanges()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: BloodyDayAppDelegate.didAcceptShareNotification)) { notification in
+                guard let metadata = notification.userInfo?["metadata"] as? CKShare.Metadata else { return }
+                Task {
+                    do {
+                        try await cloudSharingService?.accept(metadata)
+                        await MainActor.run {
+                            calendarSharingSettingViewModel?.reload()
+                            calendarSharingSettingViewModel?.refreshICloudAvailability()
+                        }
+                    } catch {
+                    }
+                }
             }
         }
         .preferredColorScheme(preferredColorScheme)

@@ -5,25 +5,31 @@
 //  Created by Yunki on 4/21/26.
 //
 
+import CloudKit
 import Foundation
 import Observation
 
+@MainActor
 @Observable
 final class CalendarSharingSettingViewModel {
     private let repo: SettingsRepository
     private let sharedCalendarRepository: SharedCalendarRepository
+    private let cloudSharingService: CloudSharingService
     
     private(set) var selectedScope: CalendarScope
     private(set) var sharedCalendars: [SharedCalendar] = []
     var managingCalendar: SharedCalendar?
     var sharedEventTypeSelection: SharedEventTypeSelection = .none
+    private(set) var iCloudAvailability: CloudSharingAvailability = .couldNotDetermine
     
     init(
         repo: SettingsRepository,
-        sharedCalendarRepository: SharedCalendarRepository
+        sharedCalendarRepository: SharedCalendarRepository,
+        cloudSharingService: CloudSharingService
     ) {
         self.repo = repo
         self.sharedCalendarRepository = sharedCalendarRepository
+        self.cloudSharingService = cloudSharingService
         self.selectedScope = repo.load().calendarScope.selectedScope
         reload()
     }
@@ -77,7 +83,39 @@ final class CalendarSharingSettingViewModel {
     }
     
     var isICloudAvailable: Bool {
-        false
+        iCloudAvailability == .available
+    }
+    
+    var iCloudStatusText: String {
+        switch iCloudAvailability {
+        case .available:
+            return "사용 가능"
+        case .noAccount:
+            return "로그인 필요"
+        case .restricted:
+            return "사용 제한"
+        case .temporarilyUnavailable:
+            return "일시적 오류"
+        case .couldNotDetermine:
+            return "확인 불가"
+        }
+    }
+
+    func refreshICloudAvailability() {
+        Task {
+            iCloudAvailability = await cloudSharingService.fetchAvailability()
+        }
+    }
+
+    func accept(_ metadata: CKShare.Metadata) {
+        Task {
+            do {
+                try await cloudSharingService.accept(metadata)
+                refreshICloudAvailability()
+            } catch {
+                iCloudAvailability = .couldNotDetermine
+            }
+        }
     }
 
     func setSharedEventType(_ type: EventType, enabled: Bool) {

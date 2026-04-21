@@ -14,7 +14,10 @@ enum SharedAppModelContainer {
     
     static func make() -> ModelContainer {
         let schema = Schema([UserEvent.self])
-        let configuration = ModelConfiguration(url: storeURL())
+        let configuration = ModelConfiguration(
+            url: storeURL(),
+            cloudKitDatabase: .none
+        )
         do {
             let sharedContainer = try ModelContainer(for: schema, configurations: configuration)
             migrateLegacyEventsIfNeeded(into: sharedContainer, schema: schema)
@@ -47,7 +50,8 @@ enum SharedAppModelContainer {
         let sharedEvents = (try? sharedContext.fetch(descriptor)) ?? []
         guard sharedEvents.isEmpty else { return }
         
-        guard let legacyContainer = try? ModelContainer(for: schema) else { return }
+        let legacyConfiguration = ModelConfiguration(cloudKitDatabase: .none)
+        guard let legacyContainer = try? ModelContainer(for: schema, configurations: legacyConfiguration) else { return }
         let legacyContext = ModelContext(legacyContainer)
         let legacyEvents = (try? legacyContext.fetch(descriptor)) ?? []
         guard legacyEvents.isEmpty == false else { return }
