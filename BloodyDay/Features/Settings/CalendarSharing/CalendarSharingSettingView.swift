@@ -166,6 +166,9 @@ struct CalendarSharingSettingView: View {
                     onDidPresent: {
                         viewModel.markShareControllerPresented(id: sharePresentationID)
                     },
+                    onDidDismiss: {
+                        viewModel.dismissShareSheet()
+                    },
                     onDidSaveShare: {
                         viewModel.dismissShareSheet()
                         viewModel.reload()

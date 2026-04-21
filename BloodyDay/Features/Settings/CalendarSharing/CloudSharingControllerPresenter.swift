@@ -14,13 +14,14 @@ struct CloudSharingControllerPresenter: UIViewControllerRepresentable {
     let shouldPresentOnAppear: Bool
     let prepareShare: @MainActor () async throws -> CKShare
     let onDidPresent: @MainActor () -> Void
+    let onDidDismiss: @MainActor () -> Void
     let onDidSaveShare: @MainActor () -> Void
     let onDidStopSharing: @MainActor () -> Void
     let onDidFailToSaveShare: @MainActor (Error) -> Void
     
     func makeCoordinator() -> Coordinator {
         Coordinator(
-            onDidDismiss: onDidSaveShare,
+            onDidDismiss: onDidDismiss,
             onDidSaveShare: onDidSaveShare,
             onDidStopSharing: onDidStopSharing,
             onDidFailToSaveShare: onDidFailToSaveShare
@@ -31,7 +32,7 @@ struct CloudSharingControllerPresenter: UIViewControllerRepresentable {
         PresenterViewController(
             onPresentedControllerDismissed: {
                 Task { @MainActor in
-                    onDidSaveShare()
+                    onDidDismiss()
                 }
             },
             shouldPresentOnAppear: shouldPresentOnAppear,
