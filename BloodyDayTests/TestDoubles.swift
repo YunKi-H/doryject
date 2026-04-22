@@ -7,7 +7,22 @@
 
 import CloudKit
 import Foundation
+import Testing
 @testable import BloodyDay
+
+func waitUntil(
+    timeoutNanoseconds: UInt64 = 500_000_000,
+    _ condition: @escaping () -> Bool
+) async throws {
+    let deadline = Date().addingTimeInterval(Double(timeoutNanoseconds) / 1_000_000_000)
+    while condition() == false {
+        try await Task.sleep(nanoseconds: 10_000_000)
+        if Date() > deadline {
+            Issue.record("Timed out waiting for condition")
+            return
+        }
+    }
+}
 
 final class InMemorySettingsRepository: SettingsRepository {
     private var current: UserSettings
@@ -39,6 +54,90 @@ struct StaticEventRepository: EventRepository {
     func allEvents() -> [UserEvent] { events }
     func events(forMonth month: Date) -> [UserEvent] { events }
     func events(of type: EventType) -> [UserEvent] { events.filter { $0.type == type } }
+}
+
+final class RecordingEventRepository: EventRepository {
+    private var storedEvents: [UserEvent]
+
+    init(events: [UserEvent] = []) {
+        self.storedEvents = events
+    }
+
+    func save(_ event: UserEvent) {
+        storedEvents.removeAll { $0.id == event.id }
+        storedEvents.append(event)
+    }
+
+    func delete(id: UUID) {
+        storedEvents.removeAll { $0.id == id }
+    }
+
+    func delete(type: EventType, on date: Date) {
+        let target = date.startOfDay
+        storedEvents.removeAll { $0.type == type && $0.date.startOfDay == target }
+    }
+
+    func replace(type: EventType, on dates: Set<Date>) {
+        let normalizedDates = Set(dates.map(\.startOfDay))
+        storedEvents.removeAll { $0.type == type }
+        storedEvents.append(
+            contentsOf: normalizedDates.map {
+                UserEvent(date: $0, type: type)
+            }
+        )
+    }
+
+    func allEvents() -> [UserEvent] {
+        storedEvents
+    }
+
+    func events(forMonth month: Date) -> [UserEvent] {
+        storedEvents
+    }
+
+    func events(of type: EventType) -> [UserEvent] {
+        storedEvents.filter { $0.type == type }
+    }
+}
+
+final class NoopAppleCalendarClient: AppleCalendarClient {
+    func requestAccess() async -> Bool { false }
+    func createOrFetchCalendar(name: String, existingIdentifier: String?) -> String? { nil }
+    func removeCalendar(identifier: String) {}
+    func upsertEvent(
+        event: UserEvent,
+        calendarIdentifier: String,
+        title: String,
+        existingEventIdentifier: String?,
+        dateRange: DateInterval?
+    ) -> String? {
+        nil
+    }
+    func deleteEvent(identifier: String) {}
+}
+
+final class InMemoryAppleCalendarSyncStore: AppleCalendarSyncStore {
+    private var recordsById: [UUID: AppleCalendarSyncRecord] = [:]
+
+    func record(for eventId: UUID) -> AppleCalendarSyncRecord? {
+        recordsById[eventId]
+    }
+
+    func records() -> [AppleCalendarSyncRecord] {
+        Array(recordsById.values)
+    }
+
+    func upsert(_ record: AppleCalendarSyncRecord) {
+        recordsById[record.userEventId] = record
+    }
+
+    func remove(for eventId: UUID) {
+        recordsById.removeValue(forKey: eventId)
+    }
+
+    func removeAll() {
+        recordsById.removeAll()
+    }
 }
 
 final class InMemorySharedCalendarRepository: SharedCalendarRepository, SharedCalendarManaging, SharedCalendarReloading {
@@ -101,6 +200,10 @@ final class TestCloudSharingService: CloudSharingService {
     private(set) var lastPreparedSharedEventTypes: SharedEventTypeSelection?
     private(set) var lastPreparedSettings: UserSettings?
     private(set) var lastPreparedEvents: [UserEvent] = []
+    private(set) var ownedEventSyncCallCount = 0
+    private(set) var lastSyncedSharedEventTypes: SharedEventTypeSelection?
+    private(set) var lastSyncedSettings: UserSettings?
+    private(set) var lastSyncedEvents: [UserEvent] = []
 
     func fetchAvailability() async -> CloudSharingAvailability {
         availability
@@ -142,5 +245,17 @@ final class TestCloudSharingService: CloudSharingService {
             share: CKShare(rootRecord: CKRecord(recordType: SharedCloudKitSchema.calendarRecordType)),
             eventSyncResult: .synced
         )
+    }
+
+    func syncOwnedEventsIfNeeded(
+        sharedEventTypes: SharedEventTypeSelection,
+        settings: UserSettings,
+        events: [UserEvent]
+    ) async throws -> CloudSharingEventSyncResult {
+        ownedEventSyncCallCount += 1
+        lastSyncedSharedEventTypes = sharedEventTypes
+        lastSyncedSettings = settings
+        lastSyncedEvents = events
+        return .synced
     }
 }

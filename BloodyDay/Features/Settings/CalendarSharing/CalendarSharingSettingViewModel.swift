@@ -16,7 +16,7 @@ final class CalendarSharingSettingViewModel {
     private let eventRepository: EventRepository
     private let sharedCalendarRepository: SharedCalendarRepository
     private let cloudSharingService: CloudSharingService
-    
+
     private(set) var selectedScope: CalendarScope
     private(set) var sharedCalendars: [SharedCalendar] = []
     var managingCalendar: SharedCalendar?
@@ -30,7 +30,7 @@ final class CalendarSharingSettingViewModel {
     var isChangingShareState: Bool = false
     var sharePresentationErrorMessage: String?
     private(set) var eventSyncWarningMessage: String?
-    
+
     init(
         repo: SettingsRepository,
         eventRepository: EventRepository,
@@ -46,42 +46,42 @@ final class CalendarSharingSettingViewModel {
         self.sharedEventTypeSelection = settings.calendarSharing.defaultSharedEventTypes
         reload()
     }
-    
+
     func reload() {
         reloadStoredState()
     }
-    
+
     func refreshSharedCalendars() async {
         if let reloadingRepository = sharedCalendarRepository as? SharedCalendarReloading {
             await reloadingRepository.refresh()
         }
         reloadStoredState()
     }
-    
+
     func selectMine() {
         updateScope(.mine)
     }
-    
+
     func selectSharedCalendar(id: String) {
         updateScope(.shared(id: id))
     }
-    
+
     func isSelected(_ scope: CalendarScope) -> Bool {
         selectedScope == scope
     }
-    
+
     func selectedDisplayName(for calendar: SharedCalendar) -> String {
         calendar.displayName
     }
-    
+
     func manage(calendarId: String) {
         managingCalendar = sharedCalendars.first(where: { $0.id == calendarId })
     }
-    
+
     func dismissManagement() {
         managingCalendar = nil
     }
-    
+
     var selectedScopeDisplayName: String {
         switch selectedScope {
         case .mine:
@@ -90,15 +90,15 @@ final class CalendarSharingSettingViewModel {
             return sharedCalendars.first(where: { $0.id == id })?.displayName ?? CalendarScope.shared(id: id).fallbackDisplayName
         }
     }
-    
+
     var cloudContainerIdentifier: String {
         cloudSharingService.containerIdentifier
     }
-    
+
     var isICloudAvailable: Bool {
         iCloudAvailability == .available
     }
-    
+
     var iCloudStatusText: String {
         switch iCloudAvailability {
         case .available:
@@ -117,7 +117,7 @@ final class CalendarSharingSettingViewModel {
     func refreshICloudAvailability() async {
         iCloudAvailability = await cloudSharingService.fetchAvailability()
     }
-    
+
     func refreshOwnedShareState() async {
         do {
             hasOwnedShare = try await cloudSharingService.fetchOwnedShare() != nil
@@ -132,11 +132,12 @@ final class CalendarSharingSettingViewModel {
         repo.update {
             $0.calendarSharing.defaultSharedEventTypes = selection
         }
+        syncOwnedEventsIfNeeded()
     }
-    
+
     func presentShareSheet() {
         guard isPreparingShare == false else { return }
-        
+
         isPreparingShare = true
         sharePresentationErrorMessage = nil
         eventSyncWarningMessage = nil
@@ -156,24 +157,24 @@ final class CalendarSharingSettingViewModel {
             isPreparingShare = false
         }
     }
-    
+
     func dismissShareSheet() {
         sharePresentationID = nil
         presentedSharePresentationID = nil
         preparedShare = nil
     }
-    
+
     func handleSharePreparationFailure(_ error: Error) {
         sharePresentationID = nil
         presentedSharePresentationID = nil
         preparedShare = nil
         sharePresentationErrorMessage = error.localizedDescription
     }
-    
+
     func dismissSharePresentationError() {
         sharePresentationErrorMessage = nil
     }
-    
+
     func stopOwnedSharing() async {
         guard isChangingShareState == false else { return }
         isChangingShareState = true
@@ -188,7 +189,7 @@ final class CalendarSharingSettingViewModel {
         }
         isChangingShareState = false
     }
-    
+
     func leaveSharedCalendar(_ calendar: SharedCalendar) async {
         guard isChangingShareState == false else { return }
         isChangingShareState = true
@@ -210,7 +211,7 @@ final class CalendarSharingSettingViewModel {
         }
         isChangingShareState = false
     }
-    
+
     func prepareOwnedShare() async throws -> CKShare {
         let preparedShare = try await cloudSharingService.prepareOwnedShare(
             sharedEventTypes: sharedEventTypeSelection,
@@ -220,24 +221,37 @@ final class CalendarSharingSettingViewModel {
         eventSyncWarningMessage = warningMessage(for: preparedShare.eventSyncResult)
         return preparedShare.share
     }
-    
+
     func shouldPresentShareController(for id: UUID) -> Bool {
         presentedSharePresentationID != id
     }
-    
+
     func markShareControllerPresented(id: UUID) {
         guard sharePresentationID == id else { return }
-        
+
         presentedSharePresentationID = id
     }
-    
+
     private func updateScope(_ scope: CalendarScope) {
         selectedScope = scope
         repo.update {
             $0.calendarScope.selectedScope = scope
         }
     }
-    
+
+    private func syncOwnedEventsIfNeeded() {
+        let settings = repo.load()
+        let sharedEventTypes = settings.calendarSharing.defaultSharedEventTypes
+        let events = eventRepository.allEvents()
+        Task {
+            _ = try? await cloudSharingService.syncOwnedEventsIfNeeded(
+                sharedEventTypes: sharedEventTypes,
+                settings: settings,
+                events: events
+            )
+        }
+    }
+
     private func warningMessage(for result: CloudSharingEventSyncResult) -> String? {
         switch result {
         case .synced:
@@ -250,10 +264,10 @@ final class CalendarSharingSettingViewModel {
             return "공유는 준비됐지만 이벤트가 아직 iCloud에 동기화되지 않았어요. 다시 공유 관리를 열어 동기화할 수 있습니다.\(reasonText)"
         }
     }
-    
+
     private func reloadStoredState() {
         sharedCalendars = sharedCalendarRepository.calendars()
-        
+
         let storedScope = repo.load().calendarScope.selectedScope
         switch storedScope {
         case .mine:

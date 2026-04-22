@@ -113,7 +113,8 @@ struct BloodyDayRootView: View {
                     syncService: appleCalendarSyncService!,
                     settingsRepository: settingsRepository,
                     notificationScheduler: scheduler,
-                    widgetReloader: widgetReloader
+                    widgetReloader: widgetReloader,
+                    cloudSharingService: sharingService
                 )
                 if calendarViewModel == nil {
                     calendarViewModel = CalendarViewModel(

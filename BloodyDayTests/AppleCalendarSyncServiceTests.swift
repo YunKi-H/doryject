@@ -137,30 +137,6 @@ struct AppleCalendarSyncServiceTests {
     }
 }
 
-private final class InMemoryAppleCalendarSyncStore: AppleCalendarSyncStore {
-    private var recordsById: [UUID: AppleCalendarSyncRecord] = [:]
-
-    func record(for eventId: UUID) -> AppleCalendarSyncRecord? {
-        recordsById[eventId]
-    }
-
-    func records() -> [AppleCalendarSyncRecord] {
-        Array(recordsById.values)
-    }
-
-    func upsert(_ record: AppleCalendarSyncRecord) {
-        recordsById[record.userEventId] = record
-    }
-
-    func remove(for eventId: UUID) {
-        recordsById.removeValue(forKey: eventId)
-    }
-
-    func removeAll() {
-        recordsById.removeAll()
-    }
-}
-
 private final class RecordingAppleCalendarClient: AppleCalendarClient {
     struct UpsertedEvent {
         let eventId: UUID

@@ -13,15 +13,25 @@ import Testing
 @MainActor
 struct CalendarSharingSettingViewModelTests {
     @Test
-    func setSharedEventTypePersistsDefaultSelection() {
+    func setSharedEventTypePersistsDefaultSelectionAndSyncsOwnedEvents() async throws {
         let settingsRepository = InMemorySettingsRepository(settings: UserSettings())
-        let viewModel = makeViewModel(settingsRepository: settingsRepository)
+        let event = makeUserEvent(type: .pill)
+        let eventRepository = StaticEventRepository(events: [event])
+        let cloudSharingService = TestCloudSharingService()
+        let viewModel = makeViewModel(
+            settingsRepository: settingsRepository,
+            eventRepository: eventRepository,
+            cloudSharingService: cloudSharingService
+        )
 
         viewModel.setSharedEventType(.pill, enabled: false)
+        try await waitUntil { cloudSharingService.ownedEventSyncCallCount == 1 }
 
         let savedSelection = settingsRepository.load().calendarSharing.defaultSharedEventTypes
         #expect(viewModel.sharedEventTypeSelection == SharedEventTypeSelection(period: true, pill: false, love: true))
         #expect(savedSelection == SharedEventTypeSelection(period: true, pill: false, love: true))
+        #expect(cloudSharingService.lastSyncedSharedEventTypes == savedSelection)
+        #expect(cloudSharingService.lastSyncedEvents.map(\.id) == [event.id])
     }
 
     @Test
