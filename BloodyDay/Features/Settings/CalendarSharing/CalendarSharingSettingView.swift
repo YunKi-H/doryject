@@ -36,6 +36,7 @@ struct CalendarSharingSettingView: View {
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             viewModel.refreshICloudAvailability()
+            viewModel.refreshOwnedShareState()
             Task {
                 await viewModel.refreshSharedCalendars()
             }
@@ -63,12 +64,14 @@ struct CalendarSharingSettingView: View {
                     },
                     onDidSaveShare: {
                         viewModel.dismissShareSheet()
+                        viewModel.refreshOwnedShareState()
                         Task {
                             await viewModel.refreshSharedCalendars()
                         }
                     },
                     onDidStopSharing: {
                         viewModel.dismissShareSheet()
+                        viewModel.refreshOwnedShareState()
                         Task {
                             await viewModel.refreshSharedCalendars()
                         }
@@ -194,7 +197,9 @@ struct CalendarSharingSettingView: View {
         Section {
             sharingTypeRows
             shareManagementButton
-            stopOwnedSharingButton
+            if viewModel.hasOwnedShare {
+                stopOwnedSharingButton
+            }
         } header: {
             Text("내 캘린더 공유")
         } footer: {
