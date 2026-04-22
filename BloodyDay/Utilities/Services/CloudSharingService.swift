@@ -19,6 +19,7 @@ enum CloudSharingAvailability: Equatable {
 enum CloudSharingError: LocalizedError {
     case shareSaveFailed
     case missingShareURL
+    case missingSharedCalendarReference
     
     var errorDescription: String? {
         switch self {
@@ -26,6 +27,8 @@ enum CloudSharingError: LocalizedError {
             return "공유 정보를 iCloud에 저장하지 못했어요."
         case .missingShareURL:
             return "iCloud 공유 링크를 생성하지 못했어요."
+        case .missingSharedCalendarReference:
+            return "공유 캘린더 정보를 찾지 못했어요."
         }
     }
 }
@@ -37,6 +40,8 @@ protocol CloudSharingService {
     func accept(_ metadata: CKShare.Metadata) async throws
     func fetchSharedSnapshot() async throws -> SharedCalendarSnapshot
     func fetchOwnedShare() async throws -> CKShare?
+    func stopOwnedSharing() async throws
+    func leaveSharedCalendar(_ calendar: SharedCalendar) async throws
     func prepareOwnedShare(
         sharedEventTypes: SharedEventTypeSelection,
         settings: UserSettings,
@@ -149,6 +154,49 @@ final class CloudKitSharingService: CloudSharingService {
         
         guard case .success(let rootRecord)? = fetched[recordID] else { return nil }
         return try await fetchOwnedShare(for: rootRecord)
+    }
+    
+    func stopOwnedSharing() async throws {
+        let rootRecordID = CKRecord.ID(
+            recordName: Self.ownedCalendarRecordName,
+            zoneID: ownedZoneID
+        )
+        let fetched: [CKRecord.ID: Result<CKRecord, Error>]
+        do {
+            fetched = try await privateDatabase.records(for: [rootRecordID])
+        } catch let error as CKError where error.code == .zoneNotFound {
+            return
+        }
+        
+        guard case .success(let rootRecord)? = fetched[rootRecordID] else { return }
+        let share = try await fetchOwnedShare(for: rootRecord)
+        let eventRecordIDs = (try? await fetchOwnedEventRecords().map(\.recordID)) ?? []
+        var deletingRecordIDs = eventRecordIDs
+        if let share {
+            deletingRecordIDs.append(share.recordID)
+        }
+        deletingRecordIDs.append(rootRecord.recordID)
+        
+        _ = try await privateDatabase.modifyRecords(
+            saving: [],
+            deleting: deletingRecordIDs,
+            savePolicy: .changedKeys,
+            atomically: false
+        )
+    }
+    
+    func leaveSharedCalendar(_ calendar: SharedCalendar) async throws {
+        guard let shareRecordName = calendar.cloudShareRecordName,
+              let zoneName = calendar.cloudZoneName,
+              let ownerName = calendar.cloudOwnerName else {
+            throw CloudSharingError.missingSharedCalendarReference
+        }
+        
+        let shareRecordID = CKRecord.ID(
+            recordName: shareRecordName,
+            zoneID: CKRecordZone.ID(zoneName: zoneName, ownerName: ownerName)
+        )
+        _ = try await sharedDatabase.deleteRecord(withID: shareRecordID)
     }
     
     func prepareOwnedShare(
@@ -355,15 +403,20 @@ final class CloudKitSharingService: CloudSharingService {
             }
         )
         let existingEventRecords: [CKRecord]
+        let canDeleteStaleRecords: Bool
         do {
             existingEventRecords = try await fetchOwnedEventRecords()
+            canDeleteStaleRecords = true
         } catch {
-            return .failed
+            existingEventRecords = []
+            canDeleteStaleRecords = false
         }
         
-        let staleRecordIDs = existingEventRecords
-            .map(\.recordID)
-            .filter { desiredRecordIDs.contains($0) == false }
+        let staleRecordIDs = canDeleteStaleRecords
+            ? existingEventRecords
+                .map(\.recordID)
+                .filter { desiredRecordIDs.contains($0) == false }
+            : []
         let eventRecords = sharedEvents
             .map {
                 SharedCloudKitRecordMapper.makeOwnedEventRecord(
@@ -373,14 +426,14 @@ final class CloudKitSharingService: CloudSharingService {
                 )
             }
         guard eventRecords.isEmpty == false || staleRecordIDs.isEmpty == false else {
-            return .synced
+            return canDeleteStaleRecords ? .synced : .failed
         }
         
         do {
             let result = try await privateDatabase.modifyRecords(
                 saving: eventRecords,
                 deleting: staleRecordIDs,
-                savePolicy: .changedKeys,
+                savePolicy: .allKeys,
                 atomically: false
             )
             return eventSyncResult(

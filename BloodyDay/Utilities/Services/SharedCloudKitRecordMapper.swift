@@ -105,7 +105,11 @@ extension SharedCalendar {
             ),
             permission: .readOnly,
             acceptedAt: record.creationDate,
-            updatedAt: record.modificationDate
+            updatedAt: record.modificationDate,
+            cloudRecordName: record.recordID.recordName,
+            cloudZoneName: record.recordID.zoneID.zoneName,
+            cloudOwnerName: record.recordID.zoneID.ownerName,
+            cloudShareRecordName: record[SharedCloudKitSchema.CalendarField.shareRecordName] as? String
         )
     }
 }

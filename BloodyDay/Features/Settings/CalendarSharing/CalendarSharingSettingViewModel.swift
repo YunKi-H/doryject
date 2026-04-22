@@ -26,6 +26,7 @@ final class CalendarSharingSettingViewModel {
     private var presentedSharePresentationID: UUID?
     var preparedShare: CKShare?
     var isPreparingShare: Bool = false
+    var isChangingShareState: Bool = false
     var sharePresentationErrorMessage: String?
     private(set) var eventSyncWarningMessage: String?
     
@@ -163,6 +164,42 @@ final class CalendarSharingSettingViewModel {
     
     func dismissSharePresentationError() {
         sharePresentationErrorMessage = nil
+    }
+    
+    func stopOwnedSharing() async {
+        guard isChangingShareState == false else { return }
+        isChangingShareState = true
+        sharePresentationErrorMessage = nil
+        do {
+            try await cloudSharingService.stopOwnedSharing()
+            dismissShareSheet()
+            await refreshSharedCalendars()
+        } catch {
+            sharePresentationErrorMessage = error.localizedDescription
+        }
+        isChangingShareState = false
+    }
+    
+    func leaveSharedCalendar(_ calendar: SharedCalendar) async {
+        guard isChangingShareState == false else { return }
+        isChangingShareState = true
+        sharePresentationErrorMessage = nil
+        do {
+            try await cloudSharingService.leaveSharedCalendar(calendar)
+            if isSelected(.shared(id: calendar.id)) {
+                selectMine()
+            }
+            if let managingCalendar, managingCalendar.id == calendar.id {
+                dismissManagement()
+            }
+            if let managingRepository = sharedCalendarRepository as? SharedCalendarManaging {
+                managingRepository.removeLocalCalendar(calendarId: calendar.id)
+            }
+            await refreshSharedCalendars()
+        } catch {
+            sharePresentationErrorMessage = error.localizedDescription
+        }
+        isChangingShareState = false
     }
     
     func prepareOwnedShare() async throws -> CKShare {

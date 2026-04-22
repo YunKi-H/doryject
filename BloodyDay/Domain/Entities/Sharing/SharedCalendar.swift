@@ -17,6 +17,10 @@ struct SharedCalendar: Codable, Equatable, Hashable, Identifiable {
     var permission: SharedCalendarPermission
     var acceptedAt: Date?
     var updatedAt: Date?
+    var cloudRecordName: String?
+    var cloudZoneName: String?
+    var cloudOwnerName: String?
+    var cloudShareRecordName: String?
     
     init(
         id: String,
@@ -27,7 +31,11 @@ struct SharedCalendar: Codable, Equatable, Hashable, Identifiable {
         predictionSettings: SharedCalendarPredictionSettings = .init(),
         permission: SharedCalendarPermission = .readOnly,
         acceptedAt: Date? = nil,
-        updatedAt: Date? = nil
+        updatedAt: Date? = nil,
+        cloudRecordName: String? = nil,
+        cloudZoneName: String? = nil,
+        cloudOwnerName: String? = nil,
+        cloudShareRecordName: String? = nil
     ) {
         self.id = id
         self.ownerDisplayName = ownerDisplayName
@@ -38,6 +46,10 @@ struct SharedCalendar: Codable, Equatable, Hashable, Identifiable {
         self.permission = permission
         self.acceptedAt = acceptedAt
         self.updatedAt = updatedAt
+        self.cloudRecordName = cloudRecordName
+        self.cloudZoneName = cloudZoneName
+        self.cloudOwnerName = cloudOwnerName
+        self.cloudShareRecordName = cloudShareRecordName
     }
     
     private enum CodingKeys: String, CodingKey {
@@ -50,6 +62,10 @@ struct SharedCalendar: Codable, Equatable, Hashable, Identifiable {
         case permission
         case acceptedAt
         case updatedAt
+        case cloudRecordName
+        case cloudZoneName
+        case cloudOwnerName
+        case cloudShareRecordName
     }
     
     init(from decoder: Decoder) throws {
@@ -63,6 +79,10 @@ struct SharedCalendar: Codable, Equatable, Hashable, Identifiable {
         permission = try container.decodeIfPresent(SharedCalendarPermission.self, forKey: .permission) ?? .readOnly
         acceptedAt = try container.decodeIfPresent(Date.self, forKey: .acceptedAt)
         updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt)
+        cloudRecordName = try container.decodeIfPresent(String.self, forKey: .cloudRecordName)
+        cloudZoneName = try container.decodeIfPresent(String.self, forKey: .cloudZoneName)
+        cloudOwnerName = try container.decodeIfPresent(String.self, forKey: .cloudOwnerName)
+        cloudShareRecordName = try container.decodeIfPresent(String.self, forKey: .cloudShareRecordName)
     }
     
     var displayName: String {

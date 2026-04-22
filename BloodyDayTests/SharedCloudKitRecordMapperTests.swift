@@ -33,6 +33,7 @@ struct SharedCloudKitRecordMapperTests {
             sharedEventTypes: SharedEventTypeSelection(period: true, pill: false, love: true),
             settings: settings
         )
+        record[SharedCloudKitSchema.CalendarField.shareRecordName] = "share-record" as CKRecordValue
         
         #expect(record[SharedCloudKitSchema.CalendarField.remoteTitle] as? String == "BloodyDay 캘린더 공유")
         #expect(record[SharedCloudKitSchema.CalendarField.sharedPeriod] as? Bool == true)
@@ -58,6 +59,10 @@ struct SharedCloudKitRecordMapperTests {
         #expect(calendar?.predictionSettings.pillCount == 24)
         #expect(calendar?.predictionSettings.pillBreakDuration == 4)
         #expect(calendar?.permission == .readOnly)
+        #expect(calendar?.cloudRecordName == "calendar")
+        #expect(calendar?.cloudZoneName == zoneID.zoneName)
+        #expect(calendar?.cloudOwnerName == zoneID.ownerName)
+        #expect(calendar?.cloudShareRecordName == "share-record")
     }
     
     @Test
