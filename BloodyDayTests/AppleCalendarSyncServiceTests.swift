@@ -137,32 +137,6 @@ struct AppleCalendarSyncServiceTests {
     }
 }
 
-private final class InMemorySettingsRepository: SettingsRepository {
-    private var current: UserSettings
-
-    init(settings: UserSettings) {
-        self.current = settings
-    }
-
-    func load() -> UserSettings { current }
-
-    func save(_ settings: UserSettings) {
-        current = settings
-    }
-}
-
-private struct StaticEventRepository: EventRepository {
-    let events: [UserEvent]
-
-    func save(_ event: UserEvent) {}
-    func delete(id: UUID) {}
-    func delete(type: EventType, on: Date) {}
-    func replace(type: EventType, on dates: Set<Date>) {}
-    func allEvents() -> [UserEvent] { events }
-    func events(forMonth month: Date) -> [UserEvent] { events }
-    func events(of type: EventType) -> [UserEvent] { events.filter { $0.type == type } }
-}
-
 private final class InMemoryAppleCalendarSyncStore: AppleCalendarSyncStore {
     private var recordsById: [UUID: AppleCalendarSyncRecord] = [:]
 
