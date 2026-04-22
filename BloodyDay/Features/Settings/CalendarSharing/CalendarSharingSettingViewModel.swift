@@ -114,19 +114,15 @@ final class CalendarSharingSettingViewModel {
         }
     }
 
-    func refreshICloudAvailability() {
-        Task {
-            iCloudAvailability = await cloudSharingService.fetchAvailability()
-        }
+    func refreshICloudAvailability() async {
+        iCloudAvailability = await cloudSharingService.fetchAvailability()
     }
     
-    func refreshOwnedShareState() {
-        Task {
-            do {
-                hasOwnedShare = try await cloudSharingService.fetchOwnedShare() != nil
-            } catch {
-                hasOwnedShare = false
-            }
+    func refreshOwnedShareState() async {
+        do {
+            hasOwnedShare = try await cloudSharingService.fetchOwnedShare() != nil
+        } catch {
+            hasOwnedShare = false
         }
     }
 

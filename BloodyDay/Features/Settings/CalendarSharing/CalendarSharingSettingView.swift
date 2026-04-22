@@ -35,9 +35,9 @@ struct CalendarSharingSettingView: View {
         }
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
-            viewModel.refreshICloudAvailability()
-            viewModel.refreshOwnedShareState()
             Task {
+                await viewModel.refreshICloudAvailability()
+                await viewModel.refreshOwnedShareState()
                 await viewModel.refreshSharedCalendars()
             }
         }
@@ -64,15 +64,15 @@ struct CalendarSharingSettingView: View {
                     },
                     onDidSaveShare: {
                         viewModel.dismissShareSheet()
-                        viewModel.refreshOwnedShareState()
                         Task {
+                            await viewModel.refreshOwnedShareState()
                             await viewModel.refreshSharedCalendars()
                         }
                     },
                     onDidStopSharing: {
                         viewModel.dismissShareSheet()
-                        viewModel.refreshOwnedShareState()
                         Task {
+                            await viewModel.refreshOwnedShareState()
                             await viewModel.refreshSharedCalendars()
                         }
                     },

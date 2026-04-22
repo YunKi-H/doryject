@@ -201,7 +201,7 @@ struct BloodyDayRootView: View {
     private func refreshSharedCalendarState() async {
         await calendarSharingSettingViewModel?.refreshSharedCalendars()
         calendarViewModel?.refresh()
-        calendarSharingSettingViewModel?.refreshICloudAvailability()
+        await calendarSharingSettingViewModel?.refreshICloudAvailability()
     }
     
     private var preferredColorScheme: ColorScheme? {
