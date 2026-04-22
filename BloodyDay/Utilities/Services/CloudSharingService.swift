@@ -61,8 +61,8 @@ struct PreparedCloudShare {
 
 enum CloudSharingEventSyncResult: Equatable {
     case synced
-    case partiallyFailed
-    case failed
+    case partiallyFailed(failedCount: Int, reason: String?)
+    case failed(reason: String?)
 }
 
 final class CloudKitSharingService: CloudSharingService {
@@ -404,12 +404,15 @@ final class CloudKitSharingService: CloudSharingService {
         )
         let existingEventRecords: [CKRecord]
         let canDeleteStaleRecords: Bool
+        let existingFetchFailureReason: String?
         do {
             existingEventRecords = try await fetchOwnedEventRecords()
             canDeleteStaleRecords = true
+            existingFetchFailureReason = nil
         } catch {
             existingEventRecords = []
             canDeleteStaleRecords = false
+            existingFetchFailureReason = syncFailureReason(from: error)
         }
         
         let staleRecordIDs = canDeleteStaleRecords
@@ -426,7 +429,7 @@ final class CloudKitSharingService: CloudSharingService {
                 )
             }
         guard eventRecords.isEmpty == false || staleRecordIDs.isEmpty == false else {
-            return canDeleteStaleRecords ? .synced : .failed
+            return canDeleteStaleRecords ? .synced : .failed(reason: existingFetchFailureReason)
         }
         
         do {
@@ -439,23 +442,28 @@ final class CloudKitSharingService: CloudSharingService {
             return eventSyncResult(
                 saveResults: Array(result.saveResults.values),
                 deleteResults: Array(result.deleteResults.values),
-                requestedCount: eventRecords.count + staleRecordIDs.count
+                requestedCount: eventRecords.count + staleRecordIDs.count,
+                fallbackReason: existingFetchFailureReason
             )
         } catch {
-            return .failed
+            return .failed(reason: syncFailureReason(from: error))
         }
     }
     
     private func eventSyncResult(
         saveResults: [Result<CKRecord, Error>],
         deleteResults: [Result<Void, Error>],
-        requestedCount: Int
+        requestedCount: Int,
+        fallbackReason: String?
     ) -> CloudSharingEventSyncResult {
         let failureCount = failureCount(in: saveResults) + failureCount(in: deleteResults)
         if failureCount == 0 {
             return .synced
         }
-        return failureCount < requestedCount ? .partiallyFailed : .failed
+        let reason = firstFailureReason(in: saveResults) ?? firstFailureReason(in: deleteResults) ?? fallbackReason
+        return failureCount < requestedCount
+            ? .partiallyFailed(failedCount: failureCount, reason: reason)
+            : .failed(reason: reason)
     }
     
     private func failureCount<Success>(in results: [Result<Success, Error>]) -> Int {
@@ -463,6 +471,22 @@ final class CloudKitSharingService: CloudSharingService {
             guard case .failure = $0 else { return false }
             return true
         }.count
+    }
+    
+    private func firstFailureReason<Success>(in results: [Result<Success, Error>]) -> String? {
+        for result in results {
+            if case .failure(let error) = result {
+                return syncFailureReason(from: error)
+            }
+        }
+        return nil
+    }
+    
+    private func syncFailureReason(from error: Error) -> String {
+        if let ckError = error as? CKError {
+            return "CKError \(ckError.code.rawValue): \(ckError.localizedDescription)"
+        }
+        return error.localizedDescription
     }
     
 }

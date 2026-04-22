@@ -246,10 +246,12 @@ final class CalendarSharingSettingViewModel {
         switch result {
         case .synced:
             return nil
-        case .partiallyFailed:
-            return "공유는 준비됐지만 일부 이벤트가 아직 iCloud에 동기화되지 않았어요. 잠시 후 다시 공유 관리를 열어 동기화할 수 있습니다."
-        case .failed:
-            return "공유는 준비됐지만 이벤트가 아직 iCloud에 동기화되지 않았어요. 네트워크 상태를 확인한 뒤 다시 공유 관리를 열어주세요."
+        case .partiallyFailed(let failedCount, let reason):
+            let reasonText = reason.map { "\n원인: \($0)" } ?? ""
+            return "공유는 준비됐지만 일부 이벤트 \(failedCount)개가 아직 iCloud에 동기화되지 않았어요. 잠시 후 다시 공유 관리를 열어 동기화할 수 있습니다.\(reasonText)"
+        case .failed(let reason):
+            let reasonText = reason.map { "\n원인: \($0)" } ?? ""
+            return "공유는 준비됐지만 이벤트가 아직 iCloud에 동기화되지 않았어요. 다시 공유 관리를 열어 동기화할 수 있습니다.\(reasonText)"
         }
     }
     
