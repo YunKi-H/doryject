@@ -7,24 +7,7 @@
 
 import CloudKit
 import Foundation
-import Testing
 @testable import BloodyDay
-
-private struct WaitUntilTimeoutError: Error {}
-
-func waitUntil(
-    timeoutNanoseconds: UInt64 = 2_000_000_000,
-    _ condition: @escaping () async -> Bool
-) async throws {
-    let deadline = Date().addingTimeInterval(Double(timeoutNanoseconds) / 1_000_000_000)
-    while await condition() == false {
-        try await Task.sleep(nanoseconds: 10_000_000)
-        if Date() > deadline {
-            Issue.record("Timed out waiting for condition")
-            throw WaitUntilTimeoutError()
-        }
-    }
-}
 
 final class InMemorySettingsRepository: SettingsRepository {
     private var current: UserSettings
@@ -352,14 +335,6 @@ actor TestCloudSharingService: CloudSharingService {
         syncSnapshots.first
     }
 
-    func ownedEventSyncStartedCountValue() -> Int {
-        ownedEventSyncStartedCount
-    }
-
-    func ownedEventSyncCallCountValue() -> Int {
-        ownedEventSyncCallCount
-    }
-
     func lastPreparedSharedEventTypesValue() -> SharedEventTypeSelection? {
         lastPreparedSharedEventTypes
     }
@@ -420,18 +395,6 @@ final class TestCloudSharingSyncScheduler: CloudSharingSyncScheduling {
 
     init(onSchedule: ((UserSettings, [UserEvent]) -> Void)? = nil) {
         self.onSchedule = onSchedule
-    }
-
-    convenience init(cloudSharingService: CloudSharingService) {
-        self.init { settings, events in
-            Task {
-                _ = try? await cloudSharingService.syncOwnedEventsIfNeeded(
-                    sharedEventTypes: settings.calendarSharing.defaultSharedEventTypes,
-                    settings: settings,
-                    events: events
-                )
-            }
-        }
     }
 
     func schedule(settings: UserSettings, events: [UserEvent]) {
