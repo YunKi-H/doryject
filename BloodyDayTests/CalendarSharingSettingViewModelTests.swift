@@ -18,21 +18,22 @@ struct CalendarSharingSettingViewModelTests {
         let event = makeUserEvent(type: .pill)
         let eventRepository = StaticEventRepository(events: [event])
         let cloudSharingService = TestCloudSharingService()
+        let cloudSharingSyncScheduler = TestCloudSharingSyncScheduler()
         let viewModel = makeViewModel(
             settingsRepository: settingsRepository,
             eventRepository: eventRepository,
             cloudSharingService: cloudSharingService,
-            cloudSharingSyncScheduler: TestCloudSharingSyncScheduler(cloudSharingService: cloudSharingService)
+            cloudSharingSyncScheduler: cloudSharingSyncScheduler
         )
 
         viewModel.setSharedEventType(.pill, enabled: false)
-        try await waitUntil { cloudSharingService.ownedEventSyncCallCount == 1 }
+        try await waitUntil { cloudSharingSyncScheduler.scheduledRequests.count == 1 }
 
         let savedSelection = settingsRepository.load().calendarSharing.defaultSharedEventTypes
         #expect(viewModel.sharedEventTypeSelection == SharedEventTypeSelection(period: true, pill: false, love: true))
         #expect(savedSelection == SharedEventTypeSelection(period: true, pill: false, love: true))
-        #expect(cloudSharingService.lastSyncedSharedEventTypes == savedSelection)
-        #expect(cloudSharingService.lastSyncedEvents.map(\.id) == [event.id])
+        #expect(cloudSharingSyncScheduler.scheduledRequests.last?.settings.calendarSharing.defaultSharedEventTypes == savedSelection)
+        #expect(cloudSharingSyncScheduler.scheduledRequests.last?.eventIDs == [event.id])
     }
 
     @Test

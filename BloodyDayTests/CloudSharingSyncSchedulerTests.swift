@@ -14,7 +14,7 @@ struct CloudSharingSyncSchedulerTests {
     @Test
     func scheduleSerializesRunningSyncAndRunsLatestPendingRequest() async throws {
         let cloudSharingService = TestCloudSharingService()
-        cloudSharingService.syncDelayNanoseconds = 80_000_000
+        cloudSharingService.blockedSyncCallNumbers = [1]
         let scheduler = CloudSharingSyncScheduler(cloudSharingService: cloudSharingService)
         let firstEvent = UserEvent(date: Date().startOfDay, type: .love)
         let secondEvent = UserEvent(date: Date().startOfDay, type: .pill)
@@ -27,6 +27,7 @@ struct CloudSharingSyncSchedulerTests {
         try await waitUntil { cloudSharingService.ownedEventSyncStartedCount == 1 }
         await scheduler.schedule(settings: secondSettings, events: [firstEvent, secondEvent])
         await scheduler.schedule(settings: secondSettings, events: [secondEvent])
+        cloudSharingService.releaseBlockedSyncs()
         try await waitUntil { cloudSharingService.syncSnapshots.count == 2 }
         
         #expect(cloudSharingService.syncSnapshots.count == 2)

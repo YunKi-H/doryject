@@ -201,6 +201,7 @@ final class TestCloudSharingService: CloudSharingService {
     var stopOwnedSharingError: Error?
     var leaveSharedCalendarError: Error?
     var syncDelayNanoseconds: UInt64 = 0
+    var blockedSyncCallNumbers: Set<Int> = []
     var sharedSnapshot = SharedCalendarSnapshot(calendars: [], eventsByCalendarId: [:])
     private(set) var didStopOwnedSharing = false
     private(set) var leftCalendarIDs: [String] = []
@@ -213,6 +214,7 @@ final class TestCloudSharingService: CloudSharingService {
     private(set) var lastSyncedSettings: UserSettings?
     private(set) var lastSyncedEvents: [UserEvent] = []
     private(set) var syncSnapshots: [SyncSnapshot] = []
+    private var blockedSyncContinuations: [CheckedContinuation<Void, Never>] = []
 
     func fetchAvailability() async -> CloudSharingAvailability {
         availability
@@ -262,6 +264,11 @@ final class TestCloudSharingService: CloudSharingService {
         events: [UserEvent]
     ) async throws -> CloudSharingEventSyncResult {
         ownedEventSyncStartedCount += 1
+        if blockedSyncCallNumbers.contains(ownedEventSyncStartedCount) {
+            await withCheckedContinuation { continuation in
+                blockedSyncContinuations.append(continuation)
+            }
+        }
         if syncDelayNanoseconds > 0 {
             try await Task.sleep(nanoseconds: syncDelayNanoseconds)
         }
@@ -278,20 +285,44 @@ final class TestCloudSharingService: CloudSharingService {
         )
         return .synced
     }
+    
+    func releaseBlockedSyncs() {
+        let continuations = blockedSyncContinuations
+        blockedSyncContinuations.removeAll()
+        continuations.forEach { $0.resume() }
+    }
 }
 
 final class TestCloudSharingSyncScheduler: CloudSharingSyncScheduling {
-    private let cloudSharingService: CloudSharingService
+    struct ScheduledRequest {
+        let settings: UserSettings
+        let eventIDs: [UUID]
+    }
+    
+    private let onSchedule: ((UserSettings, [UserEvent]) async -> Void)?
+    private(set) var scheduledRequests: [ScheduledRequest] = []
 
-    init(cloudSharingService: CloudSharingService) {
-        self.cloudSharingService = cloudSharingService
+    init(onSchedule: ((UserSettings, [UserEvent]) async -> Void)? = nil) {
+        self.onSchedule = onSchedule
+    }
+    
+    convenience init(cloudSharingService: CloudSharingService) {
+        self.init { settings, events in
+            _ = try? await cloudSharingService.syncOwnedEventsIfNeeded(
+                sharedEventTypes: settings.calendarSharing.defaultSharedEventTypes,
+                settings: settings,
+                events: events
+            )
+        }
     }
 
     func schedule(settings: UserSettings, events: [UserEvent]) async {
-        _ = try? await cloudSharingService.syncOwnedEventsIfNeeded(
-            sharedEventTypes: settings.calendarSharing.defaultSharedEventTypes,
-            settings: settings,
-            events: events
+        scheduledRequests.append(
+            ScheduledRequest(
+                settings: settings,
+                eventIDs: events.map(\.id)
+            )
         )
+        await onSchedule?(settings, events)
     }
 }

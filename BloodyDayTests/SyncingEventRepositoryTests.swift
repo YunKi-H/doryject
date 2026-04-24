@@ -16,19 +16,19 @@ struct SyncingEventRepositoryTests {
         settings.calendarSharing.defaultSharedEventTypes = SharedEventTypeSelection(period: true, pill: false, love: true)
         let settingsRepository = InMemorySettingsRepository(settings: settings)
         let baseRepository = RecordingEventRepository()
-        let cloudSharingService = TestCloudSharingService()
+        let cloudSharingSyncScheduler = TestCloudSharingSyncScheduler()
         let repository = makeRepository(
             base: baseRepository,
             settingsRepository: settingsRepository,
-            cloudSharingSyncScheduler: TestCloudSharingSyncScheduler(cloudSharingService: cloudSharingService)
+            cloudSharingSyncScheduler: cloudSharingSyncScheduler
         )
         let event = UserEvent(date: Date().startOfDay, type: .love)
 
         repository.save(event)
-        try await waitUntil { cloudSharingService.ownedEventSyncCallCount == 1 }
+        try await waitUntil { cloudSharingSyncScheduler.scheduledRequests.count == 1 }
 
-        #expect(cloudSharingService.lastSyncedSharedEventTypes == settings.calendarSharing.defaultSharedEventTypes)
-        #expect(cloudSharingService.lastSyncedEvents.map(\.id) == [event.id])
+        #expect(cloudSharingSyncScheduler.scheduledRequests.last?.settings.calendarSharing.defaultSharedEventTypes == settings.calendarSharing.defaultSharedEventTypes)
+        #expect(cloudSharingSyncScheduler.scheduledRequests.last?.eventIDs == [event.id])
     }
 
     @Test
@@ -39,17 +39,17 @@ struct SyncingEventRepositoryTests {
         let remainingEvent = UserEvent(date: Date().startOfDay, type: .pill)
         let settingsRepository = InMemorySettingsRepository(settings: settings)
         let baseRepository = RecordingEventRepository(events: [deletedEvent, remainingEvent])
-        let cloudSharingService = TestCloudSharingService()
+        let cloudSharingSyncScheduler = TestCloudSharingSyncScheduler()
         let repository = makeRepository(
             base: baseRepository,
             settingsRepository: settingsRepository,
-            cloudSharingSyncScheduler: TestCloudSharingSyncScheduler(cloudSharingService: cloudSharingService)
+            cloudSharingSyncScheduler: cloudSharingSyncScheduler
         )
 
         repository.delete(id: deletedEvent.id)
-        try await waitUntil { cloudSharingService.ownedEventSyncCallCount == 1 }
+        try await waitUntil { cloudSharingSyncScheduler.scheduledRequests.count == 1 }
 
-        #expect(cloudSharingService.lastSyncedEvents.map(\.id) == [remainingEvent.id])
+        #expect(cloudSharingSyncScheduler.scheduledRequests.last?.eventIDs == [remainingEvent.id])
     }
 
     @Test
@@ -58,18 +58,18 @@ struct SyncingEventRepositoryTests {
         settings.calendarSharing.defaultSharedEventTypes = .none
         let settingsRepository = InMemorySettingsRepository(settings: settings)
         let baseRepository = RecordingEventRepository()
-        let cloudSharingService = TestCloudSharingService()
+        let cloudSharingSyncScheduler = TestCloudSharingSyncScheduler()
         let repository = makeRepository(
             base: baseRepository,
             settingsRepository: settingsRepository,
-            cloudSharingSyncScheduler: TestCloudSharingSyncScheduler(cloudSharingService: cloudSharingService)
+            cloudSharingSyncScheduler: cloudSharingSyncScheduler
         )
 
         repository.replace(type: .love, on: [Date().startOfDay])
-        try await waitUntil { cloudSharingService.ownedEventSyncCallCount == 1 }
+        try await waitUntil { cloudSharingSyncScheduler.scheduledRequests.count == 1 }
 
-        #expect(cloudSharingService.lastSyncedSharedEventTypes == SharedEventTypeSelection.none)
-        #expect(cloudSharingService.lastSyncedEvents.count == 1)
+        #expect(cloudSharingSyncScheduler.scheduledRequests.last?.settings.calendarSharing.defaultSharedEventTypes == SharedEventTypeSelection.none)
+        #expect(cloudSharingSyncScheduler.scheduledRequests.last?.eventIDs.count == 1)
     }
 
     private func makeRepository(
