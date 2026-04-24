@@ -27,13 +27,13 @@ struct CalendarSharingSettingViewModelTests {
         )
 
         viewModel.setSharedEventType(.pill, enabled: false)
-        try await waitUntil { cloudSharingSyncScheduler.scheduledRequests.count == 1 }
+        try await waitUntil { await cloudSharingSyncScheduler.scheduledRequestsCount() == 1 }
 
         let savedSelection = settingsRepository.load().calendarSharing.defaultSharedEventTypes
         #expect(viewModel.sharedEventTypeSelection == SharedEventTypeSelection(period: true, pill: false, love: true))
         #expect(savedSelection == SharedEventTypeSelection(period: true, pill: false, love: true))
-        #expect(cloudSharingSyncScheduler.scheduledRequests.last?.settings.calendarSharing.defaultSharedEventTypes == savedSelection)
-        #expect(cloudSharingSyncScheduler.scheduledRequests.last?.eventIDs == [event.id])
+        #expect(await cloudSharingSyncScheduler.lastScheduledRequest()?.settings.calendarSharing.defaultSharedEventTypes == savedSelection)
+        #expect(await cloudSharingSyncScheduler.lastScheduledRequest()?.eventIDs == [event.id])
     }
 
     @Test
@@ -89,17 +89,17 @@ struct CalendarSharingSettingViewModelTests {
 
         _ = try await viewModel.prepareOwnedShare()
 
-        #expect(cloudSharingService.lastPreparedSharedEventTypes == SharedEventTypeSelection(period: false, pill: true, love: true))
-        #expect(cloudSharingService.lastPreparedSettings?.pill.pillEnabled == true)
-        #expect(cloudSharingService.lastPreparedEvents.map(\.id) == events.map(\.id))
+        #expect(await cloudSharingService.lastPreparedSharedEventTypesValue() == SharedEventTypeSelection(period: false, pill: true, love: true))
+        #expect(await cloudSharingService.lastPreparedSettingsValue()?.pill.pillEnabled == true)
+        #expect(await cloudSharingService.lastPreparedEventIDs() == events.map(\.id))
     }
 
     @Test
     func prepareOwnedShareShowsPartialEventSyncWarningWithReason() async throws {
         let cloudSharingService = TestCloudSharingService()
-        cloudSharingService.preparedShare = makePreparedShare(
+        await cloudSharingService.setPreparedShare(makePreparedShare(
             eventSyncResult: .partiallyFailed(failedCount: 2, reason: "Permission Failure")
-        )
+        ))
         let viewModel = makeViewModel(cloudSharingService: cloudSharingService)
 
         _ = try await viewModel.prepareOwnedShare()
@@ -111,13 +111,13 @@ struct CalendarSharingSettingViewModelTests {
     @Test
     func prepareOwnedShareClearsEventSyncWarningWhenSynced() async throws {
         let cloudSharingService = TestCloudSharingService()
-        cloudSharingService.preparedShare = makePreparedShare(
+        await cloudSharingService.setPreparedShare(makePreparedShare(
             eventSyncResult: .failed(reason: "network")
-        )
+        ))
         let viewModel = makeViewModel(cloudSharingService: cloudSharingService)
 
         _ = try await viewModel.prepareOwnedShare()
-        cloudSharingService.preparedShare = makePreparedShare(eventSyncResult: .synced)
+        await cloudSharingService.setPreparedShare(makePreparedShare(eventSyncResult: .synced))
         _ = try await viewModel.prepareOwnedShare()
 
         #expect(viewModel.eventSyncWarningMessage == nil)
@@ -131,7 +131,7 @@ struct CalendarSharingSettingViewModelTests {
         await viewModel.refreshOwnedShareState()
         #expect(viewModel.hasOwnedShare == false)
 
-        cloudSharingService.ownedShare = makeShare()
+        await cloudSharingService.setOwnedShare(makeShare())
         await viewModel.refreshOwnedShareState()
         #expect(viewModel.hasOwnedShare == true)
     }
@@ -139,7 +139,7 @@ struct CalendarSharingSettingViewModelTests {
     @Test
     func refreshICloudAvailabilityReflectsServiceStatus() async {
         let cloudSharingService = TestCloudSharingService()
-        cloudSharingService.availability = .noAccount
+        await cloudSharingService.setAvailability(.noAccount)
         let viewModel = makeViewModel(cloudSharingService: cloudSharingService)
 
         await viewModel.refreshICloudAvailability()
@@ -169,7 +169,7 @@ struct CalendarSharingSettingViewModelTests {
         #expect(settingsRepository.load().calendarScope.selectedScope == .mine)
         #expect(viewModel.managingCalendar == nil)
         #expect(sharedCalendarRepository.removedCalendarIDs == [sharedCalendar.id])
-        #expect(cloudSharingService.leftCalendarIDs == [sharedCalendar.id])
+        #expect(await cloudSharingService.leftCalendarIDsValue() == [sharedCalendar.id])
         #expect(sharedCalendarRepository.refreshCallCount == 1)
     }
 
@@ -181,7 +181,7 @@ struct CalendarSharingSettingViewModelTests {
         let settingsRepository = InMemorySettingsRepository(settings: settings)
         let sharedCalendarRepository = InMemorySharedCalendarRepository(calendars: [sharedCalendar])
         let cloudSharingService = TestCloudSharingService()
-        cloudSharingService.leaveSharedCalendarError = CloudSharingError.missingSharedCalendarReference
+        await cloudSharingService.setLeaveSharedCalendarError(CloudSharingError.missingSharedCalendarReference)
         let viewModel = makeViewModel(
             settingsRepository: settingsRepository,
             sharedCalendarRepository: sharedCalendarRepository,
@@ -239,7 +239,7 @@ struct CalendarSharingSettingViewModelTests {
 
         await viewModel.stopOwnedSharing()
 
-        #expect(cloudSharingService.didStopOwnedSharing == true)
+        #expect(await cloudSharingService.didStopOwnedSharingValue() == true)
         #expect(viewModel.hasOwnedShare == false)
         #expect(viewModel.preparedShare == nil)
         #expect(viewModel.sharePresentationID == nil)
@@ -249,11 +249,11 @@ struct CalendarSharingSettingViewModelTests {
     @Test
     func stopOwnedSharingFailureKeepsPreparedShareAndShowsError() async {
         let cloudSharingService = TestCloudSharingService()
-        cloudSharingService.stopOwnedSharingError = CloudSharingError.shareSaveFailed
+        await cloudSharingService.setStopOwnedSharingError(CloudSharingError.shareSaveFailed)
         let viewModel = makeViewModel(cloudSharingService: cloudSharingService)
         let share = makeShare()
         let presentationID = UUID()
-        cloudSharingService.ownedShare = share
+        await cloudSharingService.setOwnedShare(share)
         viewModel.preparedShare = share
         viewModel.sharePresentationID = presentationID
         await viewModel.refreshOwnedShareState()

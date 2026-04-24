@@ -27,10 +27,10 @@ struct CloudKitSharedCalendarRepositoryTests {
         let incomingEvent = makeEvent(id: "event-1", calendarId: calendarID, type: .period)
         let localRepository = LocalSharedCalendarRepository(calendars: [existingCalendar])
         let cloudSharingService = TestCloudSharingService()
-        cloudSharingService.sharedSnapshot = SharedCalendarSnapshot(
+        await cloudSharingService.setSharedSnapshot(SharedCalendarSnapshot(
             calendars: [incomingCalendar],
             eventsByCalendarId: [calendarID: [incomingEvent]]
-        )
+        ))
         let repository = CloudKitSharedCalendarRepository(
             cloudSharingService: cloudSharingService,
             localRepository: localRepository
@@ -56,10 +56,10 @@ struct CloudKitSharedCalendarRepositoryTests {
             ]
         )
         let cloudSharingService = TestCloudSharingService()
-        cloudSharingService.sharedSnapshot = SharedCalendarSnapshot(
+        await cloudSharingService.setSharedSnapshot(SharedCalendarSnapshot(
             calendars: [keptCalendar],
             eventsByCalendarId: [keptCalendar.id: [makeEvent(id: "new-kept-event", calendarId: keptCalendar.id, type: .period)]]
-        )
+        ))
         let repository = CloudKitSharedCalendarRepository(
             cloudSharingService: cloudSharingService,
             localRepository: localRepository

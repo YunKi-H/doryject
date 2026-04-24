@@ -25,10 +25,10 @@ struct SyncingEventRepositoryTests {
         let event = UserEvent(date: Date().startOfDay, type: .love)
 
         repository.save(event)
-        try await waitUntil { cloudSharingSyncScheduler.scheduledRequests.count == 1 }
+        try await waitUntil { await cloudSharingSyncScheduler.scheduledRequestsCount() == 1 }
 
-        #expect(cloudSharingSyncScheduler.scheduledRequests.last?.settings.calendarSharing.defaultSharedEventTypes == settings.calendarSharing.defaultSharedEventTypes)
-        #expect(cloudSharingSyncScheduler.scheduledRequests.last?.eventIDs == [event.id])
+        #expect(await cloudSharingSyncScheduler.lastScheduledRequest()?.settings.calendarSharing.defaultSharedEventTypes == settings.calendarSharing.defaultSharedEventTypes)
+        #expect(await cloudSharingSyncScheduler.lastScheduledRequest()?.eventIDs == [event.id])
     }
 
     @Test
@@ -47,9 +47,9 @@ struct SyncingEventRepositoryTests {
         )
 
         repository.delete(id: deletedEvent.id)
-        try await waitUntil { cloudSharingSyncScheduler.scheduledRequests.count == 1 }
+        try await waitUntil { await cloudSharingSyncScheduler.scheduledRequestsCount() == 1 }
 
-        #expect(cloudSharingSyncScheduler.scheduledRequests.last?.eventIDs == [remainingEvent.id])
+        #expect(await cloudSharingSyncScheduler.lastScheduledRequest()?.eventIDs == [remainingEvent.id])
     }
 
     @Test
@@ -66,10 +66,10 @@ struct SyncingEventRepositoryTests {
         )
 
         repository.replace(type: .love, on: [Date().startOfDay])
-        try await waitUntil { cloudSharingSyncScheduler.scheduledRequests.count == 1 }
+        try await waitUntil { await cloudSharingSyncScheduler.scheduledRequestsCount() == 1 }
 
-        #expect(cloudSharingSyncScheduler.scheduledRequests.last?.settings.calendarSharing.defaultSharedEventTypes == SharedEventTypeSelection.none)
-        #expect(cloudSharingSyncScheduler.scheduledRequests.last?.eventIDs.count == 1)
+        #expect(await cloudSharingSyncScheduler.lastScheduledRequest()?.settings.calendarSharing.defaultSharedEventTypes == SharedEventTypeSelection.none)
+        #expect(await cloudSharingSyncScheduler.lastScheduledRequest()?.eventIDs.count == 1)
     }
 
     private func makeRepository(
