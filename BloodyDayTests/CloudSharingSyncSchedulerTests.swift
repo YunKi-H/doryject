@@ -27,7 +27,7 @@ struct CloudSharingSyncSchedulerTests {
         try await waitUntil { cloudSharingService.ownedEventSyncStartedCount == 1 }
         scheduler.schedule(settings: secondSettings, events: [firstEvent, secondEvent])
         scheduler.schedule(settings: secondSettings, events: [secondEvent])
-        try await waitUntil { cloudSharingService.ownedEventSyncCallCount == 2 }
+        try await waitUntil { cloudSharingService.syncSnapshots.count == 2 }
         
         #expect(cloudSharingService.syncSnapshots.count == 2)
         #expect(cloudSharingService.syncSnapshots.first?.eventIDs == [firstEvent.id])
