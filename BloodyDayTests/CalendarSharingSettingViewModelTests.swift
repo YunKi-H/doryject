@@ -27,7 +27,6 @@ struct CalendarSharingSettingViewModelTests {
         )
 
         viewModel.setSharedEventType(.pill, enabled: false)
-        try await waitUntil { cloudSharingSyncScheduler.scheduledRequestsCount() == 1 }
 
         let savedSelection = settingsRepository.load().calendarSharing.defaultSharedEventTypes
         #expect(viewModel.sharedEventTypeSelection == SharedEventTypeSelection(period: true, pill: false, love: true))

@@ -10,8 +10,10 @@ import Foundation
 import Testing
 @testable import BloodyDay
 
+private struct WaitUntilTimeoutError: Error {}
+
 func waitUntil(
-    timeoutNanoseconds: UInt64 = 500_000_000,
+    timeoutNanoseconds: UInt64 = 2_000_000_000,
     _ condition: @escaping () async -> Bool
 ) async throws {
     let deadline = Date().addingTimeInterval(Double(timeoutNanoseconds) / 1_000_000_000)
@@ -19,7 +21,7 @@ func waitUntil(
         try await Task.sleep(nanoseconds: 10_000_000)
         if Date() > deadline {
             Issue.record("Timed out waiting for condition")
-            return
+            throw WaitUntilTimeoutError()
         }
     }
 }

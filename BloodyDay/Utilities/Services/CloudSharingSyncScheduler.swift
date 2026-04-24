@@ -11,13 +11,14 @@ protocol CloudSharingSyncScheduling: AnyObject {
     func schedule(settings: UserSettings, events: [UserEvent])
 }
 
-actor CloudSharingSyncScheduler: CloudSharingSyncScheduling {
+final class CloudSharingSyncScheduler: CloudSharingSyncScheduling {
     private struct Request {
         let settings: UserSettings
         let events: [UserEvent]
     }
 
     private let cloudSharingService: CloudSharingService
+    private let stateQueue = DispatchQueue(label: "CloudSharingSyncScheduler.state")
     private var pendingRequest: Request?
     private var isRunning = false
 
@@ -25,31 +26,39 @@ actor CloudSharingSyncScheduler: CloudSharingSyncScheduling {
         self.cloudSharingService = cloudSharingService
     }
 
-    nonisolated func schedule(settings: UserSettings, events: [UserEvent]) {
-        Task {
-            await enqueue(settings: settings, events: events)
+    func schedule(settings: UserSettings, events: [UserEvent]) {
+        let shouldStart = stateQueue.sync { () -> Bool in
+            pendingRequest = Request(settings: settings, events: events)
+            guard isRunning == false else { return false }
+            isRunning = true
+            return true
         }
-    }
 
-    private func enqueue(settings: UserSettings, events: [UserEvent]) {
-        pendingRequest = Request(settings: settings, events: events)
-        guard isRunning == false else { return }
+        guard shouldStart else { return }
 
-        isRunning = true
-        Task {
-            await run()
+        Task.detached { [weak self] in
+            await self?.run()
         }
     }
 
     private func run() async {
-        while let request = pendingRequest {
-            pendingRequest = nil
+        while let request = nextRequest() {
             _ = try? await cloudSharingService.syncOwnedEventsIfNeeded(
                 sharedEventTypes: request.settings.calendarSharing.defaultSharedEventTypes,
                 settings: request.settings,
                 events: request.events
             )
         }
-        isRunning = false
+    }
+
+    private func nextRequest() -> Request? {
+        stateQueue.sync {
+            guard let request = pendingRequest else {
+                isRunning = false
+                return nil
+            }
+            pendingRequest = nil
+            return request
+        }
     }
 }

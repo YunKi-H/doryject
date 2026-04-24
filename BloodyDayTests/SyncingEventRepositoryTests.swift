@@ -25,7 +25,6 @@ struct SyncingEventRepositoryTests {
         let event = UserEvent(date: Date().startOfDay, type: .love)
 
         repository.save(event)
-        try await waitUntil { cloudSharingSyncScheduler.scheduledRequestsCount() == 1 }
 
         #expect(cloudSharingSyncScheduler.lastScheduledRequest()?.settings.calendarSharing.defaultSharedEventTypes == settings.calendarSharing.defaultSharedEventTypes)
         #expect(cloudSharingSyncScheduler.lastScheduledRequest()?.eventIDs == [event.id])
@@ -47,7 +46,6 @@ struct SyncingEventRepositoryTests {
         )
 
         repository.delete(id: deletedEvent.id)
-        try await waitUntil { cloudSharingSyncScheduler.scheduledRequestsCount() == 1 }
 
         #expect(cloudSharingSyncScheduler.lastScheduledRequest()?.eventIDs == [remainingEvent.id])
     }
@@ -66,7 +64,6 @@ struct SyncingEventRepositoryTests {
         )
 
         repository.replace(type: .love, on: [Date().startOfDay])
-        try await waitUntil { cloudSharingSyncScheduler.scheduledRequestsCount() == 1 }
 
         #expect(cloudSharingSyncScheduler.lastScheduledRequest()?.settings.calendarSharing.defaultSharedEventTypes == SharedEventTypeSelection.none)
         #expect(cloudSharingSyncScheduler.lastScheduledRequest()?.eventIDs.count == 1)
