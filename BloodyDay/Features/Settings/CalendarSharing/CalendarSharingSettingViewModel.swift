@@ -16,6 +16,7 @@ final class CalendarSharingSettingViewModel {
     private let eventRepository: EventRepository
     private let sharedCalendarRepository: SharedCalendarRepository
     private let cloudSharingService: CloudSharingService
+    private let cloudSharingSyncScheduler: CloudSharingSyncScheduling
 
     private(set) var selectedScope: CalendarScope
     private(set) var sharedCalendars: [SharedCalendar] = []
@@ -35,12 +36,16 @@ final class CalendarSharingSettingViewModel {
         repo: SettingsRepository,
         eventRepository: EventRepository,
         sharedCalendarRepository: SharedCalendarRepository,
-        cloudSharingService: CloudSharingService
+        cloudSharingService: CloudSharingService,
+        cloudSharingSyncScheduler: CloudSharingSyncScheduling? = nil
     ) {
         self.repo = repo
         self.eventRepository = eventRepository
         self.sharedCalendarRepository = sharedCalendarRepository
         self.cloudSharingService = cloudSharingService
+        self.cloudSharingSyncScheduler = cloudSharingSyncScheduler ?? CloudSharingSyncScheduler(
+            cloudSharingService: cloudSharingService
+        )
         let settings = repo.load()
         self.selectedScope = settings.calendarScope.selectedScope
         self.sharedEventTypeSelection = settings.calendarSharing.defaultSharedEventTypes
@@ -241,15 +246,8 @@ final class CalendarSharingSettingViewModel {
 
     private func syncOwnedEventsIfNeeded() {
         let settings = repo.load()
-        let sharedEventTypes = settings.calendarSharing.defaultSharedEventTypes
         let events = eventRepository.allEvents()
-        Task {
-            _ = try? await cloudSharingService.syncOwnedEventsIfNeeded(
-                sharedEventTypes: sharedEventTypes,
-                settings: settings,
-                events: events
-            )
-        }
+        cloudSharingSyncScheduler.schedule(settings: settings, events: events)
     }
 
     private func warningMessage(for result: CloudSharingEventSyncResult) -> String? {

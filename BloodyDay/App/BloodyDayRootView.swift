@@ -26,6 +26,7 @@ struct BloodyDayRootView: View {
     @State private var notificationScheduler: UserNotificationScheduler?
     @State private var widgetReloadService: WidgetReloadService?
     @State private var cloudSharingService: CloudSharingService?
+    @State private var cloudSharingSyncScheduler: CloudSharingSyncScheduler?
     @State private var cloudSharedCalendarRepository: CloudKitSharedCalendarRepository?
     
     @State private var activeTab: BloodyDayTab = .calendar
@@ -92,6 +93,9 @@ struct BloodyDayRootView: View {
                 let scheduler = notificationScheduler ?? UserNotificationScheduler()
                 let widgetReloader = widgetReloadService ?? WidgetReloadService()
                 let sharingService = cloudSharingService ?? CloudKitSharingService()
+                let sharingSyncScheduler = cloudSharingSyncScheduler ?? CloudSharingSyncScheduler(
+                    cloudSharingService: sharingService
+                )
                 let sharedCalendarRepository = cloudSharedCalendarRepository ?? CloudKitSharedCalendarRepository(
                     cloudSharingService: sharingService
                 )
@@ -99,6 +103,7 @@ struct BloodyDayRootView: View {
                 notificationScheduler = scheduler
                 widgetReloadService = widgetReloader
                 cloudSharingService = sharingService
+                cloudSharingSyncScheduler = sharingSyncScheduler
                 cloudSharedCalendarRepository = sharedCalendarRepository
                 if appleCalendarSyncService == nil {
                     appleCalendarSyncService = AppleCalendarSyncService(
@@ -114,7 +119,7 @@ struct BloodyDayRootView: View {
                     settingsRepository: settingsRepository,
                     notificationScheduler: scheduler,
                     widgetReloader: widgetReloader,
-                    cloudSharingService: sharingService
+                    cloudSharingSyncScheduler: sharingSyncScheduler
                 )
                 if calendarViewModel == nil {
                     calendarViewModel = CalendarViewModel(
@@ -154,7 +159,8 @@ struct BloodyDayRootView: View {
                         repo: settingsRepository,
                         eventRepository: syncingRepository,
                         sharedCalendarRepository: sharedCalendarRepository,
-                        cloudSharingService: sharingService
+                        cloudSharingService: sharingService,
+                        cloudSharingSyncScheduler: sharingSyncScheduler
                     )
                 }
                 if appearanceSettingViewModel == nil {

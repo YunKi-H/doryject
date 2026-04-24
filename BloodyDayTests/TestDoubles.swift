@@ -188,22 +188,31 @@ final class InMemorySharedCalendarRepository: SharedCalendarRepository, SharedCa
 }
 
 final class TestCloudSharingService: CloudSharingService {
+    struct SyncSnapshot {
+        let sharedEventTypes: SharedEventTypeSelection
+        let settings: UserSettings
+        let eventIDs: [UUID]
+    }
+
     let containerIdentifier = "iCloud.test.BDay"
     var availability: CloudSharingAvailability = .available
     var ownedShare: CKShare?
     var preparedShare: PreparedCloudShare?
     var stopOwnedSharingError: Error?
     var leaveSharedCalendarError: Error?
+    var syncDelayNanoseconds: UInt64 = 0
     var sharedSnapshot = SharedCalendarSnapshot(calendars: [], eventsByCalendarId: [:])
     private(set) var didStopOwnedSharing = false
     private(set) var leftCalendarIDs: [String] = []
     private(set) var lastPreparedSharedEventTypes: SharedEventTypeSelection?
     private(set) var lastPreparedSettings: UserSettings?
     private(set) var lastPreparedEvents: [UserEvent] = []
+    private(set) var ownedEventSyncStartedCount = 0
     private(set) var ownedEventSyncCallCount = 0
     private(set) var lastSyncedSharedEventTypes: SharedEventTypeSelection?
     private(set) var lastSyncedSettings: UserSettings?
     private(set) var lastSyncedEvents: [UserEvent] = []
+    private(set) var syncSnapshots: [SyncSnapshot] = []
 
     func fetchAvailability() async -> CloudSharingAvailability {
         availability
@@ -252,10 +261,40 @@ final class TestCloudSharingService: CloudSharingService {
         settings: UserSettings,
         events: [UserEvent]
     ) async throws -> CloudSharingEventSyncResult {
+        ownedEventSyncStartedCount += 1
+        if syncDelayNanoseconds > 0 {
+            try await Task.sleep(nanoseconds: syncDelayNanoseconds)
+        }
         ownedEventSyncCallCount += 1
         lastSyncedSharedEventTypes = sharedEventTypes
         lastSyncedSettings = settings
         lastSyncedEvents = events
+        syncSnapshots.append(
+            SyncSnapshot(
+                sharedEventTypes: sharedEventTypes,
+                settings: settings,
+                eventIDs: events.map(\.id)
+            )
+        )
         return .synced
+    }
+}
+
+@MainActor
+final class TestCloudSharingSyncScheduler: CloudSharingSyncScheduling {
+    private let cloudSharingService: CloudSharingService
+
+    init(cloudSharingService: CloudSharingService) {
+        self.cloudSharingService = cloudSharingService
+    }
+
+    func schedule(settings: UserSettings, events: [UserEvent]) {
+        Task {
+            _ = try? await cloudSharingService.syncOwnedEventsIfNeeded(
+                sharedEventTypes: settings.calendarSharing.defaultSharedEventTypes,
+                settings: settings,
+                events: events
+            )
+        }
     }
 }

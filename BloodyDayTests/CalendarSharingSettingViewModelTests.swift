@@ -21,7 +21,8 @@ struct CalendarSharingSettingViewModelTests {
         let viewModel = makeViewModel(
             settingsRepository: settingsRepository,
             eventRepository: eventRepository,
-            cloudSharingService: cloudSharingService
+            cloudSharingService: cloudSharingService,
+            cloudSharingSyncScheduler: TestCloudSharingSyncScheduler(cloudSharingService: cloudSharingService)
         )
 
         viewModel.setSharedEventType(.pill, enabled: false)
@@ -268,13 +269,15 @@ struct CalendarSharingSettingViewModelTests {
         settingsRepository: InMemorySettingsRepository = .init(settings: UserSettings()),
         eventRepository: StaticEventRepository = .init(events: []),
         sharedCalendarRepository: InMemorySharedCalendarRepository = .init(),
-        cloudSharingService: TestCloudSharingService = .init()
+        cloudSharingService: TestCloudSharingService = .init(),
+        cloudSharingSyncScheduler: CloudSharingSyncScheduling? = nil
     ) -> CalendarSharingSettingViewModel {
         CalendarSharingSettingViewModel(
             repo: settingsRepository,
             eventRepository: eventRepository,
             sharedCalendarRepository: sharedCalendarRepository,
-            cloudSharingService: cloudSharingService
+            cloudSharingService: cloudSharingService,
+            cloudSharingSyncScheduler: cloudSharingSyncScheduler
         )
     }
 

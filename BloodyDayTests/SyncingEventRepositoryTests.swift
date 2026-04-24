@@ -20,7 +20,7 @@ struct SyncingEventRepositoryTests {
         let repository = makeRepository(
             base: baseRepository,
             settingsRepository: settingsRepository,
-            cloudSharingService: cloudSharingService
+            cloudSharingSyncScheduler: TestCloudSharingSyncScheduler(cloudSharingService: cloudSharingService)
         )
         let event = UserEvent(date: Date().startOfDay, type: .love)
 
@@ -43,7 +43,7 @@ struct SyncingEventRepositoryTests {
         let repository = makeRepository(
             base: baseRepository,
             settingsRepository: settingsRepository,
-            cloudSharingService: cloudSharingService
+            cloudSharingSyncScheduler: TestCloudSharingSyncScheduler(cloudSharingService: cloudSharingService)
         )
 
         repository.delete(id: deletedEvent.id)
@@ -62,7 +62,7 @@ struct SyncingEventRepositoryTests {
         let repository = makeRepository(
             base: baseRepository,
             settingsRepository: settingsRepository,
-            cloudSharingService: cloudSharingService
+            cloudSharingSyncScheduler: TestCloudSharingSyncScheduler(cloudSharingService: cloudSharingService)
         )
 
         repository.replace(type: .love, on: [Date().startOfDay])
@@ -75,7 +75,7 @@ struct SyncingEventRepositoryTests {
     private func makeRepository(
         base: EventRepository,
         settingsRepository: SettingsRepository,
-        cloudSharingService: CloudSharingService
+        cloudSharingSyncScheduler: CloudSharingSyncScheduling
     ) -> SyncingEventRepository {
         let appleCalendarService = AppleCalendarSyncService(
             settingsRepository: settingsRepository,
@@ -87,7 +87,7 @@ struct SyncingEventRepositoryTests {
             base: base,
             syncService: appleCalendarService,
             settingsRepository: settingsRepository,
-            cloudSharingService: cloudSharingService
+            cloudSharingSyncScheduler: cloudSharingSyncScheduler
         )
     }
 

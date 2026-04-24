@@ -60,7 +60,7 @@ struct CloudSharingControllerPresenter: UIViewControllerRepresentable {
                 }
                 controller.delegate = context.coordinator
                 controller.presentationController?.delegate = context.coordinator
-                controller.availablePermissions = [.allowPrivate, .allowReadOnly]
+                controller.availablePermissions = [.allowPublic, .allowReadOnly]
                 return controller
             },
             onDidPresent: {

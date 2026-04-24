@@ -331,7 +331,7 @@ final class CloudKitSharingService: CloudSharingService {
         let share = try await fetchOwnedShare(for: rootRecord) ?? CKShare(rootRecord: rootRecord)
         rootRecord[SharedCloudKitSchema.CalendarField.shareRecordName] = share.recordID.recordName as CKRecordValue
         share[CKShare.SystemFieldKey.title] = "BloodyDay 캘린더 공유" as CKRecordValue
-        share.publicPermission = .none
+        share.publicPermission = .readOnly
         return share
     }
 

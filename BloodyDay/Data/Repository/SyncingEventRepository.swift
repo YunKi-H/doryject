@@ -13,7 +13,7 @@ final class SyncingEventRepository: EventRepository {
     private let settingsRepository: SettingsRepository?
     private let notificationScheduler: NotificationScheduler?
     private let widgetReloader: WidgetReloading?
-    private let cloudSharingService: CloudSharingService?
+    private let cloudSharingSyncScheduler: CloudSharingSyncScheduling?
 
     init(
         base: EventRepository,
@@ -21,14 +21,14 @@ final class SyncingEventRepository: EventRepository {
         settingsRepository: SettingsRepository? = nil,
         notificationScheduler: NotificationScheduler? = nil,
         widgetReloader: WidgetReloading? = nil,
-        cloudSharingService: CloudSharingService? = nil
+        cloudSharingSyncScheduler: CloudSharingSyncScheduling? = nil
     ) {
         self.base = base
         self.syncService = syncService
         self.settingsRepository = settingsRepository
         self.notificationScheduler = notificationScheduler
         self.widgetReloader = widgetReloader
-        self.cloudSharingService = cloudSharingService
+        self.cloudSharingSyncScheduler = cloudSharingSyncScheduler
     }
 
     func save(_ event: UserEvent) {
@@ -107,16 +107,11 @@ final class SyncingEventRepository: EventRepository {
 
     private func syncCloudSharing() {
         guard let settingsRepository,
-              let cloudSharingService else { return }
+              let cloudSharingSyncScheduler else { return }
         let settings = settingsRepository.load()
-        let sharedEventTypes = settings.calendarSharing.defaultSharedEventTypes
         let events = base.allEvents()
-        Task {
-            _ = try? await cloudSharingService.syncOwnedEventsIfNeeded(
-                sharedEventTypes: sharedEventTypes,
-                settings: settings,
-                events: events
-            )
+        Task { @MainActor in
+            cloudSharingSyncScheduler.schedule(settings: settings, events: events)
         }
     }
 
