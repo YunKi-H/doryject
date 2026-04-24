@@ -110,9 +110,7 @@ final class SyncingEventRepository: EventRepository {
               let cloudSharingSyncScheduler else { return }
         let settings = settingsRepository.load()
         let events = base.allEvents()
-        Task {
-            await cloudSharingSyncScheduler.schedule(settings: settings, events: events)
-        }
+        cloudSharingSyncScheduler.schedule(settings: settings, events: events)
     }
 
     private func enablePillIfNeeded(for event: UserEvent) {

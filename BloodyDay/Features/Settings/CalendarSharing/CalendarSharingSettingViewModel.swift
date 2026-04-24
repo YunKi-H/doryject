@@ -247,9 +247,7 @@ final class CalendarSharingSettingViewModel {
     private func syncOwnedEventsIfNeeded() {
         let settings = repo.load()
         let events = eventRepository.allEvents()
-        Task {
-            await cloudSharingSyncScheduler.schedule(settings: settings, events: events)
-        }
+        cloudSharingSyncScheduler.schedule(settings: settings, events: events)
     }
 
     private func warningMessage(for result: CloudSharingEventSyncResult) -> String? {

@@ -23,10 +23,10 @@ struct CloudSharingSyncSchedulerTests {
         var secondSettings = UserSettings()
         secondSettings.calendarSharing.defaultSharedEventTypes = SharedEventTypeSelection(period: false, pill: true, love: false)
 
-        await scheduler.schedule(settings: firstSettings, events: [firstEvent])
+        scheduler.schedule(settings: firstSettings, events: [firstEvent])
         try await waitUntil { await cloudSharingService.ownedEventSyncStartedCountValue() == 1 }
-        await scheduler.schedule(settings: secondSettings, events: [firstEvent, secondEvent])
-        await scheduler.schedule(settings: secondSettings, events: [secondEvent])
+        scheduler.schedule(settings: secondSettings, events: [firstEvent, secondEvent])
+        scheduler.schedule(settings: secondSettings, events: [secondEvent])
         await cloudSharingService.releaseBlockedSyncs()
         try await waitUntil { await cloudSharingService.syncSnapshotsCount() == 2 }
 

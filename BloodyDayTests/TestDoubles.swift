@@ -361,37 +361,39 @@ actor TestCloudSharingService: CloudSharingService {
     }
 }
 
-actor TestCloudSharingSyncScheduler: CloudSharingSyncScheduling {
+final class TestCloudSharingSyncScheduler: CloudSharingSyncScheduling {
     struct ScheduledRequest {
         let settings: UserSettings
         let eventIDs: [UUID]
     }
 
-    private let onSchedule: ((UserSettings, [UserEvent]) async -> Void)?
+    private let onSchedule: ((UserSettings, [UserEvent]) -> Void)?
     private(set) var scheduledRequests: [ScheduledRequest] = []
 
-    init(onSchedule: ((UserSettings, [UserEvent]) async -> Void)? = nil) {
+    init(onSchedule: ((UserSettings, [UserEvent]) -> Void)? = nil) {
         self.onSchedule = onSchedule
     }
 
     convenience init(cloudSharingService: CloudSharingService) {
         self.init { settings, events in
-            _ = try? await cloudSharingService.syncOwnedEventsIfNeeded(
-                sharedEventTypes: settings.calendarSharing.defaultSharedEventTypes,
-                settings: settings,
-                events: events
-            )
+            Task {
+                _ = try? await cloudSharingService.syncOwnedEventsIfNeeded(
+                    sharedEventTypes: settings.calendarSharing.defaultSharedEventTypes,
+                    settings: settings,
+                    events: events
+                )
+            }
         }
     }
 
-    func schedule(settings: UserSettings, events: [UserEvent]) async {
+    func schedule(settings: UserSettings, events: [UserEvent]) {
         scheduledRequests.append(
             ScheduledRequest(
                 settings: settings,
                 eventIDs: events.map(\.id)
             )
         )
-        await onSchedule?(settings, events)
+        onSchedule?(settings, events)
     }
 
     func scheduledRequestsCount() -> Int {
