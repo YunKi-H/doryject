@@ -280,7 +280,6 @@ final class TestCloudSharingService: CloudSharingService {
     }
 }
 
-@MainActor
 final class TestCloudSharingSyncScheduler: CloudSharingSyncScheduling {
     private let cloudSharingService: CloudSharingService
 

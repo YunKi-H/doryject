@@ -7,36 +7,40 @@
 
 import Foundation
 
-@MainActor
 protocol CloudSharingSyncScheduling: AnyObject {
     func schedule(settings: UserSettings, events: [UserEvent])
 }
 
-@MainActor
-final class CloudSharingSyncScheduler: CloudSharingSyncScheduling {
+actor CloudSharingSyncScheduler: CloudSharingSyncScheduling {
     private struct Request {
         let settings: UserSettings
         let events: [UserEvent]
     }
-    
+
     private let cloudSharingService: CloudSharingService
     private var pendingRequest: Request?
     private var isRunning = false
-    
+
     init(cloudSharingService: CloudSharingService) {
         self.cloudSharingService = cloudSharingService
     }
-    
-    func schedule(settings: UserSettings, events: [UserEvent]) {
+
+    nonisolated func schedule(settings: UserSettings, events: [UserEvent]) {
+        Task {
+            await enqueue(settings: settings, events: events)
+        }
+    }
+
+    private func enqueue(settings: UserSettings, events: [UserEvent]) {
         pendingRequest = Request(settings: settings, events: events)
         guard isRunning == false else { return }
-        
+
         isRunning = true
         Task {
             await run()
         }
     }
-    
+
     private func run() async {
         while let request = pendingRequest {
             pendingRequest = nil
