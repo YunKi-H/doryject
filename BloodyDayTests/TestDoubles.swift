@@ -217,6 +217,8 @@ actor TestCloudSharingService: CloudSharingService {
     private(set) var lastSyncedEvents: [UserEvent] = []
     private(set) var syncSnapshots: [SyncSnapshot] = []
     private var blockedSyncContinuations: [CheckedContinuation<Void, Never>] = []
+    private var startedSyncWaiters: [(target: Int, continuation: CheckedContinuation<Void, Never>)] = []
+    private var completedSyncWaiters: [(target: Int, continuation: CheckedContinuation<Void, Never>)] = []
 
     func fetchAvailability() async -> CloudSharingAvailability {
         availability
@@ -266,6 +268,7 @@ actor TestCloudSharingService: CloudSharingService {
         events: [UserEvent]
     ) async throws -> CloudSharingEventSyncResult {
         ownedEventSyncStartedCount += 1
+        resumeStartedSyncWaitersIfNeeded()
         if blockedSyncCallNumbers.contains(ownedEventSyncStartedCount) {
             await withCheckedContinuation { continuation in
                 blockedSyncContinuations.append(continuation)
@@ -285,7 +288,22 @@ actor TestCloudSharingService: CloudSharingService {
                 eventIDs: events.map(\.id)
             )
         )
+        resumeCompletedSyncWaitersIfNeeded()
         return .synced
+    }
+
+    func waitForStartedSyncCount(_ target: Int) async {
+        guard ownedEventSyncStartedCount < target else { return }
+        await withCheckedContinuation { continuation in
+            startedSyncWaiters.append((target: target, continuation: continuation))
+        }
+    }
+
+    func waitForCompletedSyncCount(_ target: Int) async {
+        guard syncSnapshots.count < target else { return }
+        await withCheckedContinuation { continuation in
+            completedSyncWaiters.append((target: target, continuation: continuation))
+        }
     }
 
     func releaseBlockedSyncs() {
@@ -360,6 +378,34 @@ actor TestCloudSharingService: CloudSharingService {
 
     func didStopOwnedSharingValue() -> Bool {
         didStopOwnedSharing
+    }
+
+    private func resumeStartedSyncWaitersIfNeeded() {
+        let waiters = startedSyncWaiters
+        startedSyncWaiters.removeAll()
+        var remaining: [(target: Int, continuation: CheckedContinuation<Void, Never>)] = []
+        for waiter in waiters {
+            if ownedEventSyncStartedCount >= waiter.target {
+                waiter.continuation.resume()
+            } else {
+                remaining.append(waiter)
+            }
+        }
+        startedSyncWaiters = remaining
+    }
+
+    private func resumeCompletedSyncWaitersIfNeeded() {
+        let waiters = completedSyncWaiters
+        completedSyncWaiters.removeAll()
+        var remaining: [(target: Int, continuation: CheckedContinuation<Void, Never>)] = []
+        for waiter in waiters {
+            if syncSnapshots.count >= waiter.target {
+                waiter.continuation.resume()
+            } else {
+                remaining.append(waiter)
+            }
+        }
+        completedSyncWaiters = remaining
     }
 }
 
