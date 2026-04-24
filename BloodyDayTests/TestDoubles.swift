@@ -287,13 +287,11 @@ final class TestCloudSharingSyncScheduler: CloudSharingSyncScheduling {
         self.cloudSharingService = cloudSharingService
     }
 
-    func schedule(settings: UserSettings, events: [UserEvent]) {
-        Task {
-            _ = try? await cloudSharingService.syncOwnedEventsIfNeeded(
-                sharedEventTypes: settings.calendarSharing.defaultSharedEventTypes,
-                settings: settings,
-                events: events
-            )
-        }
+    func schedule(settings: UserSettings, events: [UserEvent]) async {
+        _ = try? await cloudSharingService.syncOwnedEventsIfNeeded(
+            sharedEventTypes: settings.calendarSharing.defaultSharedEventTypes,
+            settings: settings,
+            events: events
+        )
     }
 }

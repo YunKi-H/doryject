@@ -8,7 +8,7 @@
 import Foundation
 
 protocol CloudSharingSyncScheduling: AnyObject {
-    func schedule(settings: UserSettings, events: [UserEvent])
+    func schedule(settings: UserSettings, events: [UserEvent]) async
 }
 
 actor CloudSharingSyncScheduler: CloudSharingSyncScheduling {
@@ -25,13 +25,7 @@ actor CloudSharingSyncScheduler: CloudSharingSyncScheduling {
         self.cloudSharingService = cloudSharingService
     }
 
-    nonisolated func schedule(settings: UserSettings, events: [UserEvent]) {
-        Task {
-            await enqueue(settings: settings, events: events)
-        }
-    }
-
-    private func enqueue(settings: UserSettings, events: [UserEvent]) {
+    func schedule(settings: UserSettings, events: [UserEvent]) async {
         pendingRequest = Request(settings: settings, events: events)
         guard isRunning == false else { return }
 
