@@ -18,15 +18,26 @@ final class CalendarViewModel {
     
     private let eventRepository: EventRepository
     private let settingsRepository: SettingsRepository?
+    private var selectedDayComponents: DateComponents
+    private var visibleMonthComponents: DateComponents
     
     init(
         eventRepository: EventRepository,
         settingsRepository: SettingsRepository? = nil,
-        now: Date = .now
+        now: Date = .now,
+        calendar: Calendar = .current
     ) {
-        let normalizedToday = now.startOfDay
+        let normalizedToday = calendar.startOfDay(for: now)
         self.selectedDate = normalizedToday
         self.referenceToday = normalizedToday
+        self.selectedDayComponents = Self.civilDayComponents(
+            from: normalizedToday,
+            calendar: calendar
+        )
+        self.visibleMonthComponents = Self.civilMonthComponents(
+            from: normalizedToday,
+            calendar: calendar
+        )
         self.eventRepository = eventRepository
         self.settingsRepository = settingsRepository
         
@@ -47,6 +58,24 @@ final class CalendarViewModel {
         let normalizedToday = now.startOfDay
         guard normalizedToday != referenceToday else { return }
         refresh(now: normalizedToday)
+    }
+
+    func refreshForSystemCalendarChange(
+        now: Date = .now,
+        calendar: Calendar = .current
+    ) {
+        let preservedVisibleMonthComponents = visibleMonthComponents
+        referenceToday = calendar.startOfDay(for: now)
+        selectedDate = Self.date(
+            from: selectedDayComponents,
+            calendar: calendar
+        ) ?? referenceToday
+        let visibleMonth = Self.date(
+            from: visibleMonthComponents,
+            calendar: calendar
+        ) ?? selectedDate
+        bootstrapMonths(anchor: visibleMonth)
+        visibleMonthComponents = preservedVisibleMonthComponents
     }
     
     func moveSelectedDate(by days: Int) {
@@ -157,10 +186,18 @@ extension CalendarViewModel {
             setCurrentMonth(to: date)
         }
         selectedDate = date
+        selectedDayComponents = Self.civilDayComponents(
+            from: date,
+            calendar: .current
+        )
     }
     
     func setCurrentMonth(to month: Date) {
         let start = month.startOfMonth
+        visibleMonthComponents = Self.civilMonthComponents(
+            from: start,
+            calendar: .current
+        )
         
         if let idx = months.firstIndex(where: { $0.monthDate == start }) {
             currentIndex = idx
@@ -222,6 +259,12 @@ extension CalendarViewModel {
         )
         months = result.months
         currentIndex = result.currentIndex
+        if months.indices.contains(currentIndex) {
+            visibleMonthComponents = Self.civilMonthComponents(
+                from: months[currentIndex].monthDate,
+                calendar: .current
+            )
+        }
     }
     
     private func buildMonthComputationContext(
@@ -253,6 +296,44 @@ extension CalendarViewModel {
     
     private var isPillEnabled: Bool {
         settingsRepository?.load().pill.pillEnabled == true
+    }
+
+    private static func civilDayComponents(
+        from date: Date,
+        calendar: Calendar
+    ) -> DateComponents {
+        civilCalendar(timeZone: calendar.timeZone)
+            .dateComponents([.year, .month, .day], from: date)
+    }
+
+    private static func civilMonthComponents(
+        from date: Date,
+        calendar: Calendar
+    ) -> DateComponents {
+        let components = civilCalendar(timeZone: calendar.timeZone)
+            .dateComponents([.year, .month], from: date)
+        return DateComponents(
+            year: components.year,
+            month: components.month,
+            day: 1
+        )
+    }
+
+    private static func date(
+        from components: DateComponents,
+        calendar: Calendar
+    ) -> Date? {
+        let targetCalendar = civilCalendar(timeZone: calendar.timeZone)
+        return targetCalendar.date(from: components).map {
+            targetCalendar.startOfDay(for: $0)
+        }
+    }
+
+    private static func civilCalendar(timeZone: TimeZone) -> Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.locale = Locale(identifier: "en_US_POSIX")
+        calendar.timeZone = timeZone
+        return calendar
     }
 }
 

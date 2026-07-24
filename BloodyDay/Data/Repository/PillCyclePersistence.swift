@@ -20,7 +20,7 @@ enum PillCyclePersistence {
         do {
             guard try context.fetchCount(FetchDescriptor<PillCycle>()) == 0 else { return }
 
-            let pillEvents = try fetchPillEvents(in: context)
+            let pillEvents = try fetchPillEvents(in: context, calendar: calendar)
             guard pillEvents.isEmpty == false else { return }
 
             let groups = historicalGroups(events: pillEvents, calendar: calendar)
@@ -52,14 +52,17 @@ enum PillCyclePersistence {
         }
     }
 
-    static func cycleInfos(in context: ModelContext) -> [PillCycleInfo] {
+    static func cycleInfos(
+        in context: ModelContext,
+        calendar: Calendar = .current
+    ) -> [PillCycleInfo] {
         do {
             let cycles = try context.fetch(
                 FetchDescriptor<PillCycle>(
                     sortBy: [SortDescriptor(\PillCycle.startDate, order: .forward)]
                 )
             )
-            let events = try fetchPillEvents(in: context)
+            let events = try fetchPillEvents(in: context, calendar: calendar)
             let datesByCycleID = Dictionary(grouping: events.compactMap { event -> (UUID, Date)? in
                 guard let cycleID = event.pillCycleID else { return nil }
                 return (cycleID, event.date.startOfDay)
@@ -89,16 +92,18 @@ enum PillCyclePersistence {
     ) throws {
         guard event.type == .pill, event.pillCycleID == nil else { return }
 
-        let cycles = try context.fetch(
-            FetchDescriptor<PillCycle>(
-                sortBy: [SortDescriptor(\PillCycle.startDate, order: .forward)]
-            )
-        )
-        let pillEvents = try fetchPillEvents(in: context)
+        let pillEvents = try fetchPillEvents(in: context, calendar: calendar)
+        let fetchedCycles = try context.fetch(FetchDescriptor<PillCycle>())
         let eventsByCycleID = Dictionary(
             grouping: pillEvents.filter { $0.pillCycleID != nil },
             by: { $0.pillCycleID! }
         )
+        for cycle in fetchedCycles {
+            if let first = eventsByCycleID[cycle.id]?.map(\.date).min() {
+                cycle.startDate = first
+            }
+        }
+        let cycles = fetchedCycles.sorted { $0.startDate < $1.startDate }
         let target = event.date.startOfDay
 
         let candidates = cycles.compactMap { cycle -> (cycle: PillCycle, distance: Int)? in
@@ -157,12 +162,13 @@ enum PillCyclePersistence {
 
     static func cleanupAfterDeletion(
         cycleIDs: Set<UUID>,
-        in context: ModelContext
+        in context: ModelContext,
+        calendar: Calendar = .current
     ) throws {
         guard cycleIDs.isEmpty == false else { return }
 
         let cycles = try context.fetch(FetchDescriptor<PillCycle>())
-        let events = try fetchPillEvents(in: context)
+        let events = try fetchPillEvents(in: context, calendar: calendar)
         let eventsByCycleID = Dictionary(
             grouping: events.filter { $0.pillCycleID != nil },
             by: { $0.pillCycleID! }
@@ -178,14 +184,21 @@ enum PillCyclePersistence {
         }
     }
 
-    private static func fetchPillEvents(in context: ModelContext) throws -> [UserEvent] {
+    private static func fetchPillEvents(
+        in context: ModelContext,
+        calendar: Calendar
+    ) throws -> [UserEvent] {
         let pillRawValue = EventType.pill.rawValue
         return try context.fetch(
             FetchDescriptor<UserEvent>(
-                predicate: #Predicate { $0.typeRaw == pillRawValue },
-                sortBy: [SortDescriptor(\UserEvent.date, order: .forward)]
+                predicate: #Predicate { $0.typeRaw == pillRawValue }
             )
         )
+        .map { event in
+            event.normalizeDate(calendar: calendar)
+            return event
+        }
+        .sorted { $0.date < $1.date }
     }
 
     private static func historicalGroups(

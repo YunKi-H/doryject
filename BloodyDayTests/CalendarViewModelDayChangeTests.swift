@@ -37,10 +37,57 @@ struct CalendarViewModelDayChangeTests {
         #expect(viewModel.selectedDate == firstDay)
     }
 
+    @Test
+    func systemCalendarChangePreservesSelectedCivilDay() {
+        let seoul = calendar(timeZoneIdentifier: "Asia/Seoul")
+        let losAngeles = calendar(timeZoneIdentifier: "America/Los_Angeles")
+        let selectedDay = seoul.date(
+            from: DateComponents(year: 2026, month: 7, day: 24)
+        )!
+        let viewModel = CalendarViewModel(
+            eventRepository: CountingEventRepository(),
+            now: selectedDay,
+            calendar: seoul
+        )
+        let newNow = losAngeles.date(
+            from: DateComponents(
+                year: 2026,
+                month: 7,
+                day: 24,
+                hour: 12
+            )
+        )!
+
+        viewModel.refreshForSystemCalendarChange(
+            now: newNow,
+            calendar: losAngeles
+        )
+
+        let selectedComponents = losAngeles.dateComponents(
+            [.year, .month, .day],
+            from: viewModel.selectedDate
+        )
+        #expect(selectedComponents.year == 2026)
+        #expect(selectedComponents.month == 7)
+        #expect(selectedComponents.day == 24)
+        #expect(
+            losAngeles.component(
+                .month,
+                from: viewModel.months[viewModel.currentIndex].monthDate
+            ) == 7
+        )
+    }
+
     private func makeDate(_ year: Int, _ month: Int, _ day: Int) -> Date {
         calendar.date(
             from: DateComponents(year: year, month: month, day: day)
         )!.startOfDay
+    }
+
+    private func calendar(timeZoneIdentifier: String) -> Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: timeZoneIdentifier)!
+        return calendar
     }
 }
 

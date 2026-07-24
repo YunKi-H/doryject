@@ -29,21 +29,17 @@ enum WidgetSharedEventStore {
         let target = calendar.startOfDay(for: date)
         
         do {
-            let events = try context.fetch(
-                FetchDescriptor<UserEvent>(
-                    sortBy: [SortDescriptor(\UserEvent.date, order: .forward)]
-                )
-            )
-            let existingDatesByType = Dictionary(
-                grouping: events,
-                by: \.type
-            ).mapValues { Set($0.map(\.date)) }
             let settings = loadSettings()
             PillCyclePersistence.migrateIfNeeded(
                 in: context,
                 settings: settings,
                 calendar: calendar
             )
+            let events = try fetchEvents(in: context, calendar: calendar)
+            let existingDatesByType = Dictionary(
+                grouping: events,
+                by: \.type
+            ).mapValues { Set($0.map(\.date)) }
             let toggledOn = !(existingDatesByType[type] ?? []).contains(target)
             let plan = CalendarEventTogglePolicyUseCase.mutationPlan(
                 type: type,
@@ -51,7 +47,10 @@ enum WidgetSharedEventStore {
                 selectedDate: target,
                 existingDatesByType: existingDatesByType,
                 settings: settings,
-                pillCycles: PillCyclePersistence.cycleInfos(in: context),
+                pillCycles: PillCyclePersistence.cycleInfos(
+                    in: context,
+                    calendar: calendar
+                ),
                 calendar: calendar
             )
             try apply(
@@ -70,15 +69,14 @@ enum WidgetSharedEventStore {
     
     static func allEvents() -> [UserEvent] {
         let context = ModelContext(sharedContainer)
+        let calendar = Calendar.current
         PillCyclePersistence.migrateIfNeeded(
             in: context,
-            settings: loadSettings()
-        )
-        let descriptor = FetchDescriptor<UserEvent>(
-            sortBy: [SortDescriptor(\UserEvent.date, order: .forward)]
+            settings: loadSettings(),
+            calendar: calendar
         )
         do {
-            return try context.fetch(descriptor)
+            return try fetchEvents(in: context, calendar: calendar)
         } catch {
             assertionFailure("Widget event fetch failed: \(error)")
             return []
@@ -87,11 +85,13 @@ enum WidgetSharedEventStore {
 
     static func pillCycles() -> [PillCycleInfo] {
         let context = ModelContext(sharedContainer)
+        let calendar = Calendar.current
         PillCyclePersistence.migrateIfNeeded(
             in: context,
-            settings: loadSettings()
+            settings: loadSettings(),
+            calendar: calendar
         )
-        return PillCyclePersistence.cycleInfos(in: context)
+        return PillCyclePersistence.cycleInfos(in: context, calendar: calendar)
     }
     
     private static func storeURL() -> URL {
@@ -117,6 +117,18 @@ enum WidgetSharedEventStore {
             return .init()
         }
         return settings
+    }
+
+    private static func fetchEvents(
+        in context: ModelContext,
+        calendar: Calendar
+    ) throws -> [UserEvent] {
+        try context.fetch(FetchDescriptor<UserEvent>())
+            .map { event in
+                event.normalizeDate(calendar: calendar)
+                return event
+            }
+            .sorted { $0.date < $1.date }
     }
 
     private static func apply(
@@ -163,7 +175,8 @@ enum WidgetSharedEventStore {
 
         try PillCyclePersistence.cleanupAfterDeletion(
             cycleIDs: deletedCycleIDs,
-            in: context
+            in: context,
+            calendar: calendar
         )
         try context.save()
     }

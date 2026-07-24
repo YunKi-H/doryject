@@ -158,7 +158,7 @@ struct BloodyDayRootView: View {
                 calendarViewModel?.refreshIfReferenceDayChanged()
             }
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in
-                calendarViewModel?.refreshIfReferenceDayChanged()
+                calendarViewModel?.refreshForSystemCalendarChange()
             }
         }
         .preferredColorScheme(preferredColorScheme)

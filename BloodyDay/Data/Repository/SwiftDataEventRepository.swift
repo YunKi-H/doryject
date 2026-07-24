@@ -10,28 +10,34 @@ import SwiftData
 
 final class SwiftDataEventRepository: EventRepository {
     private let context: ModelContext
-    private let calendar: Calendar
+    private let configuredCalendar: Calendar?
     private let settingsRepository: SettingsRepository
+
+    private var calendar: Calendar {
+        configuredCalendar ?? .current
+    }
     
     init(
         context: ModelContext,
-        calendar: Calendar = .current,
+        calendar: Calendar? = nil,
         settingsRepository: SettingsRepository = UserDefaultsSettingsRepository()
     ) {
         self.context = context
-        self.calendar = calendar
+        self.configuredCalendar = calendar
         self.settingsRepository = settingsRepository
+        normalizeStoredEventDates()
         PillCyclePersistence.migrateIfNeeded(
             in: context,
             settings: settingsRepository.load(),
-            calendar: calendar
+            calendar: self.calendar
         )
     }
     
     // MARK: - CRUD
     func save(_ event: UserEvent) {
         do {
-            let eventKey = UserEvent.makeUniqueKey(date: event.date, type: event.type, calendar: calendar)
+            event.normalizeDate(calendar: calendar)
+            let eventKey = event.uniqueKey
             
             let descriptor = FetchDescriptor<UserEvent>(
                 predicate: #Predicate { $0.uniqueKey == eventKey }
@@ -63,7 +69,11 @@ final class SwiftDataEventRepository: EventRepository {
             let cycleIDs = Set(results.compactMap(\.pillCycleID))
             results.forEach { context.delete($0) }
             if !results.isEmpty {
-                try PillCyclePersistence.cleanupAfterDeletion(cycleIDs: cycleIDs, in: context)
+                try PillCyclePersistence.cleanupAfterDeletion(
+                    cycleIDs: cycleIDs,
+                    in: context,
+                    calendar: calendar
+                )
                 try context.save()
             }
         } catch {
@@ -81,7 +91,11 @@ final class SwiftDataEventRepository: EventRepository {
             let cycleIDs = Set(results.compactMap(\.pillCycleID))
             results.forEach { context.delete($0) }
             if !results.isEmpty {
-                try PillCyclePersistence.cleanupAfterDeletion(cycleIDs: cycleIDs, in: context)
+                try PillCyclePersistence.cleanupAfterDeletion(
+                    cycleIDs: cycleIDs,
+                    in: context,
+                    calendar: calendar
+                )
                 try context.save()
             }
         } catch {
@@ -91,7 +105,7 @@ final class SwiftDataEventRepository: EventRepository {
     
     func replace(type: EventType, on dates: Set<Date>) {
         let rawValue = type.rawValue
-        let normalizedDates = Set(dates.map(\.startOfDay))
+        let normalizedDates = Set(dates.map { calendar.startOfDay(for: $0) })
         do {
             let descriptor = FetchDescriptor<UserEvent>(
                 predicate: #Predicate { $0.typeRaw == rawValue }
@@ -130,7 +144,8 @@ final class SwiftDataEventRepository: EventRepository {
             if changed {
                 try PillCyclePersistence.cleanupAfterDeletion(
                     cycleIDs: deletedCycleIDs,
-                    in: context
+                    in: context,
+                    calendar: calendar
                 )
                 try context.save()
             }
@@ -140,11 +155,10 @@ final class SwiftDataEventRepository: EventRepository {
     }
     
     func allEvents() -> [UserEvent] {
-        let descriptor = FetchDescriptor<UserEvent>(sortBy: [
-            .init(\UserEvent.date, order: .forward)
-        ])
         do {
-            return try context.fetch(descriptor)
+            return normalizeAndSort(
+                try context.fetch(FetchDescriptor<UserEvent>())
+            )
         } catch {
             assertionFailure("SwiftData fetch all failed: \(error)")
             return []
@@ -152,18 +166,15 @@ final class SwiftDataEventRepository: EventRepository {
     }
     
     func events(forMonth month: Date) -> [UserEvent] {
-        // Compute start/end of month range
         guard let start = calendar.date(from: calendar.dateComponents([.year, .month], from: month)),
               let end = calendar.date(byAdding: .month, value: 1, to: start) else {
             return []
         }
-        
-        let descriptor = FetchDescriptor<UserEvent>(
-            predicate: #Predicate { $0.date >= start && $0.date < end },
-            sortBy: [ .init(\UserEvent.date, order: .forward) ]
-        )
+
         do {
-            return try context.fetch(descriptor)
+            return normalizeAndSort(
+                try context.fetch(FetchDescriptor<UserEvent>())
+            ).filter { $0.date >= start && $0.date < end }
         } catch {
             assertionFailure("SwiftData fetch month failed: \(error)")
             return []
@@ -173,11 +184,10 @@ final class SwiftDataEventRepository: EventRepository {
     func events(of type: EventType) -> [UserEvent] {
         let rawValue = type.rawValue
         let descriptor = FetchDescriptor<UserEvent>(
-            predicate: #Predicate { $0.typeRaw == rawValue },
-            sortBy: [ .init(\UserEvent.date, order: .forward) ]
+            predicate: #Predicate { $0.typeRaw == rawValue }
         )
         do {
-            return try context.fetch(descriptor)
+            return normalizeAndSort(try context.fetch(descriptor))
         } catch {
             assertionFailure("SwiftData fetch by type failed: \(error)")
             return []
@@ -185,6 +195,29 @@ final class SwiftDataEventRepository: EventRepository {
     }
 
     func pillCycles() -> [PillCycleInfo] {
-        PillCyclePersistence.cycleInfos(in: context)
+        PillCyclePersistence.cycleInfos(in: context, calendar: calendar)
+    }
+
+    private func normalizeStoredEventDates() {
+        do {
+            let events = try context.fetch(FetchDescriptor<UserEvent>())
+            let changed = events.reduce(false) { result, event in
+                event.normalizeDate(calendar: calendar) || result
+            }
+            if changed {
+                try context.save()
+            }
+        } catch {
+            assertionFailure("SwiftData date normalization failed: \(error)")
+        }
+    }
+
+    private func normalizeAndSort(_ events: [UserEvent]) -> [UserEvent] {
+        events
+            .map { event in
+                event.normalizeDate(calendar: calendar)
+                return event
+            }
+            .sorted { $0.date < $1.date }
     }
 }

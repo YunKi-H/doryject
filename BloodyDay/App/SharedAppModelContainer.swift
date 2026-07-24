@@ -58,13 +58,14 @@ enum SharedAppModelContainer {
         guard legacyEvents.isEmpty == false else { return }
         
         for event in legacyEvents {
-            sharedContext.insert(
-                UserEvent(
-                    id: event.id,
-                    date: event.date,
-                    type: event.type
-                )
+            let migratedEvent = UserEvent(
+                id: event.id,
+                date: event.date,
+                type: event.type
             )
+            migratedEvent.uniqueKey = event.uniqueKey
+            migratedEvent.normalizeDate()
+            sharedContext.insert(migratedEvent)
         }
         
         guard (try? sharedContext.save()) != nil else { return }
