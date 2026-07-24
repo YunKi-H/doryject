@@ -25,7 +25,6 @@ final class SwiftDataEventRepository: EventRepository {
         self.context = context
         self.configuredCalendar = calendar
         self.settingsRepository = settingsRepository
-        normalizeStoredEventDates()
         PillCyclePersistence.migrateIfNeeded(
             in: context,
             settings: settingsRepository.load(),
@@ -156,7 +155,7 @@ final class SwiftDataEventRepository: EventRepository {
     
     func allEvents() -> [UserEvent] {
         do {
-            return normalizeAndSort(
+            return resolvedCopiesAndSort(
                 try context.fetch(FetchDescriptor<UserEvent>())
             )
         } catch {
@@ -172,7 +171,7 @@ final class SwiftDataEventRepository: EventRepository {
         }
 
         do {
-            return normalizeAndSort(
+            return resolvedCopiesAndSort(
                 try context.fetch(FetchDescriptor<UserEvent>())
             ).filter { $0.date >= start && $0.date < end }
         } catch {
@@ -187,7 +186,7 @@ final class SwiftDataEventRepository: EventRepository {
             predicate: #Predicate { $0.typeRaw == rawValue }
         )
         do {
-            return normalizeAndSort(try context.fetch(descriptor))
+            return resolvedCopiesAndSort(try context.fetch(descriptor))
         } catch {
             assertionFailure("SwiftData fetch by type failed: \(error)")
             return []
@@ -198,26 +197,9 @@ final class SwiftDataEventRepository: EventRepository {
         PillCyclePersistence.cycleInfos(in: context, calendar: calendar)
     }
 
-    private func normalizeStoredEventDates() {
-        do {
-            let events = try context.fetch(FetchDescriptor<UserEvent>())
-            let changed = events.reduce(false) { result, event in
-                event.normalizeDate(calendar: calendar) || result
-            }
-            if changed {
-                try context.save()
-            }
-        } catch {
-            assertionFailure("SwiftData date normalization failed: \(error)")
-        }
-    }
-
-    private func normalizeAndSort(_ events: [UserEvent]) -> [UserEvent] {
+    private func resolvedCopiesAndSort(_ events: [UserEvent]) -> [UserEvent] {
         events
-            .map { event in
-                event.normalizeDate(calendar: calendar)
-                return event
-            }
+            .map { $0.resolvedCopy(calendar: calendar) }
             .sorted { $0.date < $1.date }
     }
 }

@@ -68,6 +68,32 @@ struct UserEventDateTests {
     }
 
     @Test
+    func resolvedCopyDoesNotMutatePersistedEvent() {
+        let seoul = calendar(timeZoneIdentifier: "Asia/Seoul")
+        let losAngeles = calendar(timeZoneIdentifier: "America/Los_Angeles")
+        let event = UserEvent(
+            date: seoul.date(
+                from: DateComponents(year: 2026, month: 7, day: 24)
+            )!,
+            type: .period,
+            calendar: seoul
+        )
+        let originalDate = event.date
+
+        let resolvedCopy = event.resolvedCopy(calendar: losAngeles)
+        let copiedComponents = losAngeles.dateComponents(
+            [.year, .month, .day],
+            from: resolvedCopy.date
+        )
+
+        #expect(event.date == originalDate)
+        #expect(resolvedCopy !== event)
+        #expect(copiedComponents.year == 2026)
+        #expect(copiedComponents.month == 7)
+        #expect(copiedComponents.day == 24)
+    }
+
+    @Test
     func repositoryMonthQueryUsesCanonicalDayAfterTimeZoneChange() throws {
         let seoul = calendar(timeZoneIdentifier: "Asia/Seoul")
         let losAngeles = calendar(timeZoneIdentifier: "America/Los_Angeles")
@@ -100,11 +126,17 @@ struct UserEventDateTests {
         let components = events.first.map {
             losAngeles.dateComponents([.year, .month, .day], from: $0.date)
         }
+        let persistedComponents = losAngeles.dateComponents(
+            [.year, .month, .day],
+            from: event.date
+        )
 
         #expect(events.count == 1)
+        #expect(events.first !== event)
         #expect(components?.year == 2026)
         #expect(components?.month == 7)
         #expect(components?.day == 1)
+        #expect(persistedComponents.day == 30)
     }
 
     private func calendar(timeZoneIdentifier: String) -> Calendar {

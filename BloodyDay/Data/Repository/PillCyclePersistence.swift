@@ -28,7 +28,7 @@ enum PillCyclePersistence {
 
             for (index, events) in groups.enumerated() {
                 guard let firstDate = events.first.map({
-                    calendar.startOfDay(for: $0.date)
+                    $0.resolvedDate(calendar: calendar)
                 }) else {
                     continue
                 }
@@ -70,7 +70,7 @@ enum PillCyclePersistence {
             let events = try fetchPillEvents(in: context, calendar: calendar)
             let datesByCycleID = Dictionary(grouping: events.compactMap { event -> (UUID, Date)? in
                 guard let cycleID = event.pillCycleID else { return nil }
-                return (cycleID, calendar.startOfDay(for: event.date))
+                return (cycleID, event.resolvedDate(calendar: calendar))
             }, by: { $0.0 })
 
             return cycles.map { cycle in
@@ -82,6 +82,10 @@ enum PillCyclePersistence {
                     autoRecordEnabled: cycle.autoRecordEnabled,
                     status: cycle.status
                 )
+            }
+            .sorted {
+                ($0.startDate(calendar: calendar) ?? .distantPast)
+                    < ($1.startDate(calendar: calendar) ?? .distantPast)
             }
         } catch {
             assertionFailure("Pill cycle fetch failed: \(error)")
@@ -104,17 +108,21 @@ enum PillCyclePersistence {
             by: { $0.pillCycleID! }
         )
         for cycle in fetchedCycles {
-            if let first = eventsByCycleID[cycle.id]?.map(\.date).min() {
+            if let first = eventsByCycleID[cycle.id]?
+                .map({ $0.resolvedDate(calendar: calendar) })
+                .min() {
                 cycle.startDate = first
             }
         }
         let cycles = fetchedCycles.sorted { $0.startDate < $1.startDate }
-        let target = calendar.startOfDay(for: event.date)
+        let target = event.resolvedDate(calendar: calendar)
 
         let candidates = cycles.compactMap { cycle -> (cycle: PillCycle, distance: Int)? in
             let cycleEvents = eventsByCycleID[cycle.id] ?? []
             guard cycleHasCapacity(cycle, eventCount: cycleEvents.count) else { return nil }
-            let dates = cycleEvents.map { calendar.startOfDay(for: $0.date) }
+            let dates = cycleEvents.map {
+                $0.resolvedDate(calendar: calendar)
+            }
             if cycle.status == .completed,
                let lastIntake = dates.max(),
                target > lastIntake {
@@ -136,15 +144,19 @@ enum PillCyclePersistence {
             return $0.distance < $1.distance
         })?.cycle {
             event.pillCycleID = candidate.id
-            candidate.startDate = min(
-                calendar.startOfDay(for: candidate.startDate),
-                target
-            )
+            let existingStart = (eventsByCycleID[candidate.id] ?? [])
+                .map { $0.resolvedDate(calendar: calendar) }
+                .min() ?? calendar.startOfDay(for: candidate.startDate)
+            candidate.startDate = min(existingStart, target)
             return
         }
 
         let latestExistingStart = cycles
-            .map { calendar.startOfDay(for: $0.startDate) }
+            .map { cycle in
+                (eventsByCycleID[cycle.id] ?? [])
+                    .map { $0.resolvedDate(calendar: calendar) }
+                    .min() ?? calendar.startOfDay(for: cycle.startDate)
+            }
             .max()
         let isHistoricalInsertion = latestExistingStart.map { target < $0 } ?? false
         if isHistoricalInsertion == false {
@@ -190,7 +202,7 @@ enum PillCyclePersistence {
             if remaining.isEmpty {
                 context.delete(cycle)
             } else if let first = remaining
-                .map({ calendar.startOfDay(for: $0.date) })
+                .map({ $0.resolvedDate(calendar: calendar) })
                 .min() {
                 cycle.startDate = first
             }
@@ -207,11 +219,10 @@ enum PillCyclePersistence {
                 predicate: #Predicate { $0.typeRaw == pillRawValue }
             )
         )
-        .map { event in
-            event.normalizeDate(calendar: calendar)
-            return event
+        .sorted {
+            $0.resolvedDate(calendar: calendar)
+                < $1.resolvedDate(calendar: calendar)
         }
-        .sorted { $0.date < $1.date }
     }
 
     private static func historicalGroups(
@@ -219,8 +230,8 @@ enum PillCyclePersistence {
         calendar: Calendar
     ) -> [[UserEvent]] {
         let sorted = events.sorted {
-            calendar.startOfDay(for: $0.date)
-                < calendar.startOfDay(for: $1.date)
+            $0.resolvedDate(calendar: calendar)
+                < $1.resolvedDate(calendar: calendar)
         }
         guard let first = sorted.first else { return [] }
 
@@ -229,8 +240,8 @@ enum PillCyclePersistence {
             guard let previous = groups.last?.last else { continue }
             let gap = calendar.dateComponents(
                 [.day],
-                from: calendar.startOfDay(for: previous.date),
-                to: calendar.startOfDay(for: event.date)
+                from: previous.resolvedDate(calendar: calendar),
+                to: event.resolvedDate(calendar: calendar)
             ).day ?? .max
 
             if gap > maximumContinuityGap {
@@ -250,7 +261,7 @@ enum PillCyclePersistence {
     ) -> Bool {
         guard settings.pill.pillEnabled,
               let lastIntake = events.last.map({
-                calendar.startOfDay(for: $0.date)
+                $0.resolvedDate(calendar: calendar)
               }) else {
             return false
         }

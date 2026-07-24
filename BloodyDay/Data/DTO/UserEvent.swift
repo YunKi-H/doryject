@@ -60,6 +60,20 @@ final class UserEvent {
         return resolved
     }
 
+    func resolvedCopy(
+        calendar: Calendar = .autoupdatingCurrent
+    ) -> UserEvent {
+        let copy = UserEvent(
+            id: id,
+            date: resolvedDate(calendar: calendar),
+            type: type,
+            pillCycleID: pillCycleID,
+            calendar: calendar
+        )
+        copy.uniqueKey = uniqueKey
+        return copy
+    }
+
     @discardableResult
     func normalizeDate(
         calendar: Calendar = .autoupdatingCurrent

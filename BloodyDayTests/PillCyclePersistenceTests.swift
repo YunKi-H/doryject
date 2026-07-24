@@ -164,6 +164,49 @@ struct PillCyclePersistenceTests {
         #expect(cycles[1].plannedPillCount == 21)
     }
 
+    @Test
+    func cycleInfoReadResolvesCalendarDayWithoutMutatingPersistedEvent() throws {
+        let seoul = calendar(timeZoneIdentifier: "Asia/Seoul")
+        let losAngeles = calendar(timeZoneIdentifier: "America/Los_Angeles")
+        let context = try makeContext()
+        let recordedDate = seoul.date(
+            from: DateComponents(year: 2026, month: 7, day: 24)
+        )!
+        let cycle = PillCycle(
+            startDate: recordedDate,
+            plannedPillCount: 21,
+            breakDays: 7,
+            autoRecordEnabled: true,
+            status: .active,
+            calendar: seoul
+        )
+        let event = UserEvent(
+            date: recordedDate,
+            type: .pill,
+            pillCycleID: cycle.id,
+            calendar: seoul
+        )
+        context.insert(cycle)
+        context.insert(event)
+        try context.save()
+        let persistedDate = event.date
+
+        let cycleInfos = PillCyclePersistence.cycleInfos(
+            in: context,
+            calendar: losAngeles
+        )
+        let intakeDate = try #require(cycleInfos.first?.intakeDates.first)
+        let components = losAngeles.dateComponents(
+            [.year, .month, .day],
+            from: intakeDate
+        )
+
+        #expect(event.date == persistedDate)
+        #expect(components.year == 2026)
+        #expect(components.month == 7)
+        #expect(components.day == 24)
+    }
+
     private func makeContext() throws -> ModelContext {
         let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
         let container = try ModelContainer(
@@ -182,5 +225,11 @@ struct PillCyclePersistenceTests {
 
     private func addDays(_ date: Date, _ days: Int) -> Date {
         calendar.date(byAdding: .day, value: days, to: date)!.startOfDay
+    }
+
+    private func calendar(timeZoneIdentifier: String) -> Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: timeZoneIdentifier)!
+        return calendar
     }
 }

@@ -35,11 +35,16 @@ enum WidgetSharedEventStore {
                 settings: settings,
                 calendar: calendar
             )
-            let events = try fetchEvents(in: context, calendar: calendar)
+            let events = try fetchPersistedEvents(
+                in: context,
+                calendar: calendar
+            )
             let existingDatesByType = Dictionary(
                 grouping: events,
                 by: \.type
-            ).mapValues { Set($0.map(\.date)) }
+            ).mapValues { events in
+                Set(events.map { $0.resolvedDate(calendar: calendar) })
+            }
             let toggledOn = !(existingDatesByType[type] ?? []).contains(target)
             let plan = CalendarEventTogglePolicyUseCase.mutationPlan(
                 type: type,
@@ -76,7 +81,11 @@ enum WidgetSharedEventStore {
             calendar: calendar
         )
         do {
-            return try fetchEvents(in: context, calendar: calendar)
+            return try fetchPersistedEvents(
+                in: context,
+                calendar: calendar
+            )
+            .map { $0.resolvedCopy(calendar: calendar) }
         } catch {
             assertionFailure("Widget event fetch failed: \(error)")
             return []
@@ -119,16 +128,15 @@ enum WidgetSharedEventStore {
         return settings
     }
 
-    private static func fetchEvents(
+    private static func fetchPersistedEvents(
         in context: ModelContext,
         calendar: Calendar
     ) throws -> [UserEvent] {
         try context.fetch(FetchDescriptor<UserEvent>())
-            .map { event in
-                event.normalizeDate(calendar: calendar)
-                return event
+            .sorted {
+                $0.resolvedDate(calendar: calendar)
+                    < $1.resolvedDate(calendar: calendar)
             }
-            .sorted { $0.date < $1.date }
     }
 
     private static func apply(
