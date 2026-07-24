@@ -38,7 +38,6 @@ enum BuildCalendarMonthComputationContextUseCase {
             calendar: calendar
         )
         let pillCycleRange = projectedPillCycleRangeForFertilitySuppression(
-            settings: settings,
             projection: projection,
             calendar: calendar
         )
@@ -116,24 +115,10 @@ enum BuildCalendarMonthComputationContextUseCase {
     }
     
     private static func projectedPillCycleRangeForFertilitySuppression(
-        settings: UserSettings,
         projection: PillCycleProjection?,
         calendar: Calendar
     ) -> DateInterval? {
-        let pillSettings = settings.pill
-        guard pillSettings.pillEnabled else { return nil }
-        
-        let pillCount = max(pillSettings.pillCount, 0)
-        let breakDays = max(pillSettings.pillBreakDuration, 0)
-        let cycleLength = pillCount + breakDays
-        guard cycleLength > 0 else { return nil }
-        
-        guard let projection,
-              let cycleEndExclusive = calendar.date(byAdding: .day, value: cycleLength, to: projection.cycleStart.startOfDay) else {
-            return nil
-        }
-        
-        return DateInterval(start: projection.cycleStart.startOfDay, end: cycleEndExclusive.startOfDay)
+        projection?.activeDateRange(calendar: calendar)
     }
     
     private static func shouldSuppressFutureFertilityPrediction(

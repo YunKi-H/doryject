@@ -130,6 +130,44 @@ struct PeriodForecastCalculatorTests {
     }
 
     @Test
+    func pillCycleProjection_activeRangeExtendsFromProjectedLastIntakeAfterMissedDays() {
+        let cycleStart = makeDate(2026, 2, 1)
+        let projectedLastIntake = addDays(cycleStart, 22)
+        let projection = PillCycleProjection(
+            cycleStart: cycleStart,
+            lastIntakeDate: addDays(cycleStart, 3),
+            intakeCount: 3,
+            projectedLastIntakeDate: projectedLastIntake,
+            pillCount: 21,
+            breakDays: 7
+        )
+
+        let range = projection.activeDateRange(calendar: calendar)
+
+        #expect(range?.start == cycleStart)
+        #expect(range?.end == addDays(projectedLastIntake, 8))
+    }
+
+    @Test
+    func pillCycleProjection_activeRangeShortensFromActualLastIntakeAfterInterruption() {
+        let cycleStart = makeDate(2026, 2, 1)
+        let actualLastIntake = addDays(cycleStart, 11)
+        let projection = PillCycleProjection(
+            cycleStart: cycleStart,
+            lastIntakeDate: actualLastIntake,
+            intakeCount: 12,
+            projectedLastIntakeDate: actualLastIntake,
+            pillCount: 21,
+            breakDays: 7
+        )
+
+        let range = projection.activeDateRange(calendar: calendar)
+
+        #expect(range?.start == cycleStart)
+        #expect(range?.end == addDays(actualLastIntake, 8))
+    }
+
+    @Test
     func predictionContext_prefersLatestActualPeriodWhenItIsNewerThanPillAnchor() {
         var settings = UserSettings()
         settings.period.autoCyclePredictionEnabled = false

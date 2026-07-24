@@ -22,6 +22,21 @@ struct PillCycleProjection {
     let breakDays: Int
     
     var cycleLength: Int { pillCount + breakDays }
+
+    func activeDateRange(calendar: Calendar = .current) -> DateInterval? {
+        guard let endExclusive = calendar.date(
+            byAdding: .day,
+            value: max(breakDays, 0) + 1,
+            to: projectedLastIntakeDate.startOfDay
+        )?.startOfDay,
+              endExclusive > cycleStart.startOfDay else {
+            return nil
+        }
+        return DateInterval(
+            start: cycleStart.startOfDay,
+            end: endExclusive
+        )
+    }
 }
 
 enum PeriodForecastCalculator {
