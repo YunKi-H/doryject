@@ -26,7 +26,7 @@ final class CalendarViewModel {
         eventRepository: EventRepository,
         settingsRepository: SettingsRepository? = nil,
         now: Date = .now,
-        calendar: Calendar = .current
+        calendar: Calendar = .autoupdatingCurrent
     ) {
         let normalizedToday = calendar.startOfDay(for: now)
         self.selectedDate = normalizedToday
@@ -66,7 +66,7 @@ final class CalendarViewModel {
 
     func refreshForSystemCalendarChange(
         now: Date = .now,
-        calendar: Calendar = .current
+        calendar: Calendar = .autoupdatingCurrent
     ) {
         let preservedVisibleMonthComponents = visibleMonthComponents
         self.calendar = calendar

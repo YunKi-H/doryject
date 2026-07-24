@@ -29,18 +29,32 @@ struct Provider: AppIntentTimelineProvider {
     
     func timeline(for configuration: ConfigurationAppIntent, in context: Context) async -> Timeline<SimpleEntry> {
         let currentDate = Date()
+        let calendar = Calendar.autoupdatingCurrent
         let entry = SimpleEntry(
             date: currentDate,
             configuration: configuration,
-            snapshot: currentSnapshot(at: currentDate)
+            snapshot: currentSnapshot(
+                at: currentDate,
+                calendar: calendar
+            )
         )
-        let refreshDate = Calendar.current.startOfDay(for: currentDate)
-            .addingTimeInterval(60 * 60 * 24)
+        let startOfToday = calendar.startOfDay(for: currentDate)
+        let refreshDate = calendar.date(
+            byAdding: .day,
+            value: 1,
+            to: startOfToday
+        ) ?? currentDate.addingTimeInterval(60 * 60)
         return Timeline(entries: [entry], policy: .after(refreshDate))
     }
 
-    private func currentSnapshot(at date: Date) -> WidgetSnapshot {
-        let snapshot = WidgetSnapshotBuilder.build(today: date)
+    private func currentSnapshot(
+        at date: Date,
+        calendar: Calendar = .autoupdatingCurrent
+    ) -> WidgetSnapshot {
+        let snapshot = WidgetSnapshotBuilder.build(
+            today: date,
+            calendar: calendar
+        )
         WidgetSnapshotStore().save(snapshot)
         return snapshot
     }

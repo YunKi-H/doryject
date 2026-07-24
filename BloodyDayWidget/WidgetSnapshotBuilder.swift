@@ -8,7 +8,10 @@
 import Foundation
 
 enum WidgetSnapshotBuilder {
-    static func build(today: Date = .now, calendar: Calendar = .current) -> WidgetSnapshot {
+    static func build(
+        today: Date = .now,
+        calendar: Calendar = .autoupdatingCurrent
+    ) -> WidgetSnapshot {
         let normalizedToday = calendar.startOfDay(for: today)
         let settings = loadSettings()
         let events = WidgetSharedEventStore.allEvents()

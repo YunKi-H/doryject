@@ -148,17 +148,20 @@ struct BloodyDayRootView: View {
                 if appearanceSettingViewModel == nil {
                     appearanceSettingViewModel = AppearanceSettingViewModel(repo: settingsRepository)
                 }
-                refreshAppStateAfterExternalChanges()
+                refreshAppStateForSystemCalendarChange()
                 consumePendingDeepLinkIfNeeded()
             }
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
-                refreshAppStateAfterExternalChanges()
+                refreshAppStateForSystemCalendarChange()
             }
             .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged)) { _ in
-                calendarViewModel?.refreshIfReferenceDayChanged()
+                refreshAppStateForSystemCalendarChange()
             }
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in
-                calendarViewModel?.refreshForSystemCalendarChange()
+                refreshAppStateForSystemCalendarChange()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .NSSystemTimeZoneDidChange)) { _ in
+                refreshAppStateForSystemCalendarChange()
             }
         }
         .preferredColorScheme(preferredColorScheme)
@@ -167,8 +170,14 @@ struct BloodyDayRootView: View {
         }
     }
     
-    private func refreshAppStateAfterExternalChanges() {
-        calendarViewModel?.refresh()
+    private func refreshAppStateForSystemCalendarChange(
+        now: Date = .now,
+        calendar: Calendar = .autoupdatingCurrent
+    ) {
+        calendarViewModel?.refreshForSystemCalendarChange(
+            now: now,
+            calendar: calendar
+        )
         periodListViewModel?.refresh()
         pillSettingsViewModel?.reload()
         appearanceSettingViewModel?.reload()
@@ -217,7 +226,9 @@ struct BloodyDayRootView: View {
     private func openCalendarTab(on date: Date) {
         activeTab = .calendar
         isPresentedCalendarSheet = false
-        calendarViewModel?.selectDate(date.startOfDay)
+        calendarViewModel?.selectDate(
+            date.startOfDay(in: .autoupdatingCurrent)
+        )
     }
     
     @ViewBuilder
