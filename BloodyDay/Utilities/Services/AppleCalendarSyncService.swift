@@ -8,6 +8,7 @@
 import Foundation
 
 final class AppleCalendarSyncService {
+    private let fullSyncCoordinator = AppleCalendarFullSyncCoordinator()
     private let settingsRepository: SettingsRepository
     private let eventReader: EventReading
     private let calendarClient: AppleCalendarClient
@@ -31,6 +32,16 @@ final class AppleCalendarSyncService {
     }
     
     func syncAll() async {
+        guard await fullSyncCoordinator.beginOrMarkPending() else {
+            return
+        }
+
+        repeat {
+            await performFullSync()
+        } while await fullSyncCoordinator.finishPassAndShouldRunAgain()
+    }
+
+    private func performFullSync() async {
         var settings = settingsRepository.load()
         guard settings.appleCalendar.isEnabled else { return }
         guard await calendarClient.requestAccess() else { return }
@@ -321,5 +332,28 @@ final class AppleCalendarSyncService {
             dateRange: range,
             title: title
         )
+    }
+}
+
+actor AppleCalendarFullSyncCoordinator {
+    private var isRunning = false
+    private var needsRerun = false
+
+    func beginOrMarkPending() -> Bool {
+        if isRunning {
+            needsRerun = true
+            return false
+        }
+        isRunning = true
+        return true
+    }
+
+    func finishPassAndShouldRunAgain() -> Bool {
+        if needsRerun {
+            needsRerun = false
+            return true
+        }
+        isRunning = false
+        return false
     }
 }
