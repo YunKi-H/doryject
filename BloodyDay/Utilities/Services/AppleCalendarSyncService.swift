@@ -9,7 +9,7 @@ import Foundation
 
 final class AppleCalendarSyncService {
     private let settingsRepository: SettingsRepository
-    private let eventRepository: EventRepository
+    private let eventReader: EventReading
     private let calendarClient: AppleCalendarClient
     private let syncStore: AppleCalendarSyncStore
     private let nowProvider: () -> Date
@@ -18,13 +18,13 @@ final class AppleCalendarSyncService {
     
     init(
         settingsRepository: SettingsRepository,
-        eventRepository: EventRepository,
+        eventRepository: EventReading,
         calendarClient: AppleCalendarClient,
         syncStore: AppleCalendarSyncStore,
         nowProvider: @escaping () -> Date = Date.init
     ) {
         self.settingsRepository = settingsRepository
-        self.eventRepository = eventRepository
+        self.eventReader = eventRepository
         self.calendarClient = calendarClient
         self.syncStore = syncStore
         self.nowProvider = nowProvider
@@ -42,7 +42,7 @@ final class AppleCalendarSyncService {
                 if let calendarId = await ensureCalendar(for: type, settings: &settings) {
                     let title = calendarTitle(for: type, settings: settings)
                     if type == .period {
-                        let summaries = PeriodSummaryBuilder.build(from: eventRepository.events(of: .period).map { $0.date })
+                        let summaries = PeriodSummaryBuilder.build(from: eventReader.events(of: .period).map { $0.date })
                         for summary in summaries {
                             let syntheticId = periodSummaryId(start: summary.start)
                             validIds.insert(syntheticId)
@@ -69,7 +69,7 @@ final class AppleCalendarSyncService {
                             )
                         }
                     } else {
-                        let events = eventRepository.events(of: type)
+                        let events = eventReader.events(of: type)
                         for event in events {
                             validIds.insert(event.id)
                             await upsert(
@@ -267,7 +267,7 @@ final class AppleCalendarSyncService {
             return []
         }
 
-        let pillDates = Set(eventRepository.events(of: .pill).map { $0.date.startOfDay })
+        let pillDates = Set(eventReader.events(of: .pill).map { $0.date.startOfDay })
         guard let context = PeriodForecastCalculator.predictionContext(
             target: normalizedToday,
             settings: settings,

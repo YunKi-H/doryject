@@ -60,7 +60,10 @@ final class EventKitAppleCalendarClient: AppleCalendarClient {
         dateRange: DateInterval?
     ) -> String? {
         guard let calendar = eventStore.calendar(withIdentifier: calendarIdentifier) else { return nil }
-        let ekEvent = existingEventIdentifier.flatMap { eventStore.event(withIdentifier: $0) } ?? EKEvent(eventStore: eventStore)
+        let ekEvent = existingEventIdentifier
+            .flatMap { eventStore.event(withIdentifier: $0) }
+            ?? matchingEvent(for: event, in: calendar, dateRange: dateRange)
+            ?? EKEvent(eventStore: eventStore)
         ekEvent.calendar = calendar
         ekEvent.title = title
         ekEvent.isAllDay = true
@@ -77,6 +80,27 @@ final class EventKitAppleCalendarClient: AppleCalendarClient {
             return ekEvent.eventIdentifier
         } catch {
             return nil
+        }
+    }
+
+    private func matchingEvent(
+        for event: UserEvent,
+        in calendar: EKCalendar,
+        dateRange: DateInterval?
+    ) -> EKEvent? {
+        let rangeStart = dateRange?.start.startOfDay ?? event.date.startOfDay
+        let rangeEnd = dateRange?.end ?? event.date.endOfDay
+        let predicate = eventStore.predicateForEvents(
+            withStart: rangeStart,
+            end: rangeEnd,
+            calendars: [calendar]
+        )
+        let expectedURL = AppDeepLink.calendarURL(for: event.date)
+
+        return eventStore.events(matching: predicate).first { existing in
+            existing.isAllDay
+                && existing.startDate.startOfDay == rangeStart
+                && existing.url == expectedURL
         }
     }
     

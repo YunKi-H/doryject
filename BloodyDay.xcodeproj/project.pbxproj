@@ -57,8 +57,12 @@
 		2B61D4EB2F6FC1E4003299A7 /* Exceptions for "BloodyDay" folder in "BloodyDayWidgetExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				App/AppDeepLink.swift,
 				Data/DTO/UserEvent.swift,
+				Data/Repository/AppleCalendarSyncStore.swift,
 				Data/Repository/EventRepository.swift,
+				Data/Repository/SettingsRepository.swift,
+				Data/Repository/UserDefaultsAppleCalendarSyncStore.swift,
 				Domain/Entities/DayEvent.swift,
 				Domain/Entities/EventType.swift,
 				Domain/Entities/Settings/AppearanceSettings.swift,
@@ -85,6 +89,9 @@
 				"Resources/Fonts/Pretendard-SemiBold.otf",
 				"Utilities/Date+Extension.swift",
 				"Utilities/Font+Extension.swift",
+				Utilities/Services/AppleCalendarClient.swift,
+				Utilities/Services/AppleCalendarSyncService.swift,
+				Utilities/Services/EventKitAppleCalendarClient.swift,
 				Utilities/Services/NotificationScheduler.swift,
 				Utilities/Services/PillReminderNotificationScheduler.swift,
 				Utilities/Services/UserNotificationScheduler.swift,
