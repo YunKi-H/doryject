@@ -96,6 +96,12 @@ struct BloodyDayRootView: View {
                         syncStore: syncStore
                     )
                 }
+                let settingsChangeRefresher = SettingsChangeRefreshService(
+                    eventRepository: baseEventRepository,
+                    notificationScheduler: scheduler,
+                    appleCalendarSyncService: appleCalendarSyncService!,
+                    widgetReloader: widgetReloader
+                )
                 let syncingRepository = SyncingEventRepository(
                     base: baseEventRepository,
                     syncService: appleCalendarSyncService!,
@@ -115,7 +121,8 @@ struct BloodyDayRootView: View {
                 if periodSettingViewModel == nil {
                     periodSettingViewModel = PeriodSettingViewModel(
                         repo: settingsRepository,
-                        eventRepository: syncingRepository
+                        eventRepository: syncingRepository,
+                        settingsChangeRefresher: settingsChangeRefresher
                     )
                 }
                 if notificationSettingsViewModel == nil {
@@ -126,7 +133,10 @@ struct BloodyDayRootView: View {
                     )
                 }
                 if pillSettingsViewModel == nil {
-                    pillSettingsViewModel = PillSettingsViewModel(repo: settingsRepository)
+                    pillSettingsViewModel = PillSettingsViewModel(
+                        repo: settingsRepository,
+                        settingsChangeRefresher: settingsChangeRefresher
+                    )
                 }
                 if appleCalendarSettingsViewModel == nil {
                     appleCalendarSettingsViewModel = AppleCalendarSettingViewModel(

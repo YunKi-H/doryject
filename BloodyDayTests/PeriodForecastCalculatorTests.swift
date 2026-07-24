@@ -157,6 +157,34 @@ struct PeriodForecastCalculatorTests {
         #expect(context?.cycleLength == 28)
         #expect(context?.predictedLength == 5)
     }
+
+    @Test
+    func predictionContext_ignoresExpiredPillCycleAndUsesActualPeriodCycle() {
+        var settings = UserSettings()
+        settings.period.autoCyclePredictionEnabled = false
+        settings.period.averageCycleDays = 28
+        settings.period.averagePeriodDays = 5
+        settings.pill.pillEnabled = true
+        settings.pill.pillAutoRecordEnabled = true
+        settings.pill.pillCount = 21
+        settings.pill.pillBreakDuration = 7
+
+        let actualStart = makeDate(2026, 3, 1)
+        let summaries = summaries(fromRuns: [(start: actualStart, length: 5)])
+        let stalePillStart = makeDate(2026, 1, 1)
+        let pillDates = Set((0..<21).map { addDays(stalePillStart, $0) })
+
+        let context = PeriodForecastCalculator.predictionContext(
+            target: makeDate(2026, 4, 1),
+            settings: settings,
+            periodSummaries: summaries,
+            pillDates: pillDates,
+            calendar: calendar
+        )
+
+        #expect(context?.firstExpected == makeDate(2026, 3, 29))
+        #expect(context?.cycleLength == 28)
+    }
     
     @Test
     func suppressPredictedCycleArtifacts_removesOverlappingPredictedPeriodAndFertilityArtifacts() {

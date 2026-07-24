@@ -94,4 +94,26 @@ enum PillCycleCalculator {
             calendar: calendar
         ).first { $0.contains(normalizedTarget) }
     }
+
+    static func isActive(
+        projectedLastIntakeDate: Date,
+        breakDays: Int,
+        on date: Date,
+        calendar: Calendar = .current
+    ) -> Bool {
+        let normalizedDate = date.startOfDay
+        let normalizedLastIntake = projectedLastIntakeDate.startOfDay
+        guard let expectedNextCycleStart = calendar.date(
+            byAdding: .day,
+            value: max(breakDays, 0) + 1,
+            to: normalizedLastIntake
+        )?.startOfDay else {
+            return false
+        }
+
+        // Keep the cycle active through its expected restart date so that the
+        // first reminder for the next pack remains valid. If no new intake is
+        // recorded by the following day, the old cycle no longer anchors state.
+        return normalizedDate <= expectedNextCycleStart
+    }
 }

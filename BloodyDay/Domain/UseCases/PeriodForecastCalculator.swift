@@ -37,9 +37,10 @@ enum PeriodForecastCalculator {
         let latestActualStart = periodSummaries.map(\.start).max()?.startOfDay
         let actualCycleLength = cycleLengthDays(settings: settings, periodSummaries: periodSummaries)
         
-        if let projection = latestPillCycleProjection(
+        if let projection = activePillCycleProjection(
             settings: settings,
             pillDates: pillDates,
+            on: normalizedTarget,
             calendar: calendar
         ),
            normalizedTarget >= projection.cycleStart.startOfDay,
@@ -235,6 +236,28 @@ enum PeriodForecastCalculator {
             breakDays: breakDays
         )
     }
+
+    static func activePillCycleProjection(
+        settings: UserSettings,
+        pillDates: Set<Date>,
+        on date: Date,
+        calendar: Calendar = .current
+    ) -> PillCycleProjection? {
+        guard let projection = latestPillCycleProjection(
+            settings: settings,
+            pillDates: pillDates,
+            calendar: calendar
+        ),
+              PillCycleCalculator.isActive(
+                projectedLastIntakeDate: projection.projectedLastIntakeDate,
+                breakDays: projection.breakDays,
+                on: date,
+                calendar: calendar
+              ) else {
+            return nil
+        }
+        return projection
+    }
     
     static func predictedPeriodLengthDays(
         settings: UserSettings,
@@ -414,9 +437,10 @@ enum PeriodForecastCalculator {
         pillDates: Set<Date>,
         calendar: Calendar
     ) -> (firstExpected: Date, cycleLength: Int)? {
-        guard let projection = latestPillCycleProjection(
+        guard let projection = activePillCycleProjection(
             settings: settings,
             pillDates: pillDates,
+            on: target,
             calendar: calendar
         ) else {
             return nil

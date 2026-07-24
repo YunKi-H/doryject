@@ -111,7 +111,11 @@ final class UserNotificationScheduler: NotificationScheduler {
             center: center
         )
         if notificationSettings.pillPurchaseReminderEnabled,
-           pillScheduleInfo(settings: settings, eventReader: eventReader) != nil {
+           pillScheduleInfo(
+            settings: settings,
+            eventReader: eventReader,
+            today: today
+           ) != nil {
             let nextStarts = nextPillStartDates(
                 settings: settings,
                 eventReader: eventReader,
@@ -291,9 +295,10 @@ final class UserNotificationScheduler: NotificationScheduler {
         today: Date
     ) -> Date? {
         let pillDates = Set(eventReader.events(of: .pill).map { $0.date.startOfDay })
-        guard let projection = PeriodForecastCalculator.latestPillCycleProjection(
+        guard let projection = PeriodForecastCalculator.activePillCycleProjection(
             settings: settings,
             pillDates: pillDates,
+            on: today,
             calendar: calendar
         ) else { return nil }
         
@@ -313,12 +318,14 @@ final class UserNotificationScheduler: NotificationScheduler {
     
     private func pillScheduleInfo(
         settings: UserSettings,
-        eventReader: EventReading
+        eventReader: EventReading,
+        today: Date
     ) -> PillCycleProjection? {
         let pillDates = Set(eventReader.events(of: .pill).map { $0.date.startOfDay })
-        return PeriodForecastCalculator.latestPillCycleProjection(
+        return PeriodForecastCalculator.activePillCycleProjection(
             settings: settings,
             pillDates: pillDates,
+            on: today,
             calendar: calendar
         )
     }

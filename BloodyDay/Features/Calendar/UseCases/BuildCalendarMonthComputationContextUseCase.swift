@@ -31,9 +31,10 @@ enum BuildCalendarMonthComputationContextUseCase {
             dayEvents.map { DayEvent(type: $0.type) }
         }
         
-        let projection = PeriodForecastCalculator.latestPillCycleProjection(
+        let projection = PeriodForecastCalculator.activePillCycleProjection(
             settings: settings,
             pillDates: allPillDates,
+            on: normalizedToday,
             calendar: calendar
         )
         let pillCycleRange = projectedPillCycleRangeForFertilitySuppression(

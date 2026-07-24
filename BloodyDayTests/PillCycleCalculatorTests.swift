@@ -156,6 +156,34 @@ struct PillCycleCalculatorTests {
         
         #expect(cycle == nil)
     }
+
+    @Test
+    func isActive_keepsCycleActiveThroughExpectedNextCycleStart() {
+        let lastIntake = makeDate(2026, 2, 21)
+
+        let isActive = PillCycleCalculator.isActive(
+            projectedLastIntakeDate: lastIntake,
+            breakDays: 7,
+            on: addDays(lastIntake, 8),
+            calendar: calendar
+        )
+
+        #expect(isActive)
+    }
+
+    @Test
+    func isActive_expiresCycleAfterExpectedNextCycleStartWithoutNewIntake() {
+        let lastIntake = makeDate(2026, 2, 21)
+
+        let isActive = PillCycleCalculator.isActive(
+            projectedLastIntakeDate: lastIntake,
+            breakDays: 7,
+            on: addDays(lastIntake, 9),
+            calendar: calendar
+        )
+
+        #expect(isActive == false)
+    }
     
     private func makeDate(_ year: Int, _ month: Int, _ day: Int) -> Date {
         let components = DateComponents(year: year, month: month, day: day, hour: 12)

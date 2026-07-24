@@ -47,9 +47,10 @@ enum PillReminderNotificationScheduler {
         calendar: Calendar
     ) -> [UNNotificationRequest] {
         guard settings.notifications.pillReminderEnabled,
-              let projection = PeriodForecastCalculator.latestPillCycleProjection(
+              let projection = PeriodForecastCalculator.activePillCycleProjection(
                 settings: settings,
                 pillDates: pillDates,
+                on: now,
                 calendar: calendar
               ) else {
             return []
