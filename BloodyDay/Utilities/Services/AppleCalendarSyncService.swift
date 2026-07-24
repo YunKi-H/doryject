@@ -265,12 +265,8 @@ final class AppleCalendarSyncService {
     }
 
     private func syntheticSummaryId(start: Date, prefix: String) -> UUID {
-        let comps = calendar.dateComponents(
-            [.year, .month, .day],
-            from: calendar.startOfDay(for: start)
-        )
-        let dayKey = (comps.year ?? 0) * 10_000 + (comps.month ?? 0) * 100 + (comps.day ?? 0)
-        let suffix = String(format: "%012d", dayKey)
+        let calendarDay = CalendarDay(date: start, calendar: calendar)
+        let suffix = String(format: "%012d", calendarDay.dayKey)
         let uuidString = "\(prefix)-\(suffix)"
         return UUID(uuidString: uuidString) ?? UUID()
     }

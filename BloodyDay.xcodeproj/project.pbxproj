@@ -65,6 +65,7 @@
 				Data/Repository/PillCyclePersistence.swift,
 				Data/Repository/SettingsRepository.swift,
 				Data/Repository/UserDefaultsAppleCalendarSyncStore.swift,
+				Domain/Entities/CalendarDay.swift,
 				Domain/Entities/DayEvent.swift,
 				Domain/Entities/EventType.swift,
 				Domain/Entities/PillCycleInfo.swift,
