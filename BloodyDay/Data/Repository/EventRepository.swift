@@ -9,6 +9,13 @@ import Foundation
 
 protocol EventReading {
     func events(of type: EventType) -> [UserEvent]
+    func pillCycles() -> [PillCycleInfo]
+}
+
+extension EventReading {
+    func pillCycles() -> [PillCycleInfo] {
+        []
+    }
 }
 
 protocol EventRepository: EventReading {
@@ -46,6 +53,10 @@ final class MockEventRepository: EventRepository {
     }
     
     func events(of type: EventType) -> [UserEvent] {
+        []
+    }
+
+    func pillCycles() -> [PillCycleInfo] {
         []
     }
 }

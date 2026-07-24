@@ -16,6 +16,7 @@ enum WidgetSharedEventStore {
         do {
             return try ModelContainer(
                 for: UserEvent.self,
+                PillCycle.self,
                 configurations: ModelConfiguration(url: storeURL())
             )
         } catch {
@@ -38,6 +39,11 @@ enum WidgetSharedEventStore {
                 by: \.type
             ).mapValues { Set($0.map(\.date)) }
             let settings = loadSettings()
+            PillCyclePersistence.migrateIfNeeded(
+                in: context,
+                settings: settings,
+                calendar: calendar
+            )
             let toggledOn = !(existingDatesByType[type] ?? []).contains(target)
             let plan = CalendarEventTogglePolicyUseCase.mutationPlan(
                 type: type,
@@ -45,9 +51,16 @@ enum WidgetSharedEventStore {
                 selectedDate: target,
                 existingDatesByType: existingDatesByType,
                 settings: settings,
+                pillCycles: PillCyclePersistence.cycleInfos(in: context),
                 calendar: calendar
             )
-            try apply(plan: plan, in: context, existingEvents: events, calendar: calendar)
+            try apply(
+                plan: plan,
+                in: context,
+                existingEvents: events,
+                settings: settings,
+                calendar: calendar
+            )
             return toggledOn
         } catch {
             assertionFailure("Widget event toggle failed: \(error)")
@@ -57,6 +70,10 @@ enum WidgetSharedEventStore {
     
     static func allEvents() -> [UserEvent] {
         let context = ModelContext(sharedContainer)
+        PillCyclePersistence.migrateIfNeeded(
+            in: context,
+            settings: loadSettings()
+        )
         let descriptor = FetchDescriptor<UserEvent>(
             sortBy: [SortDescriptor(\UserEvent.date, order: .forward)]
         )
@@ -66,6 +83,15 @@ enum WidgetSharedEventStore {
             assertionFailure("Widget event fetch failed: \(error)")
             return []
         }
+    }
+
+    static func pillCycles() -> [PillCycleInfo] {
+        let context = ModelContext(sharedContainer)
+        PillCyclePersistence.migrateIfNeeded(
+            in: context,
+            settings: loadSettings()
+        )
+        return PillCyclePersistence.cycleInfos(in: context)
     }
     
     private static func storeURL() -> URL {
@@ -97,6 +123,7 @@ enum WidgetSharedEventStore {
         plan: CalendarEventMutationPlan,
         in context: ModelContext,
         existingEvents: [UserEvent],
+        settings: UserSettings,
         calendar: Calendar
     ) throws {
         guard plan.isEmpty == false else { return }
@@ -105,25 +132,39 @@ enum WidgetSharedEventStore {
             uniqueKeysWithValues: existingEvents.map { ($0.uniqueKey, $0) }
         )
 
+        var deletedCycleIDs: Set<UUID> = []
         for mutation in plan.deletions {
             for date in mutation.dates {
                 let key = UserEvent.makeUniqueKey(date: date, type: mutation.type, calendar: calendar)
                 if let event = eventsByKey.removeValue(forKey: key) {
+                    if let cycleID = event.pillCycleID {
+                        deletedCycleIDs.insert(cycleID)
+                    }
                     context.delete(event)
                 }
             }
         }
 
         for mutation in plan.additions {
-            for date in mutation.dates {
+            for date in mutation.dates.sorted() {
                 let key = UserEvent.makeUniqueKey(date: date, type: mutation.type, calendar: calendar)
                 guard eventsByKey[key] == nil else { continue }
                 let event = UserEvent(date: date, type: mutation.type, calendar: calendar)
+                try PillCyclePersistence.assignCycle(
+                    to: event,
+                    in: context,
+                    settings: settings,
+                    calendar: calendar
+                )
                 context.insert(event)
                 eventsByKey[key] = event
             }
         }
 
+        try PillCyclePersistence.cleanupAfterDeletion(
+            cycleIDs: deletedCycleIDs,
+            in: context
+        )
         try context.save()
     }
 }

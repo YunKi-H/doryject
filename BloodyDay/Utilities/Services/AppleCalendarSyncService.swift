@@ -279,11 +279,13 @@ final class AppleCalendarSyncService {
         }
 
         let pillDates = Set(eventReader.events(of: .pill).map { $0.date.startOfDay })
+        let pillCycles = eventReader.pillCycles()
         guard let context = PeriodForecastCalculator.predictionContext(
             target: normalizedToday,
             settings: settings,
             periodSummaries: actualPeriodSummaries,
             pillDates: pillDates,
+            pillCycles: pillCycles,
             calendar: calendar
         ) else {
             return []
@@ -296,6 +298,7 @@ final class AppleCalendarSyncService {
             settings: settings,
             periodSummaries: actualPeriodSummaries,
             pillDates: pillDates,
+            pillCycles: pillCycles,
             calendar: calendar
         )
         guard validStarts.isEmpty == false else { return [] }
@@ -312,7 +315,7 @@ final class AppleCalendarSyncService {
                 start: start.startOfDay,
                 end: end,
                 lengthDays: lengthDays,
-                cycleDays: context.cycleLength
+                cycleDays: context.recurringCycleLength
             )
         }
     }

@@ -99,6 +99,32 @@ struct PillCycleCalculatorTests {
         #expect(sequence[addDays(start, 21)] == 1)
         #expect(sequence[addDays(start, 22)] == 2)
     }
+
+    @Test
+    func sequenceMap_preservesStoredHistoricalCycleWhenGlobalPillCountChanges() {
+        let start = makeDate(2026, 2, 1)
+        let dates = (0..<23).map { addDays(start, $0) }
+        let storedCycle = PillCycleInfo(
+            id: UUID(),
+            intakeDates: dates,
+            plannedPillCount: nil,
+            breakDays: nil,
+            autoRecordEnabled: nil,
+            status: .completed
+        )
+
+        let sequence = PillCycleCalculator.sequenceMap(
+            pillDates: Set(dates),
+            pillCount: 21,
+            breakDays: 7,
+            pillCycles: [storedCycle],
+            calendar: calendar
+        )
+
+        #expect(sequence[addDays(start, 20)] == 21)
+        #expect(sequence[addDays(start, 21)] == 22)
+        #expect(sequence[addDays(start, 22)] == 23)
+    }
     
     @Test
     func latestCycle_returnsMostRecentGroupedCycle() {

@@ -65,6 +65,7 @@ extension CalendarViewModel {
             selectedDate: date,
             existingDatesByType: existingEventDatesByType(),
             settings: settings,
+            pillCycles: eventRepository.pillCycles(),
             calendar: .current
         )
         guard plan.isEmpty == false else { return }
@@ -82,6 +83,7 @@ extension CalendarViewModel {
             selectedDate: selectedDate,
             pillDates: pillDates,
             settings: settings,
+            pillCycles: eventRepository.pillCycles(),
             calendar: .current
         )
     }
@@ -219,6 +221,7 @@ extension CalendarViewModel {
             userEvents: userEvents,
             allPeriodEvents: allPeriodEvents,
             allPillDates: pillDates,
+            pillCycles: eventRepository.pillCycles(),
             settings: settings,
             today: Date(),
             calendar: .current
@@ -249,6 +252,7 @@ extension CalendarViewModel {
             today: Date(),
             periodDates: periodDates,
             pillDates: pillDates,
+            pillCycles: eventRepository.pillCycles(),
             settings: settings,
             calendar: .current
         )
@@ -269,6 +273,7 @@ extension CalendarViewModel {
             isPillEnabled: isPillEnabled,
             dayEvents: dayEvents,
             pillDates: pillDates,
+            pillCycles: eventRepository.pillCycles(),
             settings: settings,
             calendar: .current
         )

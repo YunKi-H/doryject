@@ -14,6 +14,7 @@ enum PillReminderNotificationScheduler {
     static func apply(
         settings: UserSettings,
         pillDates: Set<Date>,
+        pillCycles: [PillCycleInfo] = [],
         now: Date = .now,
         calendar: Calendar = .current,
         center: UNUserNotificationCenter = .current()
@@ -21,6 +22,7 @@ enum PillReminderNotificationScheduler {
         let requests = notificationRequests(
             settings: settings,
             pillDates: pillDates,
+            pillCycles: pillCycles,
             now: now,
             calendar: calendar
         )
@@ -43,6 +45,7 @@ enum PillReminderNotificationScheduler {
     private static func notificationRequests(
         settings: UserSettings,
         pillDates: Set<Date>,
+        pillCycles: [PillCycleInfo],
         now: Date,
         calendar: Calendar
     ) -> [UNNotificationRequest] {
@@ -50,6 +53,7 @@ enum PillReminderNotificationScheduler {
               let projection = PeriodForecastCalculator.activePillCycleProjection(
                 settings: settings,
                 pillDates: pillDates,
+                pillCycles: pillCycles,
                 on: now,
                 calendar: calendar
               ) else {

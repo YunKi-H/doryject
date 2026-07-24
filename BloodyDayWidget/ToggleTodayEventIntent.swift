@@ -53,7 +53,8 @@ struct ToggleTodayEventIntent: AppIntent {
             enablePillIfNeeded(settingsRepository: settingsRepository)
         }
         let eventReader = WidgetEventReader(
-            events: WidgetSharedEventStore.allEvents()
+            events: WidgetSharedEventStore.allEvents(),
+            pillCycleInfos: WidgetSharedEventStore.pillCycles()
         )
         if eventType != .love {
             await rescheduleNotifications(
@@ -107,9 +108,14 @@ struct ToggleTodayEventIntent: AppIntent {
 
 private struct WidgetEventReader: EventReading {
     let events: [UserEvent]
+    let pillCycleInfos: [PillCycleInfo]
 
     func events(of type: EventType) -> [UserEvent] {
         events.filter { $0.type == type }
+    }
+
+    func pillCycles() -> [PillCycleInfo] {
+        pillCycleInfos
     }
 }
 

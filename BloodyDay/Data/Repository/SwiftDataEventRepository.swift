@@ -11,10 +11,21 @@ import SwiftData
 final class SwiftDataEventRepository: EventRepository {
     private let context: ModelContext
     private let calendar: Calendar
+    private let settingsRepository: SettingsRepository
     
-    init(context: ModelContext, calendar: Calendar = .current) {
+    init(
+        context: ModelContext,
+        calendar: Calendar = .current,
+        settingsRepository: SettingsRepository = UserDefaultsSettingsRepository()
+    ) {
         self.context = context
         self.calendar = calendar
+        self.settingsRepository = settingsRepository
+        PillCyclePersistence.migrateIfNeeded(
+            in: context,
+            settings: settingsRepository.load(),
+            calendar: calendar
+        )
     }
     
     // MARK: - CRUD
@@ -29,6 +40,12 @@ final class SwiftDataEventRepository: EventRepository {
             let existing = try context.fetch(descriptor)
             if existing.isEmpty {
                 event.uniqueKey = eventKey
+                try PillCyclePersistence.assignCycle(
+                    to: event,
+                    in: context,
+                    settings: settingsRepository.load(),
+                    calendar: calendar
+                )
                 context.insert(event)
                 try context.save()
             }
@@ -43,8 +60,10 @@ final class SwiftDataEventRepository: EventRepository {
         )
         do {
             let results = try context.fetch(descriptor)
+            let cycleIDs = Set(results.compactMap(\.pillCycleID))
             results.forEach { context.delete($0) }
             if !results.isEmpty {
+                try PillCyclePersistence.cleanupAfterDeletion(cycleIDs: cycleIDs, in: context)
                 try context.save()
             }
         } catch {
@@ -59,8 +78,10 @@ final class SwiftDataEventRepository: EventRepository {
         )
         do {
             let results = try context.fetch(descriptor)
+            let cycleIDs = Set(results.compactMap(\.pillCycleID))
             results.forEach { context.delete($0) }
             if !results.isEmpty {
+                try PillCyclePersistence.cleanupAfterDeletion(cycleIDs: cycleIDs, in: context)
                 try context.save()
             }
         } catch {
@@ -82,20 +103,35 @@ final class SwiftDataEventRepository: EventRepository {
             })
             
             var changed = false
+            var deletedCycleIDs: Set<UUID> = []
             for event in existing where !targetKeys.contains(event.uniqueKey) {
+                if let cycleID = event.pillCycleID {
+                    deletedCycleIDs.insert(cycleID)
+                }
                 context.delete(event)
                 changed = true
             }
             
-            for day in normalizedDates {
+            for day in normalizedDates.sorted() {
                 let key = UserEvent.makeUniqueKey(date: day, type: type, calendar: calendar)
                 if !existingKeys.contains(key) {
-                    context.insert(UserEvent(date: day, type: type, calendar: calendar))
+                    let event = UserEvent(date: day, type: type, calendar: calendar)
+                    try PillCyclePersistence.assignCycle(
+                        to: event,
+                        in: context,
+                        settings: settingsRepository.load(),
+                        calendar: calendar
+                    )
+                    context.insert(event)
                     changed = true
                 }
             }
             
             if changed {
+                try PillCyclePersistence.cleanupAfterDeletion(
+                    cycleIDs: deletedCycleIDs,
+                    in: context
+                )
                 try context.save()
             }
         } catch {
@@ -146,5 +182,9 @@ final class SwiftDataEventRepository: EventRepository {
             assertionFailure("SwiftData fetch by type failed: \(error)")
             return []
         }
+    }
+
+    func pillCycles() -> [PillCycleInfo] {
+        PillCyclePersistence.cycleInfos(in: context)
     }
 }

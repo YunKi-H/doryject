@@ -21,6 +21,7 @@ enum BuildCalendarMonthComputationContextUseCase {
         userEvents: [UserEvent],
         allPeriodEvents: [UserEvent],
         allPillDates: Set<Date>,
+        pillCycles: [PillCycleInfo] = [],
         settings: UserSettings,
         today: Date,
         calendar: Calendar = .current
@@ -34,6 +35,7 @@ enum BuildCalendarMonthComputationContextUseCase {
         let projection = PeriodForecastCalculator.activePillCycleProjection(
             settings: settings,
             pillDates: allPillDates,
+            pillCycles: pillCycles,
             on: normalizedToday,
             calendar: calendar
         )
@@ -53,6 +55,7 @@ enum BuildCalendarMonthComputationContextUseCase {
             pillDates: allPillDates,
             pillCount: pillCount,
             breakDays: breakDays,
+            pillCycles: pillCycles,
             calendar: calendar
         )
         
@@ -68,6 +71,7 @@ enum BuildCalendarMonthComputationContextUseCase {
             settings: settings,
             periodSummaries: periodSummaries,
             pillDates: allPillDates,
+            pillCycles: pillCycles,
             calendar: calendar
         )
         var predictedEventsByDay = PredictedCycleEventBuilder.buildEvents(

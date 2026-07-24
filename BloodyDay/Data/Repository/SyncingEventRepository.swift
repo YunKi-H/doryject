@@ -87,6 +87,10 @@ final class SyncingEventRepository: EventRepository {
     func events(of type: EventType) -> [UserEvent] {
         base.events(of: type)
     }
+
+    func pillCycles() -> [PillCycleInfo] {
+        base.pillCycles()
+    }
     
     private func refreshNotifications() {
         guard let scheduler = notificationScheduler,

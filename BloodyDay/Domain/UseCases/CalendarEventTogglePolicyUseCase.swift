@@ -14,6 +14,7 @@ enum CalendarEventTogglePolicyUseCase {
         selectedDate: Date,
         existingDatesByType: [EventType: Set<Date>],
         settings: UserSettings,
+        pillCycles: [PillCycleInfo] = [],
         calendar: Calendar = .current
     ) -> CalendarEventMutationPlan {
         let target = selectedDate.startOfDay
@@ -27,6 +28,7 @@ enum CalendarEventTogglePolicyUseCase {
                 target: target,
                 existingDatesByType: existingDatesByType,
                 settings: settings,
+                pillCycles: pillCycles,
                 calendar: calendar
             )
         }
@@ -44,11 +46,11 @@ enum CalendarEventTogglePolicyUseCase {
         selectedDate: Date,
         pillDates: Set<Date>,
         settings: UserSettings,
+        pillCycles: [PillCycleInfo] = [],
         calendar: Calendar = .current
     ) -> PillDisableConfirmationPlan? {
         let pillSettings = settings.pill
-        guard pillSettings.pillEnabled,
-              pillSettings.pillAutoRecordEnabled else {
+        guard pillSettings.pillEnabled else {
             return nil
         }
         
@@ -58,6 +60,27 @@ enum CalendarEventTogglePolicyUseCase {
         
         let selected = selectedDate.startOfDay
         guard pillDates.contains(selected) else { return nil }
+
+        if pillCycles.isEmpty == false {
+            guard let cycle = PillCycleCalculator.cycleInfo(
+                containing: selected,
+                pillCycles: pillCycles
+            ),
+                  cycle.status == .active,
+                  cycle.autoRecordEnabled == true else {
+                return nil
+            }
+            let sortedDates = cycle.intakeDates.map(\.startOfDay).sorted()
+            let futureDates = sortedDates.filter { $0 > selected }
+            guard futureDates.isEmpty == false else { return nil }
+            return PillDisableConfirmationPlan(
+                remainingCount: futureDates.count,
+                todayOnlyDeleteDates: [selected],
+                stopCycleDeleteDates: sortedDates.filter { $0 >= selected }
+            )
+        }
+
+        guard pillSettings.pillAutoRecordEnabled else { return nil }
         
         guard let currentCycle = PillCycleCalculator.latestCycle(
             pillDates: pillDates,
@@ -84,6 +107,7 @@ enum CalendarEventTogglePolicyUseCase {
         target: Date,
         existingDatesByType: [EventType: Set<Date>],
         settings: UserSettings,
+        pillCycles: [PillCycleInfo],
         calendar: Calendar
     ) -> CalendarEventMutationPlan {
         switch type {
@@ -98,13 +122,27 @@ enum CalendarEventTogglePolicyUseCase {
             return .init(additions: [CalendarEventMutation(type: .period, dates: datesToAdd)])
         case .pill:
             let pillSettings = settings.pill
-            if pillSettings.pillEnabled && pillSettings.pillAutoRecordEnabled {
-                let pillDates = existingDatesByType[.pill] ?? []
+            let pillDates = existingDatesByType[.pill] ?? []
+            let storedCycle = matchingActiveCycle(
+                for: target,
+                pillCycles: pillCycles,
+                calendar: calendar
+            )
+            let autoRecordEnabled = storedCycle?.autoRecordEnabled
+                ?? pillSettings.pillAutoRecordEnabled
+            if pillSettings.pillEnabled && autoRecordEnabled {
                 let datesToAdd = autoRecordPillAddDates(
                     startingAt: target,
                     pillDates: pillDates,
-                    pillCount: max(pillSettings.pillCount, 0),
-                    breakDays: max(pillSettings.pillBreakDuration, 0),
+                    pillCount: max(
+                        storedCycle?.plannedPillCount ?? pillSettings.pillCount,
+                        0
+                    ),
+                    breakDays: max(
+                        storedCycle?.breakDays ?? pillSettings.pillBreakDuration,
+                        0
+                    ),
+                    pillCycles: pillCycles,
                     calendar: calendar
                 )
                 return .init(additions: [CalendarEventMutation(type: .pill, dates: datesToAdd)])
@@ -190,9 +228,40 @@ enum CalendarEventTogglePolicyUseCase {
         pillDates: Set<Date>,
         pillCount: Int,
         breakDays: Int,
+        pillCycles: [PillCycleInfo],
         calendar: Calendar
     ) -> [Date] {
         let start = date.startOfDay
+
+        if pillCycles.isEmpty == false {
+            let matchingCycle = matchingActiveCycle(
+                for: start,
+                pillCycles: pillCycles,
+                calendar: calendar
+            )
+            if let matchingCycle,
+               let storedPillCount = matchingCycle.plannedPillCount {
+                var cycleDates = Set(matchingCycle.intakeDates.map(\.startOfDay))
+                var additions: [Date] = []
+                var cursor = start
+                while cycleDates.count < storedPillCount {
+                    if cycleDates.contains(cursor) == false {
+                        cycleDates.insert(cursor)
+                        additions.append(cursor)
+                    }
+                    guard let next = calendar.date(
+                        byAdding: .day,
+                        value: 1,
+                        to: cursor
+                    )?.startOfDay else {
+                        break
+                    }
+                    cursor = next
+                }
+                return additions
+            }
+        }
+
         guard pillCount > 0 else { return [start] }
         
         var simulatedPillDates = pillDates
@@ -231,5 +300,31 @@ enum CalendarEventTogglePolicyUseCase {
             cursor = next
         }
         return additions
+    }
+
+    private static func matchingActiveCycle(
+        for date: Date,
+        pillCycles: [PillCycleInfo],
+        calendar: Calendar
+    ) -> PillCycleInfo? {
+        let target = date.startOfDay
+        return pillCycles
+            .filter { cycle in
+                guard cycle.status == .active,
+                      let plannedCount = cycle.plannedPillCount,
+                      cycle.intakeDates.count < plannedCount else {
+                    return false
+                }
+                return cycle.intakeDates.contains {
+                    abs(calendar.dateComponents(
+                        [.day],
+                        from: $0.startOfDay,
+                        to: target
+                    ).day ?? .max) <= 4
+                }
+            }
+            .max(by: {
+                ($0.startDate ?? .distantPast) < ($1.startDate ?? .distantPast)
+            })
     }
 }

@@ -106,6 +106,7 @@ final class UserNotificationScheduler: NotificationScheduler {
         PillReminderNotificationScheduler.apply(
             settings: settings,
             pillDates: pillDates,
+            pillCycles: eventReader.pillCycles(),
             now: now,
             calendar: calendar,
             center: center
@@ -205,7 +206,7 @@ final class UserNotificationScheduler: NotificationScheduler {
             return []
         }
 
-        let horizonDays = max(data.context.cycleLength, 1) * max(count + 4, 1)
+        let horizonDays = data.context.recurringCycleLength * max(count + 4, 1)
         guard let horizonEndExclusive = calendar.date(
             byAdding: .day,
             value: horizonDays,
@@ -221,6 +222,7 @@ final class UserNotificationScheduler: NotificationScheduler {
             settings: settings,
             periodSummaries: data.summaries,
             pillDates: data.pillDates,
+            pillCycles: data.pillCycles,
             calendar: calendar
         )
         return Array(validStarts.filter { $0 >= today }.prefix(count))
@@ -240,7 +242,7 @@ final class UserNotificationScheduler: NotificationScheduler {
         }
         guard let rangeStart = calendar.date(
             byAdding: .day,
-            value: -max(data.context.cycleLength, 1),
+            value: -data.context.recurringCycleLength,
             to: today.startOfDay
         )?.startOfDay,
               let rangeEndExclusive = calendar.date(
@@ -258,6 +260,7 @@ final class UserNotificationScheduler: NotificationScheduler {
             settings: settings,
             periodSummaries: data.summaries,
             pillDates: data.pillDates,
+            pillCycles: data.pillCycles,
             calendar: calendar
         )
 
@@ -273,20 +276,32 @@ final class UserNotificationScheduler: NotificationScheduler {
         settings: UserSettings,
         eventReader: EventReading,
         target: Date
-    ) -> (context: PeriodPredictionContext, summaries: [PeriodSummary], pillDates: Set<Date>)? {
+    ) -> (
+        context: PeriodPredictionContext,
+        summaries: [PeriodSummary],
+        pillDates: Set<Date>,
+        pillCycles: [PillCycleInfo]
+    )? {
         let periodEvents = eventReader.events(of: .period).map { $0.date }
         let summaries = PeriodSummaryBuilder.build(from: periodEvents)
         let pillDates = Set(eventReader.events(of: .pill).map { $0.date.startOfDay })
+        let pillCycles = eventReader.pillCycles()
         guard let context = PeriodForecastCalculator.predictionContext(
             target: target,
             settings: settings,
             periodSummaries: summaries,
             pillDates: pillDates,
+            pillCycles: pillCycles,
             calendar: calendar
         ) else {
             return nil
         }
-        return (context: context, summaries: summaries, pillDates: pillDates)
+        return (
+            context: context,
+            summaries: summaries,
+            pillDates: pillDates,
+            pillCycles: pillCycles
+        )
     }
     
     private func nextPillStartDate(
@@ -298,6 +313,7 @@ final class UserNotificationScheduler: NotificationScheduler {
         guard let projection = PeriodForecastCalculator.activePillCycleProjection(
             settings: settings,
             pillDates: pillDates,
+            pillCycles: eventReader.pillCycles(),
             on: today,
             calendar: calendar
         ) else { return nil }
@@ -325,6 +341,7 @@ final class UserNotificationScheduler: NotificationScheduler {
         return PeriodForecastCalculator.activePillCycleProjection(
             settings: settings,
             pillDates: pillDates,
+            pillCycles: eventReader.pillCycles(),
             on: today,
             calendar: calendar
         )
@@ -345,9 +362,10 @@ final class UserNotificationScheduler: NotificationScheduler {
             return []
         }
         let pillSettings = settings.pill
-        let pillCount = max(pillSettings.pillCount, 0)
-        let breakDays = max(pillSettings.pillBreakDuration, 0)
-        let cycleLength = pillCount + breakDays
+        let cycleLength = max(
+            pillSettings.pillCount + pillSettings.pillBreakDuration,
+            0
+        )
         guard cycleLength > 0 else { return [] }
         
         var results: [Date] = []

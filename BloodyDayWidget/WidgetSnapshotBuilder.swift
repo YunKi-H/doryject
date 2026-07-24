@@ -12,6 +12,7 @@ enum WidgetSnapshotBuilder {
         let normalizedToday = today.startOfDay
         let settings = loadSettings()
         let events = WidgetSharedEventStore.allEvents()
+        let pillCycles = WidgetSharedEventStore.pillCycles()
         let todayEvents = events.filter { calendar.isDate($0.date, inSameDayAs: normalizedToday) }
         let todayEventTypes = Set(todayEvents.map(\.type))
         let eventsByType = Dictionary(grouping: events, by: \.type)
@@ -28,6 +29,7 @@ enum WidgetSnapshotBuilder {
             userEvents: events,
             allPeriodEvents: periodEvents,
             allPillDates: pillDates,
+            pillCycles: pillCycles,
             settings: settings,
             today: normalizedToday,
             calendar: calendar
@@ -43,6 +45,7 @@ enum WidgetSnapshotBuilder {
             today: normalizedToday,
             periodDates: periodDates,
             pillDates: pillDates,
+            pillCycles: pillCycles,
             settings: settings,
             calendar: calendar
         )
@@ -52,6 +55,7 @@ enum WidgetSnapshotBuilder {
             isPillEnabled: settings.pill.pillEnabled,
             dayEvents: dayEvents,
             pillDates: pillDates,
+            pillCycles: pillCycles,
             settings: settings,
             calendar: calendar
         )

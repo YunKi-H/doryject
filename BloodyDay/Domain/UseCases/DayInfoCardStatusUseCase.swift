@@ -13,6 +13,7 @@ enum DayInfoCardStatusUseCase {
         today: Date,
         periodDates: [Date],
         pillDates: Set<Date>,
+        pillCycles: [PillCycleInfo] = [],
         settings: UserSettings,
         calendar: Calendar
     ) -> DayInfoCardPrimarySnapshot {
@@ -37,6 +38,7 @@ enum DayInfoCardStatusUseCase {
             settings: settings,
             periodSummaries: summaries,
             pillDates: pillDates,
+            pillCycles: pillCycles,
             calendar: calendar
         ) else {
             return .unknown
@@ -48,6 +50,7 @@ enum DayInfoCardStatusUseCase {
             settings: settings,
             summaries: summaries,
             pillDates: pillDates,
+            pillCycles: pillCycles,
             context: context,
             calendar: calendar
         )
@@ -93,6 +96,7 @@ enum DayInfoCardStatusUseCase {
         isPillEnabled: Bool,
         dayEvents: [DayEvent]?,
         pillDates: Set<Date>,
+        pillCycles: [PillCycleInfo] = [],
         settings: UserSettings,
         calendar: Calendar
     ) -> DayInfoCardSecondarySnapshot {
@@ -100,15 +104,33 @@ enum DayInfoCardStatusUseCase {
             return .unknown
         }
         
-        if isPillEnabled, let pillInfo = pillInfo(for: date, pillDates: pillDates, settings: settings, calendar: calendar) {
+        if isPillEnabled, let pillInfo = pillInfo(
+            for: date,
+            pillDates: pillDates,
+            pillCycles: pillCycles,
+            settings: settings,
+            calendar: calendar
+        ) {
             return .pill(day: pillInfo.day, total: pillInfo.total)
         }
         
-        if isPillEnabled, let breakInfo = pillBreakInfo(for: date, pillDates: pillDates, settings: settings, calendar: calendar) {
+        if isPillEnabled, let breakInfo = pillBreakInfo(
+            for: date,
+            pillDates: pillDates,
+            pillCycles: pillCycles,
+            settings: settings,
+            calendar: calendar
+        ) {
             return .pillBreak(day: breakInfo.day, total: breakInfo.total)
         }
         
-        if isPillEnabled, let scheduled = scheduledPillStatusForCurrentCycle(for: date, pillDates: pillDates, settings: settings, calendar: calendar) {
+        if isPillEnabled, let scheduled = scheduledPillStatusForCurrentCycle(
+            for: date,
+            pillDates: pillDates,
+            pillCycles: pillCycles,
+            settings: settings,
+            calendar: calendar
+        ) {
             return scheduled
         }
         
@@ -130,6 +152,7 @@ enum DayInfoCardStatusUseCase {
     private static func pillInfo(
         for date: Date,
         pillDates: Set<Date>,
+        pillCycles: [PillCycleInfo],
         settings: UserSettings,
         calendar: Calendar
     ) -> (day: Int, total: Int?)? {
@@ -145,10 +168,16 @@ enum DayInfoCardStatusUseCase {
             pillDates: pillDates,
             pillCount: pillCount,
             breakDays: breakDays,
+            pillCycles: pillCycles,
             calendar: calendar
         )
         guard let sequence = sequenceByDate[target] else { return nil }
-        return (day: sequence, total: pillCount > 0 ? pillCount : nil)
+        let storedTotal = PillCycleCalculator.cycleInfo(
+            containing: target,
+            pillCycles: pillCycles
+        )?.plannedPillCount
+        let total = pillCycles.isEmpty ? (pillCount > 0 ? pillCount : nil) : storedTotal
+        return (day: sequence, total: total)
     }
 
     private static func predictedStartsForPrimaryStatus(
@@ -157,10 +186,11 @@ enum DayInfoCardStatusUseCase {
         settings: UserSettings,
         summaries: [PeriodSummary],
         pillDates: Set<Date>,
+        pillCycles: [PillCycleInfo],
         context: PeriodPredictionContext,
         calendar: Calendar
     ) -> [Date] {
-        let cycleLength = max(context.cycleLength, 1)
+        let cycleLength = context.recurringCycleLength
         let searchBase = min(target.startOfDay, today.startOfDay)
         let searchEndBase = max(target.startOfDay, today.startOfDay)
         guard let rangeStart = calendar.date(
@@ -183,6 +213,7 @@ enum DayInfoCardStatusUseCase {
             settings: settings,
             periodSummaries: summaries,
             pillDates: pillDates,
+            pillCycles: pillCycles,
             calendar: calendar
         )
     }
@@ -190,6 +221,7 @@ enum DayInfoCardStatusUseCase {
     private static func pillBreakInfo(
         for date: Date,
         pillDates: Set<Date>,
+        pillCycles: [PillCycleInfo],
         settings: UserSettings,
         calendar: Calendar
     ) -> (day: Int, total: Int)? {
@@ -199,9 +231,57 @@ enum DayInfoCardStatusUseCase {
         let pillCount = max(pillSettings.pillCount, 0)
         let breakDays = max(pillSettings.pillBreakDuration, 0)
         let autoRecordEnabled = pillSettings.pillAutoRecordEnabled
-        guard pillCount > 0, breakDays > 0 else { return nil }
         
         let target = date.startOfDay
+
+        if pillCycles.isEmpty == false {
+            let sortedCycles = pillCycles.sorted {
+                ($0.startDate ?? .distantPast) < ($1.startDate ?? .distantPast)
+            }
+            for (index, cycle) in sortedCycles.enumerated() {
+                guard let configuredBreakDays = cycle.breakDays,
+                      configuredBreakDays > 0,
+                      let lastIntake = cycle.lastIntakeDate else {
+                    continue
+                }
+
+                let projectedLastIntake: Date
+                if cycle.status == .active,
+                   cycle.autoRecordEnabled == false,
+                   let plannedCount = cycle.plannedPillCount {
+                    projectedLastIntake = calendar.date(
+                        byAdding: .day,
+                        value: max(plannedCount - cycle.intakeDates.count, 0),
+                        to: lastIntake
+                    )?.startOfDay ?? lastIntake
+                } else {
+                    projectedLastIntake = lastIntake
+                }
+
+                guard let breakStart = calendar.date(
+                    byAdding: .day,
+                    value: 1,
+                    to: projectedLastIntake
+                )?.startOfDay,
+                      let configuredEnd = calendar.date(
+                        byAdding: .day,
+                        value: configuredBreakDays,
+                        to: breakStart
+                      )?.startOfDay else {
+                    continue
+                }
+                let nextStart = sortedCycles.indices.contains(index + 1)
+                    ? sortedCycles[index + 1].startDate
+                    : nil
+                let endExclusive = min(configuredEnd, nextStart ?? configuredEnd)
+                guard target >= breakStart, target < endExclusive else { continue }
+                let day = (calendar.dateComponents([.day], from: breakStart, to: target).day ?? 0) + 1
+                return (day: day, total: configuredBreakDays)
+            }
+            return nil
+        }
+
+        guard pillCount > 0, breakDays > 0 else { return nil }
         
         if autoRecordEnabled == false {
             guard let projection = PeriodForecastCalculator.latestPillCycleProjection(
@@ -245,6 +325,7 @@ enum DayInfoCardStatusUseCase {
     private static func scheduledPillStatusForCurrentCycle(
         for date: Date,
         pillDates: Set<Date>,
+        pillCycles: [PillCycleInfo],
         settings: UserSettings,
         calendar: Calendar
     ) -> DayInfoCardSecondarySnapshot? {
@@ -257,6 +338,37 @@ enum DayInfoCardStatusUseCase {
         
         let target = date.startOfDay
         
+        if pillCycles.isEmpty == false {
+            guard pillCycles.contains(where: {
+                $0.status == .active && $0.autoRecordEnabled == false
+            }) else {
+                return nil
+            }
+            guard let projection = PeriodForecastCalculator.activePillCycleProjection(
+                settings: settings,
+                pillDates: pillDates,
+                pillCycles: pillCycles,
+                on: target,
+                calendar: calendar
+            ) else {
+                return nil
+            }
+
+            let daysFromStart = calendar.dateComponents(
+                [.day],
+                from: projection.cycleStart,
+                to: target
+            ).day ?? -1
+            guard daysFromStart >= 0 else { return nil }
+            let day = daysFromStart + 1
+            if day <= projection.pillCount {
+                return .pill(day: day, total: projection.pillCount)
+            }
+            let breakDay = day - projection.pillCount
+            guard breakDay <= projection.breakDays else { return nil }
+            return .pillBreak(day: breakDay, total: projection.breakDays)
+        }
+
         if pillSettings.pillAutoRecordEnabled {
             return nil
         }

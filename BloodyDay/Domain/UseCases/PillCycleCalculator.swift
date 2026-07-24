@@ -45,9 +45,34 @@ enum PillCycleCalculator {
         pillDates: Set<Date>,
         pillCount: Int,
         breakDays: Int,
+        pillCycles: [PillCycleInfo] = [],
         calendar: Calendar = .current
     ) -> [Date: Int] {
-        guard pillCount > 0, pillDates.isEmpty == false else { return [:] }
+        guard pillDates.isEmpty == false else { return [:] }
+
+        if pillCycles.isEmpty == false {
+            var map: [Date: Int] = [:]
+            for cycle in pillCycles {
+                for (index, day) in cycle.intakeDates.map(\.startOfDay).sorted().enumerated() {
+                    map[day] = index + 1
+                }
+            }
+
+            let assignedDates = Set(map.keys)
+            let unassignedDates = pillDates.subtracting(assignedDates)
+            if unassignedDates.isEmpty == false, pillCount > 0 {
+                let fallback = sequenceMap(
+                    pillDates: unassignedDates,
+                    pillCount: pillCount,
+                    breakDays: breakDays,
+                    calendar: calendar
+                )
+                map.merge(fallback) { stored, _ in stored }
+            }
+            return map
+        }
+
+        guard pillCount > 0 else { return [:] }
         
         let cycles = groupedCycles(
             pillDates: pillDates,
@@ -63,6 +88,16 @@ enum PillCycleCalculator {
             }
         }
         return map
+    }
+
+    static func cycleInfo(
+        containing target: Date,
+        pillCycles: [PillCycleInfo]
+    ) -> PillCycleInfo? {
+        let normalizedTarget = target.startOfDay
+        return pillCycles.first {
+            $0.intakeDates.map(\.startOfDay).contains(normalizedTarget)
+        }
     }
 
     static func latestCycle(

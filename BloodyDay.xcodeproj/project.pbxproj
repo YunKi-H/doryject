@@ -58,13 +58,16 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				App/AppDeepLink.swift,
+				Data/DTO/PillCycleRecord.swift,
 				Data/DTO/UserEvent.swift,
 				Data/Repository/AppleCalendarSyncStore.swift,
 				Data/Repository/EventRepository.swift,
+				Data/Repository/PillCyclePersistence.swift,
 				Data/Repository/SettingsRepository.swift,
 				Data/Repository/UserDefaultsAppleCalendarSyncStore.swift,
 				Domain/Entities/DayEvent.swift,
 				Domain/Entities/EventType.swift,
+				Domain/Entities/PillCycleInfo.swift,
 				Domain/Entities/Settings/AppearanceSettings.swift,
 				Domain/Entities/Settings/AppleCalendarSettings.swift,
 				Domain/Entities/Settings/NotificationSettings.swift,
