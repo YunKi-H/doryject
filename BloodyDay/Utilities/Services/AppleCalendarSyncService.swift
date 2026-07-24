@@ -14,21 +14,28 @@ final class AppleCalendarSyncService {
     private let calendarClient: AppleCalendarClient
     private let syncStore: AppleCalendarSyncStore
     private let nowProvider: () -> Date
+    private let configuredCalendar: Calendar?
     private let supportedTypes: [EventType] = [.period, .pill, .love]
     private let predictedPeriodSyncHorizonYears = 1
+
+    private var calendar: Calendar {
+        configuredCalendar ?? .autoupdatingCurrent
+    }
     
     init(
         settingsRepository: SettingsRepository,
         eventRepository: EventReading,
         calendarClient: AppleCalendarClient,
         syncStore: AppleCalendarSyncStore,
-        nowProvider: @escaping () -> Date = Date.init
+        nowProvider: @escaping () -> Date = Date.init,
+        calendar: Calendar? = nil
     ) {
         self.settingsRepository = settingsRepository
         self.eventReader = eventRepository
         self.calendarClient = calendarClient
         self.syncStore = syncStore
         self.nowProvider = nowProvider
+        self.configuredCalendar = calendar
     }
     
     func syncAll() async {
@@ -53,7 +60,10 @@ final class AppleCalendarSyncService {
                 if let calendarId = await ensureCalendar(for: type, settings: &settings) {
                     let title = calendarTitle(for: type, settings: settings)
                     if type == .period {
-                        let summaries = PeriodSummaryBuilder.build(from: eventReader.events(of: .period).map { $0.date })
+                        let summaries = PeriodSummaryBuilder.build(
+                            from: eventReader.events(of: .period).map(\.date),
+                            calendar: calendar
+                        )
                         for summary in summaries {
                             let syntheticId = periodSummaryId(start: summary.start)
                             validIds.insert(syntheticId)
@@ -255,8 +265,10 @@ final class AppleCalendarSyncService {
     }
 
     private func syntheticSummaryId(start: Date, prefix: String) -> UUID {
-        let calendar = Calendar.current
-        let comps = calendar.dateComponents([.year, .month, .day], from: start.startOfDay)
+        let comps = calendar.dateComponents(
+            [.year, .month, .day],
+            from: calendar.startOfDay(for: start)
+        )
         let dayKey = (comps.year ?? 0) * 10_000 + (comps.month ?? 0) * 100 + (comps.day ?? 0)
         let suffix = String(format: "%012d", dayKey)
         let uuidString = "\(prefix)-\(suffix)"
@@ -267,18 +279,22 @@ final class AppleCalendarSyncService {
         settings: UserSettings,
         actualPeriodSummaries: [PeriodSummary],
         today: Date = Date(),
-        calendar: Calendar = .current
+        calendar: Calendar? = nil
     ) -> [PeriodSummary] {
-        let normalizedToday = today.startOfDay
-        guard let horizonEndExclusive = calendar.date(
+        let calendar = calendar ?? self.calendar
+        let normalizedToday = calendar.startOfDay(for: today)
+        guard let rawHorizonEndExclusive = calendar.date(
             byAdding: .year,
             value: predictedPeriodSyncHorizonYears,
             to: normalizedToday
-        )?.startOfDay else {
+        ) else {
             return []
         }
+        let horizonEndExclusive = calendar.startOfDay(for: rawHorizonEndExclusive)
 
-        let pillDates = Set(eventReader.events(of: .pill).map { $0.date.startOfDay })
+        let pillDates = Set(eventReader.events(of: .pill).map {
+            calendar.startOfDay(for: $0.date)
+        })
         let pillCycles = eventReader.pillCycles()
         guard let context = PeriodForecastCalculator.predictionContext(
             target: normalizedToday,
@@ -305,14 +321,19 @@ final class AppleCalendarSyncService {
 
         let lengthDays = max(context.predictedLength, 1)
         return validStarts.compactMap { start in
-            guard let end = calendar.date(byAdding: .day, value: lengthDays - 1, to: start.startOfDay)?.startOfDay else {
+            guard let rawEnd = calendar.date(
+                byAdding: .day,
+                value: lengthDays - 1,
+                to: calendar.startOfDay(for: start)
+            ) else {
                 return nil
             }
+            let end = calendar.startOfDay(for: rawEnd)
             guard end >= normalizedToday, start < horizonEndExclusive else {
                 return nil
             }
             return PeriodSummary(
-                start: start.startOfDay,
+                start: calendar.startOfDay(for: start),
                 end: end,
                 lengthDays: lengthDays,
                 cycleDays: context.recurringCycleLength
@@ -326,8 +347,16 @@ final class AppleCalendarSyncService {
         syntheticId: UUID,
         title: String
     ) async {
-        let range = DateInterval(start: summary.start.startOfDay, end: summary.end.endOfDay)
-        let syntheticEvent = UserEvent(id: syntheticId, date: summary.start, type: .period)
+        let range = DateInterval(
+            start: calendar.startOfDay(for: summary.start),
+            end: summary.end.endOfDay(in: calendar)
+        )
+        let syntheticEvent = UserEvent(
+            id: syntheticId,
+            date: summary.start,
+            type: .period,
+            calendar: calendar
+        )
         await upsert(
             event: syntheticEvent,
             type: .period,

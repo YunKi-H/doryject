@@ -30,20 +30,32 @@ enum WidgetDisplayMapper {
     ) -> String? {
         switch snapshot {
         case .countdown(let days):
-            guard let expectedDate = calendar.date(byAdding: .day, value: days, to: referenceDate.startOfDay) else {
+            guard let expectedDate = calendar.date(
+                byAdding: .day,
+                value: days,
+                to: calendar.startOfDay(for: referenceDate)
+            ) else {
                 return nil
             }
-            return "(\(monthDayText(for: expectedDate)) 예정)"
+            return "(\(monthDayText(for: expectedDate, calendar: calendar)) 예정)"
         case .ongoing(let day):
-            guard let startDate = calendar.date(byAdding: .day, value: -(max(day - 1, 0)), to: referenceDate.startOfDay) else {
+            guard let startDate = calendar.date(
+                byAdding: .day,
+                value: -(max(day - 1, 0)),
+                to: calendar.startOfDay(for: referenceDate)
+            ) else {
                 return nil
             }
-            return "(\(monthDayText(for: startDate)) 시작)"
+            return "(\(monthDayText(for: startDate, calendar: calendar)) 시작)"
         case .delayed(let days):
-            guard let startDate = calendar.date(byAdding: .day, value: -days, to: referenceDate.startOfDay) else {
+            guard let startDate = calendar.date(
+                byAdding: .day,
+                value: -days,
+                to: calendar.startOfDay(for: referenceDate)
+            ) else {
                 return nil
             }
-            return "(\(monthDayText(for: startDate)) 시작)"
+            return "(\(monthDayText(for: startDate, calendar: calendar)) 시작)"
         case .bDay:
             return nil
         default:
@@ -82,9 +94,12 @@ enum WidgetDisplayMapper {
         }
     }
 
-    private static func monthDayText(for date: Date) -> String {
-        let month = Calendar.current.component(.month, from: date)
-        let day = Calendar.current.component(.day, from: date)
+    private static func monthDayText(
+        for date: Date,
+        calendar: Calendar
+    ) -> String {
+        let month = calendar.component(.month, from: date)
+        let day = calendar.component(.day, from: date)
         return "\(month)/\(day)"
     }
 }

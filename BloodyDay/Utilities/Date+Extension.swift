@@ -13,6 +13,66 @@ enum Weekday: Int {
 
 extension Date {
     private var calendar: Calendar { Calendar.current }
+
+    func component(_ component: Calendar.Component, calendar: Calendar) -> Int {
+        calendar.component(component, from: self)
+    }
+
+    func startOfDay(in calendar: Calendar) -> Date {
+        calendar.startOfDay(for: self)
+    }
+
+    func endOfDay(in calendar: Calendar) -> Date {
+        let start = calendar.startOfDay(for: self)
+        return calendar.date(byAdding: .day, value: 1, to: start)!.addingTimeInterval(-1)
+    }
+
+    func isSameDay(as other: Date, calendar: Calendar) -> Bool {
+        calendar.isDate(self, inSameDayAs: other)
+    }
+
+    func isInSameMonth(as other: Date, calendar: Calendar) -> Bool {
+        calendar.component(.year, from: self) == calendar.component(.year, from: other)
+            && calendar.component(.month, from: self) == calendar.component(.month, from: other)
+    }
+
+    func startOfMonth(in calendar: Calendar) -> Date {
+        let components = calendar.dateComponents([.year, .month], from: self)
+        return calendar.startOfDay(for: calendar.date(from: components)!)
+    }
+
+    func startOfCalendarGrid(
+        weekStartsOn firstWeekday: Weekday = .monday,
+        calendar: Calendar
+    ) -> Date {
+        var calendar = calendar
+        calendar.firstWeekday = firstWeekday.rawValue
+        let firstOfMonth = startOfMonth(in: calendar)
+        let weekday = calendar.component(.weekday, from: firstOfMonth)
+        let delta = (weekday - calendar.firstWeekday + 7) % 7
+        return calendar.startOfDay(
+            for: calendar.date(byAdding: .day, value: -delta, to: firstOfMonth)!
+        )
+    }
+
+    func endOfCalendarGridExclusiveStart(
+        weekStartsOn firstWeekday: Weekday = .monday,
+        calendar: Calendar
+    ) -> Date {
+        var calendar = calendar
+        calendar.firstWeekday = firstWeekday.rawValue
+        let start = startOfCalendarGrid(
+            weekStartsOn: firstWeekday,
+            calendar: calendar
+        )
+        return calendar.startOfDay(
+            for: calendar.date(byAdding: .day, value: 42, to: start)!
+        )
+    }
+
+    func addingMonths(_ month: Int, calendar: Calendar) -> Date {
+        calendar.date(byAdding: .month, value: month, to: self)!
+    }
     
     func component(_ component: Calendar.Component) -> Int {
         calendar.component(component, from: self)
@@ -79,25 +139,33 @@ extension Date {
     }
     
     // MARK: - Sequence utility
-    static func dates(from start: Date, to end: Date, step component: Calendar.Component = .day) -> [Date] {
+    static func dates(
+        from start: Date,
+        to end: Date,
+        step component: Calendar.Component = .day,
+        calendar: Calendar = .current
+    ) -> [Date] {
         var result: [Date] = []
         var current = start
-        let cal = Calendar.current
         while current <= end {
             result.append(current)
-            current = cal.date(byAdding: component, value: 1, to: current)!
+            current = calendar.date(byAdding: component, value: 1, to: current)!
         }
         return result
     }
     
     // Half-open interval version: [start, endExclusive)
-    static func dates(from start: Date, toExclusive endExclusive: Date, step component: Calendar.Component = .day) -> [Date] {
+    static func dates(
+        from start: Date,
+        toExclusive endExclusive: Date,
+        step component: Calendar.Component = .day,
+        calendar: Calendar = .current
+    ) -> [Date] {
         var result: [Date] = []
         var current = start
-        let cal = Calendar.current
         while current < endExclusive {
             result.append(current)
-            current = cal.date(byAdding: component, value: 1, to: current)!
+            current = calendar.date(byAdding: component, value: 1, to: current)!
         }
         return result
     }

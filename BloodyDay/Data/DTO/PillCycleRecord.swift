@@ -28,10 +28,11 @@ final class PillCycle {
         plannedPillCount: Int?,
         breakDays: Int?,
         autoRecordEnabled: Bool?,
-        status: PillCycleStatus
+        status: PillCycleStatus,
+        calendar: Calendar = .current
     ) {
         self.id = id
-        self.startDate = startDate.startOfDay
+        self.startDate = calendar.startOfDay(for: startDate)
         self.plannedPillCount = plannedPillCount
         self.breakDays = breakDays
         self.autoRecordEnabled = autoRecordEnabled

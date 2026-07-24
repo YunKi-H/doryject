@@ -13,6 +13,7 @@ final class SyncingEventRepository: EventRepository {
     private let settingsRepository: SettingsRepository?
     private let notificationScheduler: NotificationScheduler?
     private let widgetReloader: WidgetReloading?
+    private var calendar: Calendar { .autoupdatingCurrent }
     
     init(
         base: EventRepository,
@@ -54,8 +55,10 @@ final class SyncingEventRepository: EventRepository {
     }
     
     func delete(type: EventType, on: Date) {
-        let target = on.startOfDay
-        let events = base.events(of: type).filter { $0.date.startOfDay == target }
+        let target = calendar.startOfDay(for: on)
+        let events = base.events(of: type).filter {
+            calendar.startOfDay(for: $0.date) == target
+        }
         base.delete(type: type, on: on)
         if AppleCalendarEventSyncPolicy.requiresFullSync(for: type) {
             Task { await syncService.syncAll() }

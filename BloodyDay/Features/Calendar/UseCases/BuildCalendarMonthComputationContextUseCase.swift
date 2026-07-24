@@ -26,15 +26,20 @@ enum BuildCalendarMonthComputationContextUseCase {
         today: Date,
         calendar: Calendar = .current
     ) -> MonthComputationContext {
-        let normalizedToday = today.startOfDay
-        let groupedEvents = Dictionary(grouping: userEvents) { $0.date.startOfDay }
+        let normalizedToday = calendar.startOfDay(for: today)
+        let groupedEvents = Dictionary(grouping: userEvents) {
+            calendar.startOfDay(for: $0.date)
+        }
+        let normalizedPillDates = Set(
+            allPillDates.map { calendar.startOfDay(for: $0) }
+        )
         let eventsByDay = groupedEvents.mapValues { dayEvents in
             dayEvents.map { DayEvent(type: $0.type) }
         }
         
         let projection = PeriodForecastCalculator.activePillCycleProjection(
             settings: settings,
-            pillDates: allPillDates,
+            pillDates: normalizedPillDates,
             pillCycles: pillCycles,
             on: normalizedToday,
             calendar: calendar
@@ -45,21 +50,25 @@ enum BuildCalendarMonthComputationContextUseCase {
         )
         let suppressFutureFertilityPrediction = shouldSuppressFutureFertilityPrediction(
             today: normalizedToday,
-            pillCycleRange: pillCycleRange
+            pillCycleRange: pillCycleRange,
+            calendar: calendar
         )
         
         let pillSettings = settings.pill
         let pillCount = max(pillSettings.pillCount, 0)
         let breakDays = max(pillSettings.pillBreakDuration, 0)
         let pillSequenceByDate = PeriodForecastCalculator.pillSequenceMap(
-            pillDates: allPillDates,
+            pillDates: normalizedPillDates,
             pillCount: pillCount,
             breakDays: breakDays,
             pillCycles: pillCycles,
             calendar: calendar
         )
         
-        let periodSummaries = PeriodSummaryBuilder.build(from: allPeriodEvents.map(\.date))
+        let periodSummaries = PeriodSummaryBuilder.build(
+            from: allPeriodEvents.map(\.date),
+            calendar: calendar
+        )
         let predictedLengthDays = PeriodForecastCalculator.predictedPeriodLengthDays(
             settings: settings,
             periodSummaries: periodSummaries
@@ -70,7 +79,7 @@ enum BuildCalendarMonthComputationContextUseCase {
             today: normalizedToday,
             settings: settings,
             periodSummaries: periodSummaries,
-            pillDates: allPillDates,
+            pillDates: normalizedPillDates,
             pillCycles: pillCycles,
             calendar: calendar
         )
@@ -88,7 +97,8 @@ enum BuildCalendarMonthComputationContextUseCase {
                 var events = predictedEventsByDay[key] ?? []
                 events.removeAll { type in
                     guard type == .fertile || type == .ovulation else { return false }
-                    return key >= pillCycleRange.start.startOfDay && key < pillCycleRange.end.startOfDay
+                    return key >= calendar.startOfDay(for: pillCycleRange.start)
+                        && key < calendar.startOfDay(for: pillCycleRange.end)
                 }
                 predictedEventsByDay[key] = events
             }
@@ -105,13 +115,13 @@ enum BuildCalendarMonthComputationContextUseCase {
         var predictedPeriodDates: Set<Date> = []
         for (date, types) in predictedEventsByDay where date >= bounds.start && date < bounds.endExclusive {
             if types.contains(.period) || types.contains(.delayed) {
-                predictedPeriodDates.insert(date.startOfDay)
+                predictedPeriodDates.insert(calendar.startOfDay(for: date))
             }
         }
         
         return MonthComputationContext(
             eventsByDay: eventsByDay,
-            pillDates: allPillDates,
+            pillDates: normalizedPillDates,
             pillSequenceByDate: pillSequenceByDate,
             predictedEventsByDay: predictedEventsByDay,
             predictedPeriodDates: predictedPeriodDates
@@ -127,9 +137,11 @@ enum BuildCalendarMonthComputationContextUseCase {
     
     private static func shouldSuppressFutureFertilityPrediction(
         today: Date,
-        pillCycleRange: DateInterval?
+        pillCycleRange: DateInterval?,
+        calendar: Calendar
     ) -> Bool {
         guard let pillCycleRange else { return false }
-        return today >= pillCycleRange.start.startOfDay && today < pillCycleRange.end.startOfDay
+        return today >= calendar.startOfDay(for: pillCycleRange.start)
+            && today < calendar.startOfDay(for: pillCycleRange.end)
     }
 }

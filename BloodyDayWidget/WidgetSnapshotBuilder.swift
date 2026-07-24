@@ -9,20 +9,24 @@ import Foundation
 
 enum WidgetSnapshotBuilder {
     static func build(today: Date = .now, calendar: Calendar = .current) -> WidgetSnapshot {
-        let normalizedToday = today.startOfDay
+        let normalizedToday = calendar.startOfDay(for: today)
         let settings = loadSettings()
         let events = WidgetSharedEventStore.allEvents()
         let pillCycles = WidgetSharedEventStore.pillCycles()
         let todayEvents = events.filter { calendar.isDate($0.date, inSameDayAs: normalizedToday) }
         let todayEventTypes = Set(todayEvents.map(\.type))
         let eventsByType = Dictionary(grouping: events, by: \.type)
-        let pillDates = Set((eventsByType[.pill] ?? []).map { $0.date.startOfDay })
+        let pillDates = Set((eventsByType[.pill] ?? []).map {
+            calendar.startOfDay(for: $0.date)
+        })
         let periodEvents = eventsByType[.period] ?? []
         let periodDates = periodEvents.map(\.date)
-        let monthStart = normalizedToday.startOfMonth
+        let monthStart = normalizedToday.startOfMonth(in: calendar)
         let bounds = (
-            start: monthStart.startOfCalendarGrid(),
-            endExclusive: monthStart.endOfCalendarGridExclusiveStart()
+            start: monthStart.startOfCalendarGrid(calendar: calendar),
+            endExclusive: monthStart.endOfCalendarGridExclusiveStart(
+                calendar: calendar
+            )
         )
         let context = BuildCalendarMonthComputationContextUseCase.execute(
             bounds: bounds,
@@ -34,7 +38,7 @@ enum WidgetSnapshotBuilder {
             today: normalizedToday,
             calendar: calendar
         )
-        let todayKey = normalizedToday.startOfDay
+        let todayKey = calendar.startOfDay(for: normalizedToday)
         var dayEvents = context.eventsByDay[todayKey] ?? []
         for type in context.predictedEventsByDay[todayKey] ?? [] where !dayEvents.contains(where: { $0.type == type }) {
             dayEvents.append(DayEvent(type: type))

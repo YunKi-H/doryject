@@ -20,11 +20,11 @@ struct PillCycleInfo: Equatable {
     let autoRecordEnabled: Bool?
     let status: PillCycleStatus
 
-    var startDate: Date? {
-        intakeDates.map(\.startOfDay).min()
+    func startDate(calendar: Calendar) -> Date? {
+        intakeDates.map { calendar.startOfDay(for: $0) }.min()
     }
 
-    var lastIntakeDate: Date? {
-        intakeDates.map(\.startOfDay).max()
+    func lastIntakeDate(calendar: Calendar) -> Date? {
+        intakeDates.map { calendar.startOfDay(for: $0) }.max()
     }
 }

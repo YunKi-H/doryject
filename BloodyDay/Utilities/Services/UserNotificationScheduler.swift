@@ -10,9 +10,16 @@ import UserNotifications
 
 final class UserNotificationScheduler: NotificationScheduler {
     private let center = UNUserNotificationCenter.current()
-    private let calendar = Calendar.current
+    private let configuredCalendar: Calendar?
+    private var calendar: Calendar {
+        configuredCalendar ?? .autoupdatingCurrent
+    }
     private static let maxScheduledOccurrences = 3
     private let maxScheduledOccurrences = UserNotificationScheduler.maxScheduledOccurrences
+
+    init(calendar: Calendar? = nil) {
+        self.configuredCalendar = calendar
+    }
     
     func apply(settings: UserSettings, eventRepository: EventRepository) {
         apply(
@@ -44,7 +51,7 @@ final class UserNotificationScheduler: NotificationScheduler {
         }
         center.removePendingNotificationRequests(withIdentifiers: Self.identifiers)
         let now = Date()
-        let today = now.startOfDay
+        let today = calendar.startOfDay(for: now)
         
         let notificationSettings = settings.notifications
         if notificationSettings.periodReminderEnabled {
@@ -81,7 +88,7 @@ final class UserNotificationScheduler: NotificationScheduler {
             eventReader: eventReader,
             today: today
            ) {
-            if today > currentExpectedStart.startOfDay {
+            if today > calendar.startOfDay(for: currentExpectedStart) {
                 let scheduled = nextOccurrences(
                     time: notificationSettings.periodReminderTime,
                     from: now,
@@ -90,7 +97,11 @@ final class UserNotificationScheduler: NotificationScheduler {
                 for (index, date) in scheduled.enumerated() {
                     guard index < Self.periodDelayedIds.count else { break }
                     let daysDelayed = max(
-                        calendar.dateComponents([.day], from: currentExpectedStart.startOfDay, to: date.startOfDay).day ?? 0,
+                        calendar.dateComponents(
+                            [.day],
+                            from: calendar.startOfDay(for: currentExpectedStart),
+                            to: calendar.startOfDay(for: date)
+                        ).day ?? 0,
                         0
                     )
                     scheduleOnce(
@@ -102,7 +113,9 @@ final class UserNotificationScheduler: NotificationScheduler {
                 }
             }
         }
-        let pillDates = Set(eventReader.events(of: .pill).map { $0.date.startOfDay })
+        let pillDates = Set(eventReader.events(of: .pill).map {
+            calendar.startOfDay(for: $0.date)
+        })
         PillReminderNotificationScheduler.apply(
             settings: settings,
             pillDates: pillDates,
@@ -210,14 +223,15 @@ final class UserNotificationScheduler: NotificationScheduler {
         guard let horizonEndExclusive = calendar.date(
             byAdding: .day,
             value: horizonDays,
-            to: today.startOfDay
-        )?.startOfDay else {
+            to: calendar.startOfDay(for: today)
+        ) else {
             return []
         }
+        let normalizedHorizonEnd = calendar.startOfDay(for: horizonEndExclusive)
 
         let validStarts = PeriodForecastCalculator.predictedPeriodStarts(
             rangeStart: today,
-            rangeEndExclusive: horizonEndExclusive,
+            rangeEndExclusive: normalizedHorizonEnd,
             today: today,
             settings: settings,
             periodSummaries: data.summaries,
@@ -243,19 +257,21 @@ final class UserNotificationScheduler: NotificationScheduler {
         guard let rangeStart = calendar.date(
             byAdding: .day,
             value: -data.context.recurringCycleLength,
-            to: today.startOfDay
-        )?.startOfDay,
+            to: calendar.startOfDay(for: today)
+        ),
               let rangeEndExclusive = calendar.date(
                 byAdding: .day,
                 value: 1,
-                to: today.startOfDay
-              )?.startOfDay else {
+                to: calendar.startOfDay(for: today)
+              ) else {
             return nil
         }
+        let normalizedRangeStart = calendar.startOfDay(for: rangeStart)
+        let normalizedRangeEnd = calendar.startOfDay(for: rangeEndExclusive)
 
         let predictedStarts = PeriodForecastCalculator.predictedPeriodStarts(
-            rangeStart: rangeStart,
-            rangeEndExclusive: rangeEndExclusive,
+            rangeStart: normalizedRangeStart,
+            rangeEndExclusive: normalizedRangeEnd,
             today: today,
             settings: settings,
             periodSummaries: data.summaries,
@@ -283,8 +299,13 @@ final class UserNotificationScheduler: NotificationScheduler {
         pillCycles: [PillCycleInfo]
     )? {
         let periodEvents = eventReader.events(of: .period).map { $0.date }
-        let summaries = PeriodSummaryBuilder.build(from: periodEvents)
-        let pillDates = Set(eventReader.events(of: .pill).map { $0.date.startOfDay })
+        let summaries = PeriodSummaryBuilder.build(
+            from: periodEvents,
+            calendar: calendar
+        )
+        let pillDates = Set(eventReader.events(of: .pill).map {
+            calendar.startOfDay(for: $0.date)
+        })
         let pillCycles = eventReader.pillCycles()
         guard let context = PeriodForecastCalculator.predictionContext(
             target: target,
@@ -309,7 +330,9 @@ final class UserNotificationScheduler: NotificationScheduler {
         eventReader: EventReading,
         today: Date
     ) -> Date? {
-        let pillDates = Set(eventReader.events(of: .pill).map { $0.date.startOfDay })
+        let pillDates = Set(eventReader.events(of: .pill).map {
+            calendar.startOfDay(for: $0.date)
+        })
         guard let projection = PeriodForecastCalculator.activePillCycleProjection(
             settings: settings,
             pillDates: pillDates,
@@ -318,11 +341,15 @@ final class UserNotificationScheduler: NotificationScheduler {
             calendar: calendar
         ) else { return nil }
         
-        guard let first = calendar.date(byAdding: .day, value: projection.breakDays + 1, to: projection.projectedLastIntakeDate.startOfDay) else {
+        guard let first = calendar.date(
+            byAdding: .day,
+            value: projection.breakDays + 1,
+            to: calendar.startOfDay(for: projection.projectedLastIntakeDate)
+        ) else {
             return nil
         }
         
-        var nextStart = first.startOfDay
+        var nextStart = calendar.startOfDay(for: first)
         while nextStart <= today {
             guard let candidate = calendar.date(byAdding: .day, value: projection.cycleLength, to: nextStart) else {
                 return nil
@@ -337,7 +364,9 @@ final class UserNotificationScheduler: NotificationScheduler {
         eventReader: EventReading,
         today: Date
     ) -> PillCycleProjection? {
-        let pillDates = Set(eventReader.events(of: .pill).map { $0.date.startOfDay })
+        let pillDates = Set(eventReader.events(of: .pill).map {
+            calendar.startOfDay(for: $0.date)
+        })
         return PeriodForecastCalculator.activePillCycleProjection(
             settings: settings,
             pillDates: pillDates,
@@ -369,7 +398,7 @@ final class UserNotificationScheduler: NotificationScheduler {
         guard cycleLength > 0 else { return [] }
         
         var results: [Date] = []
-        var next = first.startOfDay
+        var next = calendar.startOfDay(for: first)
         for _ in 0..<count {
             results.append(next)
             guard let following = calendar.date(byAdding: .day, value: cycleLength, to: next) else { break }
@@ -386,7 +415,11 @@ final class UserNotificationScheduler: NotificationScheduler {
     ) -> [Date] {
         var reminders: [Date] = []
         for start in nextStarts {
-            guard let base = calendar.date(byAdding: .day, value: -daysBefore, to: start.startOfDay),
+            guard let base = calendar.date(
+                byAdding: .day,
+                value: -daysBefore,
+                to: calendar.startOfDay(for: start)
+            ),
                   let reminder = combineDate(base, time: time) else {
                 continue
             }

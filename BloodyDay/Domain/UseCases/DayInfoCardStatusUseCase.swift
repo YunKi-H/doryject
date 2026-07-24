@@ -17,19 +17,30 @@ enum DayInfoCardStatusUseCase {
         settings: UserSettings,
         calendar: Calendar
     ) -> DayInfoCardPrimarySnapshot {
-        let summaries = PeriodSummaryBuilder.build(from: periodDates)
-        let target = date.startOfDay
-        let normalizedToday = today.startOfDay
+        let summaries = PeriodSummaryBuilder.build(from: periodDates, calendar: calendar)
+        let target = date.startOfDay(in: calendar)
+        let normalizedToday = today.startOfDay(in: calendar)
         
-        if let ongoing = summaries.first(where: { $0.start.startOfDay <= target && target <= $0.end.startOfDay }) {
-            if target == ongoing.start.startOfDay {
+        if let ongoing = summaries.first(where: {
+            $0.start.startOfDay(in: calendar) <= target
+                && target <= $0.end.startOfDay(in: calendar)
+        }) {
+            if target == ongoing.start.startOfDay(in: calendar) {
                 return .bDay
             }
-            let dayIndex = (calendar.dateComponents([.day], from: ongoing.start.startOfDay, to: target).day ?? 0) + 1
+            let dayIndex = (
+                calendar.dateComponents(
+                    [.day],
+                    from: ongoing.start.startOfDay(in: calendar),
+                    to: target
+                ).day ?? 0
+            ) + 1
             return .ongoing(day: max(dayIndex, 1))
         }
         
-        if let latestStart = summaries.map({ $0.start.startOfDay }).max(), target < latestStart {
+        if let latestStart = summaries.map({
+            $0.start.startOfDay(in: calendar)
+        }).max(), target < latestStart {
             return .unknown
         }
         
@@ -60,15 +71,26 @@ enum DayInfoCardStatusUseCase {
 
         let predictedLength = max(context.predictedLength, 1)
         if let containingStart = predictedStarts.first(where: { start in
-            guard let endExclusive = calendar.date(byAdding: .day, value: predictedLength, to: start.startOfDay) else {
+            guard let endExclusive = calendar.date(
+                byAdding: .day,
+                value: predictedLength,
+                to: start.startOfDay(in: calendar)
+            ) else {
                 return false
             }
-            return target >= start.startOfDay && target < endExclusive.startOfDay
+            return target >= start.startOfDay(in: calendar)
+                && target < endExclusive.startOfDay(in: calendar)
         }) {
-            if target == containingStart.startOfDay {
+            if target == containingStart.startOfDay(in: calendar) {
                 return .bDay
             }
-            let dayIndex = (calendar.dateComponents([.day], from: containingStart.startOfDay, to: target).day ?? 0) + 1
+            let dayIndex = (
+                calendar.dateComponents(
+                    [.day],
+                    from: containingStart.startOfDay(in: calendar),
+                    to: target
+                ).day ?? 0
+            ) + 1
             return .ongoing(day: max(dayIndex, 1))
         }
 
@@ -79,14 +101,24 @@ enum DayInfoCardStatusUseCase {
             predictedLength: predictedLength,
             calendar: calendar
            ) {
-            let delayedDays = calendar.dateComponents([.day], from: delayedStart.startOfDay, to: target).day ?? 0
+            let delayedDays = calendar.dateComponents(
+                [.day],
+                from: delayedStart.startOfDay(in: calendar),
+                to: target
+            ).day ?? 0
             return .delayed(days: max(delayedDays, 0))
         }
 
-        guard let nextStart = predictedStarts.first(where: { $0.startOfDay > target }) else {
+        guard let nextStart = predictedStarts.first(where: {
+            $0.startOfDay(in: calendar) > target
+        }) else {
             return .unknown
         }
-        let daysUntil = calendar.dateComponents([.day], from: target, to: nextStart.startOfDay).day ?? 0
+        let daysUntil = calendar.dateComponents(
+            [.day],
+            from: target,
+            to: nextStart.startOfDay(in: calendar)
+        ).day ?? 0
         return .countdown(days: max(daysUntil, 0))
     }
     
@@ -159,13 +191,16 @@ enum DayInfoCardStatusUseCase {
         let pillSettings = settings.pill
         guard pillSettings.pillEnabled else { return nil }
         
-        let target = date.startOfDay
-        guard pillDates.contains(target) else { return nil }
+        let target = date.startOfDay(in: calendar)
+        let normalizedPillDates = Set(pillDates.map {
+            $0.startOfDay(in: calendar)
+        })
+        guard normalizedPillDates.contains(target) else { return nil }
         
         let pillCount = max(pillSettings.pillCount, 0)
         let breakDays = max(pillSettings.pillBreakDuration, 0)
         let sequenceByDate = PeriodForecastCalculator.pillSequenceMap(
-            pillDates: pillDates,
+            pillDates: normalizedPillDates,
             pillCount: pillCount,
             breakDays: breakDays,
             pillCycles: pillCycles,
@@ -174,7 +209,8 @@ enum DayInfoCardStatusUseCase {
         guard let sequence = sequenceByDate[target] else { return nil }
         let storedTotal = PillCycleCalculator.cycleInfo(
             containing: target,
-            pillCycles: pillCycles
+            pillCycles: pillCycles,
+            calendar: calendar
         )?.plannedPillCount
         let total = pillCycles.isEmpty ? (pillCount > 0 ? pillCount : nil) : storedTotal
         return (day: sequence, total: total)
@@ -191,20 +227,28 @@ enum DayInfoCardStatusUseCase {
         calendar: Calendar
     ) -> [Date] {
         let cycleLength = context.recurringCycleLength
-        let searchBase = min(target.startOfDay, today.startOfDay)
-        let searchEndBase = max(target.startOfDay, today.startOfDay)
-        guard let rangeStart = calendar.date(
+        let searchBase = min(
+            target.startOfDay(in: calendar),
+            today.startOfDay(in: calendar)
+        )
+        let searchEndBase = max(
+            target.startOfDay(in: calendar),
+            today.startOfDay(in: calendar)
+        )
+        guard let rawRangeStart = calendar.date(
             byAdding: .day,
             value: -cycleLength,
             to: searchBase
-        )?.startOfDay,
-              let rangeEndExclusive = calendar.date(
+        ),
+              let rawRangeEndExclusive = calendar.date(
                 byAdding: .day,
                 value: cycleLength * 2 + max(context.predictedLength, 1),
                 to: searchEndBase
-              )?.startOfDay else {
+              ) else {
             return []
         }
+        let rangeStart = rawRangeStart.startOfDay(in: calendar)
+        let rangeEndExclusive = rawRangeEndExclusive.startOfDay(in: calendar)
 
         return PeriodForecastCalculator.predictedPeriodStarts(
             rangeStart: rangeStart,
@@ -232,16 +276,17 @@ enum DayInfoCardStatusUseCase {
         let breakDays = max(pillSettings.pillBreakDuration, 0)
         let autoRecordEnabled = pillSettings.pillAutoRecordEnabled
         
-        let target = date.startOfDay
+        let target = date.startOfDay(in: calendar)
 
         if pillCycles.isEmpty == false {
             let sortedCycles = pillCycles.sorted {
-                ($0.startDate ?? .distantPast) < ($1.startDate ?? .distantPast)
+                ($0.startDate(calendar: calendar) ?? .distantPast)
+                    < ($1.startDate(calendar: calendar) ?? .distantPast)
             }
             for (index, cycle) in sortedCycles.enumerated() {
                 guard let configuredBreakDays = cycle.breakDays,
                       configuredBreakDays > 0,
-                      let lastIntake = cycle.lastIntakeDate else {
+                      let lastIntake = cycle.lastIntakeDate(calendar: calendar) else {
                     continue
                 }
 
@@ -253,7 +298,7 @@ enum DayInfoCardStatusUseCase {
                         byAdding: .day,
                         value: max(plannedCount - cycle.intakeDates.count, 0),
                         to: lastIntake
-                    )?.startOfDay ?? lastIntake
+                    )?.startOfDay(in: calendar) ?? lastIntake.startOfDay(in: calendar)
                 } else {
                     projectedLastIntake = lastIntake
                 }
@@ -262,16 +307,16 @@ enum DayInfoCardStatusUseCase {
                     byAdding: .day,
                     value: 1,
                     to: projectedLastIntake
-                )?.startOfDay,
+                )?.startOfDay(in: calendar),
                       let configuredEnd = calendar.date(
                         byAdding: .day,
                         value: configuredBreakDays,
                         to: breakStart
-                      )?.startOfDay else {
+                      )?.startOfDay(in: calendar) else {
                     continue
                 }
                 let nextStart = sortedCycles.indices.contains(index + 1)
-                    ? sortedCycles[index + 1].startDate
+                    ? sortedCycles[index + 1].startDate(calendar: calendar)
                     : nil
                 let endExclusive = min(configuredEnd, nextStart ?? configuredEnd)
                 guard target >= breakStart, target < endExclusive else { continue }
@@ -289,13 +334,30 @@ enum DayInfoCardStatusUseCase {
                 pillDates: pillDates,
                 calendar: calendar
             ),
-                  let breakStart = calendar.date(byAdding: .day, value: 1, to: projection.projectedLastIntakeDate.startOfDay),
-                  let breakEndExclusive = calendar.date(byAdding: .day, value: breakDays, to: breakStart.startOfDay) else {
+                  let breakStart = calendar.date(
+                    byAdding: .day,
+                    value: 1,
+                    to: projection.projectedLastIntakeDate.startOfDay(in: calendar)
+                  ),
+                  let breakEndExclusive = calendar.date(
+                    byAdding: .day,
+                    value: breakDays,
+                    to: breakStart.startOfDay(in: calendar)
+                  ) else {
                 return nil
             }
             
-            guard target >= breakStart.startOfDay && target < breakEndExclusive.startOfDay else { return nil }
-            let breakDay = (calendar.dateComponents([.day], from: breakStart.startOfDay, to: target).day ?? 0) + 1
+            guard target >= breakStart.startOfDay(in: calendar),
+                  target < breakEndExclusive.startOfDay(in: calendar) else {
+                return nil
+            }
+            let breakDay = (
+                calendar.dateComponents(
+                    [.day],
+                    from: breakStart.startOfDay(in: calendar),
+                    to: target
+                ).day ?? 0
+            ) + 1
             return (day: breakDay, total: breakDays)
         }
         
@@ -308,14 +370,35 @@ enum DayInfoCardStatusUseCase {
         
         for (index, cycle) in cycles.enumerated() {
             guard let lastIntake = cycle.last else { continue }
-            guard let breakStart = calendar.date(byAdding: .day, value: 1, to: lastIntake.startOfDay),
-                  let configuredBreakEndExclusive = calendar.date(byAdding: .day, value: breakDays, to: breakStart.startOfDay) else {
+            guard let breakStart = calendar.date(
+                byAdding: .day,
+                value: 1,
+                to: lastIntake.startOfDay(in: calendar)
+            ),
+                  let configuredBreakEndExclusive = calendar.date(
+                    byAdding: .day,
+                    value: breakDays,
+                    to: breakStart.startOfDay(in: calendar)
+                  ) else {
                 continue
             }
-            let nextCycleStart = cycles.indices.contains(index + 1) ? cycles[index + 1].first?.startOfDay : nil
-            let breakEndExclusive = min(configuredBreakEndExclusive.startOfDay, nextCycleStart ?? configuredBreakEndExclusive.startOfDay)
-            guard target >= breakStart.startOfDay && target < breakEndExclusive.startOfDay else { continue }
-            let breakDay = (calendar.dateComponents([.day], from: breakStart.startOfDay, to: target).day ?? 0) + 1
+            let nextCycleStart = cycles.indices.contains(index + 1)
+                ? cycles[index + 1].first?.startOfDay(in: calendar)
+                : nil
+            let normalizedBreakStart = breakStart.startOfDay(in: calendar)
+            let normalizedConfiguredEnd = configuredBreakEndExclusive.startOfDay(in: calendar)
+            let breakEndExclusive = min(
+                normalizedConfiguredEnd,
+                nextCycleStart ?? normalizedConfiguredEnd
+            )
+            guard target >= normalizedBreakStart, target < breakEndExclusive else { continue }
+            let breakDay = (
+                calendar.dateComponents(
+                    [.day],
+                    from: normalizedBreakStart,
+                    to: target
+                ).day ?? 0
+            ) + 1
             return (day: breakDay, total: breakDays)
         }
         
@@ -336,7 +419,7 @@ enum DayInfoCardStatusUseCase {
         let breakDays = max(pillSettings.pillBreakDuration, 0)
         guard pillCount > 0 else { return nil }
         
-        let target = date.startOfDay
+        let target = date.startOfDay(in: calendar)
         
         if pillCycles.isEmpty == false {
             guard pillCycles.contains(where: {
@@ -381,7 +464,7 @@ enum DayInfoCardStatusUseCase {
         ),
               let cycleStart = currentCycle.first,
               let cycleLastIntake = currentCycle.last,
-              target >= cycleStart.startOfDay else {
+              target >= cycleStart.startOfDay(in: calendar) else {
             return nil
         }
         
@@ -395,14 +478,24 @@ enum DayInfoCardStatusUseCase {
         var inferredCount: Int?
         if let exact = sequenceByDate[target] {
             inferredCount = exact
-        } else if target > cycleLastIntake.startOfDay,
-                  let lastKnownCount = sequenceByDate[cycleLastIntake.startOfDay] {
-            let daysAfterLastIntake = calendar.dateComponents([.day], from: cycleLastIntake.startOfDay, to: target).day ?? -1
+        } else if target > cycleLastIntake.startOfDay(in: calendar),
+                  let lastKnownCount = sequenceByDate[
+                    cycleLastIntake.startOfDay(in: calendar)
+                  ] {
+            let daysAfterLastIntake = calendar.dateComponents(
+                [.day],
+                from: cycleLastIntake.startOfDay(in: calendar),
+                to: target
+            ).day ?? -1
             if daysAfterLastIntake >= 1 {
                 inferredCount = lastKnownCount + daysAfterLastIntake
             }
         } else {
-            let offsetFromStart = calendar.dateComponents([.day], from: cycleStart.startOfDay, to: target).day ?? -1
+            let offsetFromStart = calendar.dateComponents(
+                [.day],
+                from: cycleStart.startOfDay(in: calendar),
+                to: target
+            ).day ?? -1
             if offsetFromStart >= 0 {
                 inferredCount = offsetFromStart + 1
             }

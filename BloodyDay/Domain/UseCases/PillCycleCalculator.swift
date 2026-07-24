@@ -14,7 +14,7 @@ enum PillCycleCalculator {
         breakDays: Int,
         calendar: Calendar = .current
     ) -> [[Date]] {
-        let sorted = pillDates.map(\.startOfDay).sorted()
+        let sorted = pillDates.map { calendar.startOfDay(for: $0) }.sorted()
         guard sorted.isEmpty == false else { return [] }
         
         // Pill cycles are interpreted more strictly than the configured break length:
@@ -53,7 +53,10 @@ enum PillCycleCalculator {
         if pillCycles.isEmpty == false {
             var map: [Date: Int] = [:]
             for cycle in pillCycles {
-                for (index, day) in cycle.intakeDates.map(\.startOfDay).sorted().enumerated() {
+                for (index, day) in cycle.intakeDates
+                    .map({ calendar.startOfDay(for: $0) })
+                    .sorted()
+                    .enumerated() {
                     map[day] = index + 1
                 }
             }
@@ -92,11 +95,14 @@ enum PillCycleCalculator {
 
     static func cycleInfo(
         containing target: Date,
-        pillCycles: [PillCycleInfo]
+        pillCycles: [PillCycleInfo],
+        calendar: Calendar = .current
     ) -> PillCycleInfo? {
-        let normalizedTarget = target.startOfDay
+        let normalizedTarget = calendar.startOfDay(for: target)
         return pillCycles.first {
-            $0.intakeDates.map(\.startOfDay).contains(normalizedTarget)
+            $0.intakeDates
+                .map { calendar.startOfDay(for: $0) }
+                .contains(normalizedTarget)
         }
     }
 
@@ -121,7 +127,7 @@ enum PillCycleCalculator {
         breakDays: Int,
         calendar: Calendar = .current
     ) -> [Date]? {
-        let normalizedTarget = target.startOfDay
+        let normalizedTarget = calendar.startOfDay(for: target)
         return groupedCycles(
             pillDates: pillDates,
             pillCount: pillCount,
@@ -136,15 +142,16 @@ enum PillCycleCalculator {
         on date: Date,
         calendar: Calendar = .current
     ) -> Bool {
-        let normalizedDate = date.startOfDay
-        let normalizedLastIntake = projectedLastIntakeDate.startOfDay
-        guard let expectedNextCycleStart = calendar.date(
+        let normalizedDate = calendar.startOfDay(for: date)
+        let normalizedLastIntake = calendar.startOfDay(for: projectedLastIntakeDate)
+        guard let rawExpectedNextCycleStart = calendar.date(
             byAdding: .day,
             value: max(breakDays, 0) + 1,
             to: normalizedLastIntake
-        )?.startOfDay else {
+        ) else {
             return false
         }
+        let expectedNextCycleStart = calendar.startOfDay(for: rawExpectedNextCycleStart)
 
         // Keep the cycle active through its expected restart date so that the
         // first reminder for the next pack remains valid. If no new intake is

@@ -18,6 +18,7 @@ final class CalendarViewModel {
     
     private let eventRepository: EventRepository
     private let settingsRepository: SettingsRepository?
+    private var calendar: Calendar
     private var selectedDayComponents: DateComponents
     private var visibleMonthComponents: DateComponents
     
@@ -40,22 +41,25 @@ final class CalendarViewModel {
         )
         self.eventRepository = eventRepository
         self.settingsRepository = settingsRepository
+        self.calendar = calendar
         
         bootstrapMonths(anchor: selectedDate)
     }
     
     func refresh(now: Date = .now) {
-        referenceToday = now.startOfDay
+        referenceToday = calendar.startOfDay(for: now)
         if months.isEmpty {
             bootstrapMonths(anchor: selectedDate)
             return
         }
-        let keepingMonth = months.indices.contains(currentIndex) ? months[currentIndex].monthDate : selectedDate.startOfMonth
+        let keepingMonth = months.indices.contains(currentIndex)
+            ? months[currentIndex].monthDate
+            : selectedDate.startOfMonth(in: calendar)
         recomputeLoadedMonths(keepingMonth: keepingMonth)
     }
 
     func refreshIfReferenceDayChanged(now: Date = .now) {
-        let normalizedToday = now.startOfDay
+        let normalizedToday = calendar.startOfDay(for: now)
         guard normalizedToday != referenceToday else { return }
         refresh(now: normalizedToday)
     }
@@ -65,6 +69,7 @@ final class CalendarViewModel {
         calendar: Calendar = .current
     ) {
         let preservedVisibleMonthComponents = visibleMonthComponents
+        self.calendar = calendar
         referenceToday = calendar.startOfDay(for: now)
         selectedDate = Self.date(
             from: selectedDayComponents,
@@ -79,7 +84,6 @@ final class CalendarViewModel {
     }
     
     func moveSelectedDate(by days: Int) {
-        let calendar = Calendar.current
         let next = calendar.date(byAdding: .day, value: days, to: selectedDate) ?? selectedDate
         selectDate(next)
     }
@@ -96,12 +100,14 @@ final class CalendarViewModel {
 // Repository
 extension CalendarViewModel {
     func isEventOnSelectedDate(_ type: EventType) -> Bool {
-        let target = selectedDate.startOfDay
-        return eventRepository.events(of: type).contains { $0.date.startOfDay == target }
+        let target = calendar.startOfDay(for: selectedDate)
+        return eventRepository.events(of: type).contains {
+            calendar.startOfDay(for: $0.date) == target
+        }
     }
     
     func setEvent(_ type: EventType, enabled: Bool) {
-        let date = selectedDate.startOfDay
+        let date = calendar.startOfDay(for: selectedDate)
         let settings = settingsRepository?.load() ?? .init()
         let plan = CalendarEventTogglePolicyUseCase.mutationPlan(
             type: type,
@@ -110,11 +116,13 @@ extension CalendarViewModel {
             existingDatesByType: existingEventDatesByType(),
             settings: settings,
             pillCycles: eventRepository.pillCycles(),
-            calendar: .current
+            calendar: calendar
         )
         guard plan.isEmpty == false else { return }
         applyMutationPlan(plan)
-        let keepingMonth = months.indices.contains(currentIndex) ? months[currentIndex].monthDate : date.startOfMonth
+        let keepingMonth = months.indices.contains(currentIndex)
+            ? months[currentIndex].monthDate
+            : date.startOfMonth(in: calendar)
         recomputeLoadedMonths(keepingMonth: keepingMonth)
     }
     
@@ -122,26 +130,32 @@ extension CalendarViewModel {
         guard let settings = settingsRepository?.load() else {
             return nil
         }
-        let pillDates = Set(eventRepository.events(of: .pill).map { $0.date.startOfDay })
+        let pillDates = Set(eventRepository.events(of: .pill).map {
+            calendar.startOfDay(for: $0.date)
+        })
         return CalendarEventTogglePolicyUseCase.pillDisableConfirmationPlan(
             selectedDate: selectedDate,
             pillDates: pillDates,
             settings: settings,
             pillCycles: eventRepository.pillCycles(),
-            calendar: .current
+            calendar: calendar
         )
     }
     
     func deletePillEvents(on dates: [Date]) {
         applyMutationPlan(.init(deletions: [CalendarEventMutation(type: .pill, dates: dates)]))
-        let keepingMonth = months.indices.contains(currentIndex) ? months[currentIndex].monthDate : selectedDate.startOfMonth
+        let keepingMonth = months.indices.contains(currentIndex)
+            ? months[currentIndex].monthDate
+            : selectedDate.startOfMonth(in: calendar)
         recomputeLoadedMonths(keepingMonth: keepingMonth)
     }
     
     private func existingEventDatesByType() -> [EventType: Set<Date>] {
         let supportedTypes: [EventType] = [.period, .pill, .love, .ovulation, .fertile, .delayed]
         return Dictionary(uniqueKeysWithValues: supportedTypes.map { type in
-            let dates = Set(eventRepository.events(of: type).map { $0.date.startOfDay })
+            let dates = Set(eventRepository.events(of: type).map {
+                calendar.startOfDay(for: $0.date)
+            })
             return (type, dates)
         })
     }
@@ -153,14 +167,16 @@ extension CalendarViewModel {
             if let cached = existingDatesCache[type] {
                 return cached
             }
-            let loaded = Set(eventRepository.events(of: type).map { $0.date.startOfDay })
+            let loaded = Set(eventRepository.events(of: type).map {
+                calendar.startOfDay(for: $0.date)
+            })
             existingDatesCache[type] = loaded
             return loaded
         }
         
         for mutation in plan.deletions {
             var typeDates = existingDates(for: mutation.type)
-            for date in mutation.dates.map(\.startOfDay) {
+            for date in mutation.dates.map({ calendar.startOfDay(for: $0) }) {
                 eventRepository.delete(type: mutation.type, on: date)
                 typeDates.remove(date)
             }
@@ -169,9 +185,16 @@ extension CalendarViewModel {
         
         for mutation in plan.additions {
             var typeDates = existingDates(for: mutation.type)
-            for date in mutation.dates.map(\.startOfDay) {
+            for date in mutation.dates.map({ calendar.startOfDay(for: $0) }) {
                 guard typeDates.contains(date) == false else { continue }
-                eventRepository.save(UserEvent(id: .init(), date: date, type: mutation.type))
+                eventRepository.save(
+                    UserEvent(
+                        id: .init(),
+                        date: date,
+                        type: mutation.type,
+                        calendar: calendar
+                    )
+                )
                 typeDates.insert(date)
             }
             existingDatesCache[mutation.type] = typeDates
@@ -182,21 +205,22 @@ extension CalendarViewModel {
 // UI
 extension CalendarViewModel {
     func selectDate(_ date: Date) {
-        if !selectedDate.isInSameMonth(as: date) {
-            setCurrentMonth(to: date)
+        let normalizedDate = calendar.startOfDay(for: date)
+        if !selectedDate.isInSameMonth(as: normalizedDate, calendar: calendar) {
+            setCurrentMonth(to: normalizedDate)
         }
-        selectedDate = date
+        selectedDate = normalizedDate
         selectedDayComponents = Self.civilDayComponents(
-            from: date,
-            calendar: .current
+            from: normalizedDate,
+            calendar: calendar
         )
     }
     
     func setCurrentMonth(to month: Date) {
-        let start = month.startOfMonth
+        let start = month.startOfMonth(in: calendar)
         visibleMonthComponents = Self.civilMonthComponents(
             from: start,
-            calendar: .current
+            calendar: calendar
         )
         
         if let idx = months.firstIndex(where: { $0.monthDate == start }) {
@@ -210,7 +234,9 @@ extension CalendarViewModel {
     
     private func loadPreviousIfNeeded(viewingIndex index: Int) {
         guard months.indices.contains(index), index <= 1, let first = months.first?.monthDate else { return }
-        let prev = first.addingMonths(-1).startOfMonth
+        let prev = first
+            .addingMonths(-1, calendar: calendar)
+            .startOfMonth(in: calendar)
         let monthDates = [prev] + months.map(\.monthDate)
         let keepingMonth = months[index].monthDate
         rebuildMonths(monthDates: monthDates, keepingMonth: keepingMonth)
@@ -218,18 +244,20 @@ extension CalendarViewModel {
     
     private func loadNextIfNeeded(viewingIndex index: Int) {
         guard months.indices.contains(index), index >= months.count - 2, let last = months.last?.monthDate else { return }
-        let next = last.addingMonths(+1).startOfMonth
+        let next = last
+            .addingMonths(+1, calendar: calendar)
+            .startOfMonth(in: calendar)
         let monthDates = months.map(\.monthDate) + [next]
         let keepingMonth = months[index].monthDate
         rebuildMonths(monthDates: monthDates, keepingMonth: keepingMonth)
     }
     
     private func bootstrapMonths(anchor: Date) {
-        let anchorMonth = anchor.startOfMonth
+        let anchorMonth = anchor.startOfMonth(in: calendar)
         let monthDates = [
-            anchorMonth.addingMonths(-1),
+            anchorMonth.addingMonths(-1, calendar: calendar),
             anchorMonth,
-            anchorMonth.addingMonths(1)
+            anchorMonth.addingMonths(1, calendar: calendar)
         ]
         rebuildMonths(monthDates: monthDates, keepingMonth: anchorMonth)
     }
@@ -250,6 +278,7 @@ extension CalendarViewModel {
             keepingMonth: keepingMonth,
             previousCurrentIndex: currentIndex,
             allEvents: eventRepository.allEvents(),
+            calendar: calendar,
             buildContext: { bounds, userEvents in
                 self.buildMonthComputationContext(bounds: bounds, userEvents: userEvents)
             },
@@ -262,7 +291,7 @@ extension CalendarViewModel {
         if months.indices.contains(currentIndex) {
             visibleMonthComponents = Self.civilMonthComponents(
                 from: months[currentIndex].monthDate,
-                calendar: .current
+                calendar: calendar
             )
         }
     }
@@ -272,7 +301,9 @@ extension CalendarViewModel {
         userEvents: [UserEvent]
     ) -> MonthComputationContext {
         let settings = settingsRepository?.load() ?? .init()
-        let pillDates = Set(eventRepository.events(of: .pill).map { $0.date.startOfDay })
+        let pillDates = Set(eventRepository.events(of: .pill).map {
+            calendar.startOfDay(for: $0.date)
+        })
         let allPeriodEvents = eventRepository.events(of: .period)
         return BuildCalendarMonthComputationContextUseCase.execute(
             bounds: bounds,
@@ -282,7 +313,7 @@ extension CalendarViewModel {
             pillCycles: eventRepository.pillCycles(),
             settings: settings,
             today: referenceToday,
-            calendar: .current
+            calendar: calendar
         )
     }
     
@@ -290,7 +321,8 @@ extension CalendarViewModel {
         BuildCalendarMonthInfoUseCase.execute(
             month: month,
             userEvents: userEvents,
-            context: context
+            context: context,
+            calendar: calendar
         )
     }
     
@@ -342,7 +374,9 @@ extension CalendarViewModel {
     func primaryStatus(for date: Date) -> CalendarPrimaryStatus {
         let settings = settingsRepository?.load() ?? .init()
         let periodDates = eventRepository.events(of: .period).map(\.date)
-        let pillDates = Set(eventRepository.events(of: .pill).map { $0.date.startOfDay })
+        let pillDates = Set(eventRepository.events(of: .pill).map {
+            calendar.startOfDay(for: $0.date)
+        })
         let snapshot = DayInfoCardStatusUseCase.primaryStatus(
             for: date,
             today: referenceToday,
@@ -350,14 +384,16 @@ extension CalendarViewModel {
             pillDates: pillDates,
             pillCycles: eventRepository.pillCycles(),
             settings: settings,
-            calendar: .current
+            calendar: calendar
         )
         return CalendarStatusMapper.map(snapshot)
     }
     
     func secondaryStatus(for date: Date) -> CalendarSecondaryStatus {
         let settings = settingsRepository?.load() ?? .init()
-        let pillDates = Set(eventRepository.events(of: .pill).map { $0.date.startOfDay })
+        let pillDates = Set(eventRepository.events(of: .pill).map {
+            calendar.startOfDay(for: $0.date)
+        })
         let dayEvents = months
             .flatMap(\.days)
             .first(where: { $0.date.isSameDay(as: date) })?
@@ -371,14 +407,17 @@ extension CalendarViewModel {
             pillDates: pillDates,
             pillCycles: eventRepository.pillCycles(),
             settings: settings,
-            calendar: .current
+            calendar: calendar
         )
         return CalendarStatusMapper.map(snapshot)
     }
     
     private func actualPeriodSummaries() -> [PeriodSummary] {
         let events = eventRepository.events(of: .period)
-        return PeriodSummaryBuilder.build(from: events.map { $0.date })
+        return PeriodSummaryBuilder.build(
+            from: events.map { $0.date },
+            calendar: calendar
+        )
     }
     
 }

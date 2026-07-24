@@ -41,16 +41,19 @@ struct PillCycleProjection {
     var cycleLength: Int { pillCount + breakDays }
 
     func activeDateRange(calendar: Calendar = .current) -> DateInterval? {
-        guard let endExclusive = calendar.date(
+        let normalizedStart = calendar.startOfDay(for: cycleStart)
+        let normalizedLastIntake = calendar.startOfDay(for: projectedLastIntakeDate)
+        guard let rawEndExclusive = calendar.date(
             byAdding: .day,
             value: max(breakDays, 0) + 1,
-            to: projectedLastIntakeDate.startOfDay
-        )?.startOfDay,
-              endExclusive > cycleStart.startOfDay else {
+            to: normalizedLastIntake
+        ) else {
             return nil
         }
+        let endExclusive = calendar.startOfDay(for: rawEndExclusive)
+        guard endExclusive > normalizedStart else { return nil }
         return DateInterval(
-            start: cycleStart.startOfDay,
+            start: normalizedStart,
             end: endExclusive
         )
     }
@@ -65,9 +68,11 @@ enum PeriodForecastCalculator {
         pillCycles: [PillCycleInfo] = [],
         calendar: Calendar = .current
     ) -> PeriodPredictionContext? {
-        let normalizedTarget = target.startOfDay
+        let normalizedTarget = calendar.startOfDay(for: target)
         let predictedLength = predictedPeriodLengthDays(settings: settings, periodSummaries: periodSummaries)
-        let latestActualStart = periodSummaries.map(\.start).max()?.startOfDay
+        let latestActualStart = periodSummaries
+            .map { calendar.startOfDay(for: $0.start) }
+            .max()
         let actualCycleLength = cycleLengthDays(settings: settings, periodSummaries: periodSummaries)
         
         if let projection = activePillCycleProjection(
@@ -77,15 +82,19 @@ enum PeriodForecastCalculator {
             on: normalizedTarget,
             calendar: calendar
         ),
-           normalizedTarget >= projection.cycleStart.startOfDay,
+           normalizedTarget >= calendar.startOfDay(for: projection.cycleStart),
            let latestActualStart,
-           latestActualStart >= projection.cycleStart.startOfDay,
+           latestActualStart >= calendar.startOfDay(for: projection.cycleStart),
            normalizedTarget >= latestActualStart,
            let actualCycleLength,
            actualCycleLength > 0,
-           let firstExpectedFromActual = calendar.date(byAdding: .day, value: actualCycleLength, to: latestActualStart)?.startOfDay {
+           let rawFirstExpectedFromActual = calendar.date(
+            byAdding: .day,
+            value: actualCycleLength,
+            to: latestActualStart
+           ) {
             return .init(
-                firstExpected: firstExpectedFromActual,
+                firstExpected: calendar.startOfDay(for: rawFirstExpectedFromActual),
                 cycleLength: actualCycleLength,
                 predictedLength: predictedLength
             )
@@ -109,11 +118,19 @@ enum PeriodForecastCalculator {
         guard let latestActualStart,
               let actualCycleLength,
               actualCycleLength > 0,
-              let firstExpected = calendar.date(byAdding: .day, value: actualCycleLength, to: latestActualStart)?.startOfDay else {
+              let rawFirstExpected = calendar.date(
+                byAdding: .day,
+                value: actualCycleLength,
+                to: latestActualStart
+              ) else {
             return nil
         }
         
-        return .init(firstExpected: firstExpected, cycleLength: actualCycleLength, predictedLength: predictedLength)
+        return .init(
+            firstExpected: calendar.startOfDay(for: rawFirstExpected),
+            cycleLength: actualCycleLength,
+            predictedLength: predictedLength
+        )
     }
     
     static func expectedStartDate(
@@ -122,39 +139,45 @@ enum PeriodForecastCalculator {
         context: PeriodPredictionContext,
         calendar: Calendar = .current
     ) -> Date? {
-        let normalizedTarget = target.startOfDay
-        let normalizedToday = today.startOfDay
+        let normalizedTarget = calendar.startOfDay(for: target)
+        let normalizedToday = calendar.startOfDay(for: today)
+        let normalizedFirstExpected = calendar.startOfDay(for: context.firstExpected)
         
-        guard context.cycleLength > 0 else { return context.firstExpected.startOfDay }
-        if normalizedTarget <= context.firstExpected.startOfDay {
-            return context.firstExpected.startOfDay
+        guard context.cycleLength > 0 else { return normalizedFirstExpected }
+        if normalizedTarget <= normalizedFirstExpected {
+            return normalizedFirstExpected
         }
         
-        let daysFromFirst = calendar.dateComponents([.day], from: context.firstExpected.startOfDay, to: normalizedTarget).day ?? 0
+        let daysFromFirst = calendar.dateComponents(
+            [.day],
+            from: normalizedFirstExpected,
+            to: normalizedTarget
+        ).day ?? 0
         let recurringCycleLength = context.recurringCycleLength
         let cycleOffset = daysFromFirst / recurringCycleLength
         guard let cycleStart = calendar.date(
             byAdding: .day,
             value: cycleOffset * recurringCycleLength,
-            to: context.firstExpected.startOfDay
-        )?.startOfDay else {
-            return context.firstExpected.startOfDay
+            to: normalizedFirstExpected
+        ) else {
+            return normalizedFirstExpected
         }
+        let normalizedCycleStart = calendar.startOfDay(for: cycleStart)
         
         let cycleEndExclusive = calendar.date(
             byAdding: .day,
             value: max(context.predictedLength, 1),
-            to: cycleStart.startOfDay
-        ) ?? cycleStart
+            to: normalizedCycleStart
+        ) ?? normalizedCycleStart
         
         if normalizedTarget > normalizedToday && normalizedTarget >= cycleEndExclusive {
             return calendar.date(
                 byAdding: .day,
                 value: recurringCycleLength,
-                to: cycleStart
-            )?.startOfDay
+                to: normalizedCycleStart
+            ).map { calendar.startOfDay(for: $0) }
         }
-        return cycleStart
+        return normalizedCycleStart
     }
 
     static func delayedPeriodStart(
@@ -163,20 +186,20 @@ enum PeriodForecastCalculator {
         predictedLength: Int,
         calendar: Calendar = .current
     ) -> Date? {
-        let target = date.startOfDay
+        let target = calendar.startOfDay(for: date)
         let length = max(predictedLength, 1)
 
         return predictedStarts
-            .map(\.startOfDay)
+            .map { calendar.startOfDay(for: $0) }
             .filter { start in
                 guard let endExclusive = calendar.date(
                     byAdding: .day,
                     value: length,
                     to: start
-                )?.startOfDay else {
+                ) else {
                     return false
                 }
-                return endExclusive <= target
+                return calendar.startOfDay(for: endExclusive) <= target
             }
             .max()
     }
@@ -186,16 +209,24 @@ enum PeriodForecastCalculator {
         calendar: Calendar = .current
     ) -> Date? {
         guard pillDates.isEmpty == false else { return nil }
-        let sorted = pillDates.map(\.startOfDay).sorted()
+        let normalizedPillDates = Set(
+            pillDates.map { calendar.startOfDay(for: $0) }
+        )
+        let sorted = normalizedPillDates.sorted()
         for date in sorted.reversed() {
-            guard let previous = calendar.date(byAdding: .day, value: -1, to: date.startOfDay)?.startOfDay else {
+            guard let rawPrevious = calendar.date(
+                byAdding: .day,
+                value: -1,
+                to: date
+            ) else {
                 continue
             }
-            if pillDates.contains(previous) == false {
-                return date.startOfDay
+            let previous = calendar.startOfDay(for: rawPrevious)
+            if normalizedPillDates.contains(previous) == false {
+                return date
             }
         }
-        return sorted.first?.startOfDay
+        return sorted.first
     }
     
     static func pillSequenceMap(
@@ -227,10 +258,11 @@ enum PeriodForecastCalculator {
             guard let cycle = pillCycles
                 .filter({ $0.status == .active })
                 .max(by: {
-                    ($0.startDate ?? .distantPast) < ($1.startDate ?? .distantPast)
+                    ($0.startDate(calendar: calendar) ?? .distantPast)
+                        < ($1.startDate(calendar: calendar) ?? .distantPast)
                 }),
-                  let cycleStart = cycle.startDate,
-                  let lastIntake = cycle.lastIntakeDate,
+                  let cycleStart = cycle.startDate(calendar: calendar),
+                  let lastIntake = cycle.lastIntakeDate(calendar: calendar),
                   let storedPillCount = cycle.plannedPillCount,
                   storedPillCount > 0 else {
                 return nil
@@ -247,7 +279,8 @@ enum PeriodForecastCalculator {
                     byAdding: .day,
                     value: remaining,
                     to: lastIntake
-                )?.startOfDay ?? lastIntake
+                ).map { calendar.startOfDay(for: $0) }
+                    ?? calendar.startOfDay(for: lastIntake)
             }
 
             return PillCycleProjection(
@@ -277,11 +310,11 @@ enum PeriodForecastCalculator {
             }
             
             let intakeCount = min(latestCycle.count, pillCount)
-            let projectedLast = lastIntake.startOfDay
+            let projectedLast = calendar.startOfDay(for: lastIntake)
             
             return PillCycleProjection(
-                cycleStart: cycleStart.startOfDay,
-                lastIntakeDate: lastIntake.startOfDay,
+                cycleStart: calendar.startOfDay(for: cycleStart),
+                lastIntakeDate: calendar.startOfDay(for: lastIntake),
                 intakeCount: intakeCount,
                 projectedLastIntakeDate: projectedLast,
                 pillCount: pillCount,
@@ -305,15 +338,15 @@ enum PeriodForecastCalculator {
         guard let projectedLast = calendar.date(
             byAdding: .day,
             value: remaining,
-            to: lastIntake.startOfDay
-        )?.startOfDay else {
+            to: calendar.startOfDay(for: lastIntake)
+        ) else {
             return nil
         }
         return PillCycleProjection(
-            cycleStart: cycleStart.startOfDay,
-            lastIntakeDate: lastIntake.startOfDay,
+            cycleStart: calendar.startOfDay(for: cycleStart),
+            lastIntakeDate: calendar.startOfDay(for: lastIntake),
             intakeCount: intakeCount,
-            projectedLastIntakeDate: projectedLast,
+            projectedLastIntakeDate: calendar.startOfDay(for: projectedLast),
             pillCount: pillCount,
             breakDays: breakDays
         )
@@ -366,7 +399,10 @@ enum PeriodForecastCalculator {
         estimatedCycleLength: Int?,
         calendar: Calendar = .current
     ) {
-        let actualPeriodDates = actualPeriodDateSet(from: actualPeriodSummaries)
+        let actualPeriodDates = actualPeriodDateSet(
+            from: actualPeriodSummaries,
+            calendar: calendar
+        )
         guard actualPeriodDates.isEmpty == false, predictedEventsByDay.isEmpty == false else { return }
 
         let runs = predictedPeriodRuns(from: predictedEventsByDay, calendar: calendar)
@@ -378,7 +414,9 @@ enum PeriodForecastCalculator {
             runStartDatesToRemove.insert(run.start)
         }
 
-        let actualStarts = actualPeriodSummaries.map { $0.start.startOfDay }.sorted()
+        let actualStarts = actualPeriodSummaries
+            .map { calendar.startOfDay(for: $0.start) }
+            .sorted()
         if actualStarts.isEmpty == false {
             let cycle = max(estimatedCycleLength ?? 0, 0)
             let toleranceDays = max(min(cycle > 0 ? cycle / 2 : 7, 14), 3)
@@ -431,16 +469,29 @@ enum PeriodForecastCalculator {
         guard rawStarts.isEmpty == false else { return [] }
 
         var predictedEventsByDay: [Date: [EventType]] = [:]
-        let normalizedToday = today.startOfDay
+        let normalizedToday = calendar.startOfDay(for: today)
         let length = max(predictedLength, 1)
 
-        for start in rawStarts.map(\.startOfDay) {
-            guard let endExclusive = calendar.date(byAdding: .day, value: length, to: start)?.startOfDay else {
+        for rawStart in rawStarts {
+            let start = calendar.startOfDay(for: rawStart)
+            guard let rawEndExclusive = calendar.date(
+                byAdding: .day,
+                value: length,
+                to: start
+            ) else {
                 continue
             }
-            for day in Date.dates(from: start, toExclusive: endExclusive) {
+            let endExclusive = calendar.startOfDay(for: rawEndExclusive)
+            for day in Date.dates(
+                from: start,
+                toExclusive: endExclusive,
+                calendar: calendar
+            ) {
                 let type: EventType = day < normalizedToday ? .delayed : .period
-                predictedEventsByDay[day.startOfDay, default: []].append(type)
+                predictedEventsByDay[
+                    calendar.startOfDay(for: day),
+                    default: []
+                ].append(type)
             }
         }
 
@@ -476,7 +527,7 @@ enum PeriodForecastCalculator {
         pillCycles: [PillCycleInfo] = [],
         calendar: Calendar = .current
     ) -> [Date] {
-        let normalizedToday = today.startOfDay
+        let normalizedToday = calendar.startOfDay(for: today)
         guard let context = predictionContext(
             target: normalizedToday,
             settings: settings,
@@ -509,11 +560,14 @@ enum PeriodForecastCalculator {
             guard let endExclusive = calendar.date(
                 byAdding: .day,
                 value: max(context.predictedLength, 1),
-                to: start.startOfDay
-            )?.startOfDay else {
+                to: calendar.startOfDay(for: start)
+            ) else {
                 return false
             }
-            return endExclusive > rangeStart.startOfDay && start.startOfDay < rangeEndExclusive.startOfDay
+            return calendar.startOfDay(for: endExclusive)
+                > calendar.startOfDay(for: rangeStart)
+                && calendar.startOfDay(for: start)
+                < calendar.startOfDay(for: rangeEndExclusive)
         }
     }
     
@@ -538,9 +592,14 @@ enum PeriodForecastCalculator {
             return nil
         }
         guard target >= projection.cycleStart else { return nil }
-        guard let firstExpected = calendar.date(byAdding: .day, value: 3, to: projection.projectedLastIntakeDate)?.startOfDay else {
+        guard let rawFirstExpected = calendar.date(
+            byAdding: .day,
+            value: 3,
+            to: projection.projectedLastIntakeDate
+        ) else {
             return nil
         }
+        let firstExpected = calendar.startOfDay(for: rawFirstExpected)
         
         let futureCycleLength = max(
             settings.pill.pillCount + settings.pill.pillBreakDuration,
@@ -565,7 +624,7 @@ enum PeriodForecastCalculator {
             today: today,
             context: context,
             calendar: calendar
-        )?.startOfDay else {
+        ).map({ calendar.startOfDay(for: $0) }) else {
             return []
         }
         
@@ -575,8 +634,8 @@ enum PeriodForecastCalculator {
             byAdding: .day,
             value: -context.recurringCycleLength,
             to: currentOrContaining
-        )?.startOfDay {
-            rawStarts.append(previous)
+        ) {
+            rawStarts.append(calendar.startOfDay(for: previous))
         }
         rawStarts.append(cursor)
         
@@ -585,22 +644,26 @@ enum PeriodForecastCalculator {
             byAdding: .day,
             value: context.recurringCycleLength,
             to: cursor
-        )?.startOfDay {
-            if following >= rangeEndExclusive.startOfDay {
+        ) {
+            let normalizedFollowing = calendar.startOfDay(for: following)
+            if normalizedFollowing >= calendar.startOfDay(for: rangeEndExclusive) {
                 break
             }
-            rawStarts.append(following)
-            cursor = following
+            rawStarts.append(normalizedFollowing)
+            cursor = normalizedFollowing
         }
         return rawStarts.filter { start in
             guard let endExclusive = calendar.date(
                 byAdding: .day,
                 value: max(context.predictedLength, 1),
-                to: start.startOfDay
-            )?.startOfDay else {
+                to: calendar.startOfDay(for: start)
+            ) else {
                 return false
             }
-            return endExclusive > rangeStart.startOfDay && start.startOfDay < rangeEndExclusive.startOfDay
+            return calendar.startOfDay(for: endExclusive)
+                > calendar.startOfDay(for: rangeStart)
+                && calendar.startOfDay(for: start)
+                < calendar.startOfDay(for: rangeEndExclusive)
         }
     }
     
@@ -627,11 +690,18 @@ enum PeriodForecastCalculator {
         let dates: [Date]
     }
 
-    private static func actualPeriodDateSet(from summaries: [PeriodSummary]) -> Set<Date> {
+    private static func actualPeriodDateSet(
+        from summaries: [PeriodSummary],
+        calendar: Calendar
+    ) -> Set<Date> {
         var dates: Set<Date> = []
         for summary in summaries {
-            for day in Date.dates(from: summary.start.startOfDay, to: summary.end.startOfDay) {
-                dates.insert(day.startOfDay)
+            for day in Date.dates(
+                from: calendar.startOfDay(for: summary.start),
+                to: calendar.startOfDay(for: summary.end),
+                calendar: calendar
+            ) {
+                dates.insert(calendar.startOfDay(for: day))
             }
         }
         return dates
@@ -642,7 +712,7 @@ enum PeriodForecastCalculator {
         calendar: Calendar
     ) -> [PredictedPeriodRun] {
         let predictedPeriodLikeDates = predictedEventsByDay.keys
-            .map(\.startOfDay)
+            .map { calendar.startOfDay(for: $0) }
             .filter { key in
                 guard let types = predictedEventsByDay[key] else { return false }
                 return types.contains(.period) || types.contains(.delayed)
@@ -687,28 +757,46 @@ enum PeriodForecastCalculator {
         let lutealDays = 14
 
         for periodStart in removedRunStarts {
-            let ovulationDate = calendar.date(byAdding: .day, value: -lutealDays, to: periodStart)?.startOfDay
+            let ovulationDate = calendar.date(
+                byAdding: .day,
+                value: -lutealDays,
+                to: periodStart
+            ).map { calendar.startOfDay(for: $0) }
             if let ovulationDate,
                var ovulationTypes = predictedEventsByDay[ovulationDate] {
                 ovulationTypes.removeAll { $0 == .ovulation }
                 predictedEventsByDay[ovulationDate] = ovulationTypes
             }
 
-            if let fertileStart = ovulationDate.flatMap({ calendar.date(byAdding: .day, value: -5, to: $0) })?.startOfDay,
-               let fertileEnd = ovulationDate.flatMap({ calendar.date(byAdding: .day, value: 1, to: $0) })?.startOfDay {
-                for day in Date.dates(from: fertileStart, to: fertileEnd) {
-                    guard var types = predictedEventsByDay[day.startOfDay] else { continue }
+            if let fertileStart = ovulationDate
+                .flatMap({ calendar.date(byAdding: .day, value: -5, to: $0) })
+                .map({ calendar.startOfDay(for: $0) }),
+               let fertileEnd = ovulationDate
+                .flatMap({ calendar.date(byAdding: .day, value: 1, to: $0) })
+                .map({ calendar.startOfDay(for: $0) }) {
+                for day in Date.dates(
+                    from: fertileStart,
+                    to: fertileEnd,
+                    calendar: calendar
+                ) {
+                    let normalizedDay = calendar.startOfDay(for: day)
+                    guard var types = predictedEventsByDay[normalizedDay] else { continue }
                     types.removeAll { $0 == .fertile }
-                    predictedEventsByDay[day.startOfDay] = types
+                    predictedEventsByDay[normalizedDay] = types
                 }
             }
 
             guard cycleLength > 0,
-                  let nextPeriodStart = calendar.date(byAdding: .day, value: cycleLength, to: periodStart)?.startOfDay else {
+                  let rawNextPeriodStart = calendar.date(
+                    byAdding: .day,
+                    value: cycleLength,
+                    to: periodStart
+                  ) else {
                 continue
             }
+            let nextPeriodStart = calendar.startOfDay(for: rawNextPeriodStart)
             for date in Array(predictedEventsByDay.keys) {
-                let day = date.startOfDay
+                let day = calendar.startOfDay(for: date)
                 guard day >= periodStart && day < nextPeriodStart else { continue }
                 guard var types = predictedEventsByDay[date] else { continue }
                 let beforeCount = types.count
