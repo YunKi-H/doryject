@@ -247,7 +247,7 @@ final class UserNotificationScheduler: NotificationScheduler {
             return nil
         }
 
-        return PeriodForecastCalculator.predictedPeriodStarts(
+        let predictedStarts = PeriodForecastCalculator.predictedPeriodStarts(
             rangeStart: rangeStart,
             rangeEndExclusive: rangeEndExclusive,
             today: today,
@@ -256,8 +256,13 @@ final class UserNotificationScheduler: NotificationScheduler {
             pillDates: data.pillDates,
             calendar: calendar
         )
-        .filter { $0 <= today.startOfDay }
-        .last
+
+        return PeriodForecastCalculator.delayedPeriodStart(
+            for: today,
+            predictedStarts: predictedStarts,
+            predictedLength: data.context.predictedLength,
+            calendar: calendar
+        )
     }
 
     private func periodPredictionData(

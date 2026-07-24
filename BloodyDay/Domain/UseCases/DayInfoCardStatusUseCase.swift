@@ -69,7 +69,13 @@ enum DayInfoCardStatusUseCase {
             return .ongoing(day: max(dayIndex, 1))
         }
 
-        if target <= normalizedToday, let delayedStart = predictedStarts.last(where: { $0.startOfDay <= target }) {
+        if target <= normalizedToday,
+           let delayedStart = PeriodForecastCalculator.delayedPeriodStart(
+            for: target,
+            predictedStarts: predictedStarts,
+            predictedLength: predictedLength,
+            calendar: calendar
+           ) {
             let delayedDays = calendar.dateComponents([.day], from: delayedStart.startOfDay, to: target).day ?? 0
             return .delayed(days: max(delayedDays, 0))
         }

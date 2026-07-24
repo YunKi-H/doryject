@@ -30,6 +30,34 @@ struct PeriodForecastCalculatorTests {
         
         #expect(resolved == makeDate(2026, 3, 10))
     }
+
+    @Test
+    func delayedPeriodStart_returnsNilDuringPredictedPeriod() {
+        let predictedStart = makeDate(2026, 2, 10)
+
+        let delayedStart = PeriodForecastCalculator.delayedPeriodStart(
+            for: makeDate(2026, 2, 14),
+            predictedStarts: [predictedStart],
+            predictedLength: 5,
+            calendar: calendar
+        )
+
+        #expect(delayedStart == nil)
+    }
+
+    @Test
+    func delayedPeriodStart_returnsExpectedStartAfterPredictedPeriodEnds() {
+        let predictedStart = makeDate(2026, 2, 10)
+
+        let delayedStart = PeriodForecastCalculator.delayedPeriodStart(
+            for: makeDate(2026, 2, 15),
+            predictedStarts: [predictedStart],
+            predictedLength: 5,
+            calendar: calendar
+        )
+
+        #expect(delayedStart == predictedStart)
+    }
     
     @Test
     func latestPillCycleProjection_autoRecordOnUsesActualLastIntakeDate() {

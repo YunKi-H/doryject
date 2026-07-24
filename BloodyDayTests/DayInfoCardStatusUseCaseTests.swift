@@ -78,6 +78,38 @@ struct DayInfoCardStatusUseCaseTests {
         )
         #expect(delayedAfterEnd == .delayed(days: 6))
     }
+
+    @Test
+    func primaryStatus_changesFromOngoingToDelayedAfterPredictedPeriodEnds() {
+        let periodStart = makeDate(2026, 1, 1)
+        let periodDates = (0..<5).map { addDays(periodStart, $0) }
+        var settings = UserSettings()
+        settings.period.autoCyclePredictionEnabled = false
+        settings.period.averageCycleDays = 28
+        settings.period.averagePeriodDays = 5
+
+        let lastPredictedPeriodDate = makeDate(2026, 2, 2)
+        let ongoing = DayInfoCardStatusUseCase.primaryStatus(
+            for: lastPredictedPeriodDate,
+            today: lastPredictedPeriodDate,
+            periodDates: periodDates,
+            pillDates: [],
+            settings: settings,
+            calendar: calendar
+        )
+        let firstDelayedDate = makeDate(2026, 2, 3)
+        let delayed = DayInfoCardStatusUseCase.primaryStatus(
+            for: firstDelayedDate,
+            today: firstDelayedDate,
+            periodDates: periodDates,
+            pillDates: [],
+            settings: settings,
+            calendar: calendar
+        )
+
+        #expect(ongoing == .ongoing(day: 5))
+        #expect(delayed == .delayed(days: 5))
+    }
     
     @Test
     func primaryStatus_hidesBeforeLatestActualPeriodStart() {

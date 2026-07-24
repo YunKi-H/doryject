@@ -114,6 +114,30 @@ enum PeriodForecastCalculator {
         }
         return cycleStart
     }
+
+    static func delayedPeriodStart(
+        for date: Date,
+        predictedStarts: [Date],
+        predictedLength: Int,
+        calendar: Calendar = .current
+    ) -> Date? {
+        let target = date.startOfDay
+        let length = max(predictedLength, 1)
+
+        return predictedStarts
+            .map(\.startOfDay)
+            .filter { start in
+                guard let endExclusive = calendar.date(
+                    byAdding: .day,
+                    value: length,
+                    to: start
+                )?.startOfDay else {
+                    return false
+                }
+                return endExclusive <= target
+            }
+            .max()
+    }
     
     static func mostRecentPillStart(
         from pillDates: Set<Date>,
