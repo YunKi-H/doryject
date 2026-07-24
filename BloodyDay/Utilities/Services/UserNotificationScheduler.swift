@@ -360,48 +360,30 @@ final class UserNotificationScheduler: NotificationScheduler {
         now: Date
     ) -> [Date] {
         guard count > 0 else { return [] }
-        guard let info = pillScheduleInfo(settings: settings, eventRepository: eventRepository) else { return [] }
-        
-        let today = now.startOfDay
-        let pillDates = Set(eventRepository.events(of: .pill).map { $0.date.startOfDay })
-        var reminders: [Date] = []
-        
-        func appendReminderIfNeeded(for day: Date) {
-            guard reminders.count < count else { return }
-            guard pillDates.contains(day.startOfDay) == false else { return }
-            guard let reminderDate = combineDate(day, time: time),
-                  reminderDate > now else { return }
-            reminders.append(reminderDate)
-        }
-        
-        var generatedDays: [Date] = []
-        guard var cycleStart = nextPillStartDate(
+        guard let projection = pillScheduleInfo(
             settings: settings,
-            eventRepository: eventRepository,
-            today: today
-        )?.startOfDay else {
+            eventRepository: eventRepository
+        ) else {
             return []
         }
-        
-        let maxCycleLoops = 8
-        var cycleLoop = 0
-        while generatedDays.count < (count * 3), cycleLoop < maxCycleLoops {
-            for intakeOffset in 0..<info.pillCount {
-                if let day = calendar.date(byAdding: .day, value: intakeOffset, to: cycleStart.startOfDay),
-                   day.startOfDay >= today {
-                    generatedDays.append(day.startOfDay)
-                }
+
+        let intakeDates = PillReminderScheduleCalculator.upcomingIntakeDates(
+            projection: projection,
+            from: now,
+            count: count + 1,
+            calendar: calendar
+        )
+
+        var reminders: [Date] = []
+        for day in intakeDates {
+            guard let reminderDate = combineDate(day, time: time),
+                  reminderDate > now else {
+                continue
             }
-            guard let nextCycle = calendar.date(byAdding: .day, value: info.cycleLength, to: cycleStart.startOfDay) else {
+            reminders.append(reminderDate)
+            if reminders.count == count {
                 break
             }
-            cycleStart = nextCycle.startOfDay
-            cycleLoop += 1
-        }
-        
-        for day in generatedDays.sorted() {
-            appendReminderIfNeeded(for: day)
-            if reminders.count >= count { break }
         }
         return reminders
     }
