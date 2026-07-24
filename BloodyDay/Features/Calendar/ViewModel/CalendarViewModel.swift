@@ -10,28 +10,43 @@ import Observation
 
 @Observable
 final class CalendarViewModel {
-    var selectedDate: Date = .now
+    var selectedDate: Date
     
     var months: [MonthInfo] = []
     var currentIndex: Int = 0
+    private(set) var referenceToday: Date
     
     private let eventRepository: EventRepository
     private let settingsRepository: SettingsRepository?
     
-    init(eventRepository: EventRepository, settingsRepository: SettingsRepository? = nil) {
+    init(
+        eventRepository: EventRepository,
+        settingsRepository: SettingsRepository? = nil,
+        now: Date = .now
+    ) {
+        let normalizedToday = now.startOfDay
+        self.selectedDate = normalizedToday
+        self.referenceToday = normalizedToday
         self.eventRepository = eventRepository
         self.settingsRepository = settingsRepository
         
         bootstrapMonths(anchor: selectedDate)
     }
     
-    func refresh() {
+    func refresh(now: Date = .now) {
+        referenceToday = now.startOfDay
         if months.isEmpty {
             bootstrapMonths(anchor: selectedDate)
             return
         }
         let keepingMonth = months.indices.contains(currentIndex) ? months[currentIndex].monthDate : selectedDate.startOfMonth
         recomputeLoadedMonths(keepingMonth: keepingMonth)
+    }
+
+    func refreshIfReferenceDayChanged(now: Date = .now) {
+        let normalizedToday = now.startOfDay
+        guard normalizedToday != referenceToday else { return }
+        refresh(now: normalizedToday)
     }
     
     func moveSelectedDate(by days: Int) {
@@ -223,7 +238,7 @@ extension CalendarViewModel {
             allPillDates: pillDates,
             pillCycles: eventRepository.pillCycles(),
             settings: settings,
-            today: Date(),
+            today: referenceToday,
             calendar: .current
         )
     }
@@ -249,7 +264,7 @@ extension CalendarViewModel {
         let pillDates = Set(eventRepository.events(of: .pill).map { $0.date.startOfDay })
         let snapshot = DayInfoCardStatusUseCase.primaryStatus(
             for: date,
-            today: Date(),
+            today: referenceToday,
             periodDates: periodDates,
             pillDates: pillDates,
             pillCycles: eventRepository.pillCycles(),

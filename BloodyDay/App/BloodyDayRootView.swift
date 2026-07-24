@@ -154,6 +154,12 @@ struct BloodyDayRootView: View {
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
                 refreshAppStateAfterExternalChanges()
             }
+            .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged)) { _ in
+                calendarViewModel?.refreshIfReferenceDayChanged()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in
+                calendarViewModel?.refreshIfReferenceDayChanged()
+            }
         }
         .preferredColorScheme(preferredColorScheme)
         .onOpenURL { url in
