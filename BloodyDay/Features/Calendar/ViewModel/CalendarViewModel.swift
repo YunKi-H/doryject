@@ -19,6 +19,7 @@ final class CalendarViewModel {
     private let eventRepository: EventRepository
     private let settingsRepository: SettingsRepository?
     private var calendar: Calendar
+    private var computationSnapshot: CalendarComputationSnapshot
     private var selectedDayComponents: DateComponents
     private var visibleMonthComponents: DateComponents
     
@@ -42,12 +43,19 @@ final class CalendarViewModel {
         self.eventRepository = eventRepository
         self.settingsRepository = settingsRepository
         self.calendar = calendar
+        self.computationSnapshot = Self.makeComputationSnapshot(
+            eventRepository: eventRepository,
+            settingsRepository: settingsRepository,
+            today: normalizedToday,
+            calendar: calendar
+        )
         
         bootstrapMonths(anchor: selectedDate)
     }
     
     func refresh(now: Date = .now) {
         referenceToday = calendar.startOfDay(for: now)
+        reloadComputationSnapshot()
         if months.isEmpty {
             bootstrapMonths(anchor: selectedDate)
             return
@@ -71,6 +79,7 @@ final class CalendarViewModel {
         let preservedVisibleMonthComponents = visibleMonthComponents
         self.calendar = calendar
         referenceToday = calendar.startOfDay(for: now)
+        reloadComputationSnapshot()
         selectedDate = Self.date(
             from: selectedDayComponents,
             calendar: calendar
@@ -89,10 +98,11 @@ final class CalendarViewModel {
     }
     
     func toggleStatesForSelectedDate() -> (period: Bool, pill: Bool, love: Bool) {
-        (
-            isEventOnSelectedDate(.period),
-            isEventOnSelectedDate(.pill),
-            isEventOnSelectedDate(.love)
+        let target = calendar.startOfDay(for: selectedDate)
+        return (
+            computationSnapshot.dates(of: .period).contains(target),
+            computationSnapshot.dates(of: .pill).contains(target),
+            computationSnapshot.dates(of: .love).contains(target)
         )
     }
 }
@@ -101,25 +111,23 @@ final class CalendarViewModel {
 extension CalendarViewModel {
     func isEventOnSelectedDate(_ type: EventType) -> Bool {
         let target = calendar.startOfDay(for: selectedDate)
-        return eventRepository.events(of: type).contains {
-            calendar.startOfDay(for: $0.date) == target
-        }
+        return computationSnapshot.dates(of: type).contains(target)
     }
     
     func setEvent(_ type: EventType, enabled: Bool) {
         let date = calendar.startOfDay(for: selectedDate)
-        let settings = settingsRepository?.load() ?? .init()
         let plan = CalendarEventTogglePolicyUseCase.mutationPlan(
             type: type,
             enabled: enabled,
             selectedDate: date,
-            existingDatesByType: existingEventDatesByType(),
-            settings: settings,
-            pillCycles: eventRepository.pillCycles(),
+            existingDatesByType: computationSnapshot.eventDatesByType,
+            settings: computationSnapshot.settings,
+            pillCycles: computationSnapshot.pillCycles,
             calendar: calendar
         )
         guard plan.isEmpty == false else { return }
         applyMutationPlan(plan)
+        reloadComputationSnapshot()
         let keepingMonth = months.indices.contains(currentIndex)
             ? months[currentIndex].monthDate
             : date.startOfMonth(in: calendar)
@@ -127,55 +135,32 @@ extension CalendarViewModel {
     }
     
     func pillDisableConfirmationPlanForSelectedDate() -> PillDisableConfirmationPlan? {
-        guard let settings = settingsRepository?.load() else {
+        guard settingsRepository != nil else {
             return nil
         }
-        let pillDates = Set(eventRepository.events(of: .pill).map {
-            calendar.startOfDay(for: $0.date)
-        })
         return CalendarEventTogglePolicyUseCase.pillDisableConfirmationPlan(
             selectedDate: selectedDate,
-            pillDates: pillDates,
-            settings: settings,
-            pillCycles: eventRepository.pillCycles(),
+            pillDates: computationSnapshot.dates(of: .pill),
+            settings: computationSnapshot.settings,
+            pillCycles: computationSnapshot.pillCycles,
             calendar: calendar
         )
     }
     
     func deletePillEvents(on dates: [Date]) {
         applyMutationPlan(.init(deletions: [CalendarEventMutation(type: .pill, dates: dates)]))
+        reloadComputationSnapshot()
         let keepingMonth = months.indices.contains(currentIndex)
             ? months[currentIndex].monthDate
             : selectedDate.startOfMonth(in: calendar)
         recomputeLoadedMonths(keepingMonth: keepingMonth)
     }
     
-    private func existingEventDatesByType() -> [EventType: Set<Date>] {
-        let supportedTypes: [EventType] = [.period, .pill, .love, .ovulation, .fertile, .delayed]
-        return Dictionary(uniqueKeysWithValues: supportedTypes.map { type in
-            let dates = Set(eventRepository.events(of: type).map {
-                calendar.startOfDay(for: $0.date)
-            })
-            return (type, dates)
-        })
-    }
-    
     private func applyMutationPlan(_ plan: CalendarEventMutationPlan) {
-        var existingDatesCache: [EventType: Set<Date>] = [:]
-        
-        func existingDates(for type: EventType) -> Set<Date> {
-            if let cached = existingDatesCache[type] {
-                return cached
-            }
-            let loaded = Set(eventRepository.events(of: type).map {
-                calendar.startOfDay(for: $0.date)
-            })
-            existingDatesCache[type] = loaded
-            return loaded
-        }
+        var existingDatesCache = computationSnapshot.eventDatesByType
         
         for mutation in plan.deletions {
-            var typeDates = existingDates(for: mutation.type)
+            var typeDates = existingDatesCache[mutation.type] ?? []
             for date in mutation.dates.map({ calendar.startOfDay(for: $0) }) {
                 eventRepository.delete(type: mutation.type, on: date)
                 typeDates.remove(date)
@@ -184,7 +169,7 @@ extension CalendarViewModel {
         }
         
         for mutation in plan.additions {
-            var typeDates = existingDates(for: mutation.type)
+            var typeDates = existingDatesCache[mutation.type] ?? []
             for date in mutation.dates.map({ calendar.startOfDay(for: $0) }) {
                 guard typeDates.contains(date) == false else { continue }
                 eventRepository.save(
@@ -277,7 +262,7 @@ extension CalendarViewModel {
             monthDates: monthDates,
             keepingMonth: keepingMonth,
             previousCurrentIndex: currentIndex,
-            allEvents: eventRepository.allEvents(),
+            allEvents: computationSnapshot.allEvents,
             calendar: calendar,
             buildContext: { bounds, userEvents in
                 self.buildMonthComputationContext(bounds: bounds, userEvents: userEvents)
@@ -300,19 +285,14 @@ extension CalendarViewModel {
         bounds: (start: Date, endExclusive: Date),
         userEvents: [UserEvent]
     ) -> MonthComputationContext {
-        let settings = settingsRepository?.load() ?? .init()
-        let pillDates = Set(eventRepository.events(of: .pill).map {
-            calendar.startOfDay(for: $0.date)
-        })
-        let allPeriodEvents = eventRepository.events(of: .period)
         return BuildCalendarMonthComputationContextUseCase.execute(
             bounds: bounds,
             userEvents: userEvents,
-            allPeriodEvents: allPeriodEvents,
-            allPillDates: pillDates,
-            pillCycles: eventRepository.pillCycles(),
-            settings: settings,
-            today: referenceToday,
+            allPeriodEvents: computationSnapshot.events(of: .period),
+            allPillDates: computationSnapshot.dates(of: .pill),
+            pillCycles: computationSnapshot.pillCycles,
+            settings: computationSnapshot.settings,
+            today: computationSnapshot.today,
             calendar: calendar
         )
     }
@@ -326,8 +306,28 @@ extension CalendarViewModel {
         )
     }
     
-    private var isPillEnabled: Bool {
-        settingsRepository?.load().pill.pillEnabled == true
+    private func reloadComputationSnapshot() {
+        computationSnapshot = Self.makeComputationSnapshot(
+            eventRepository: eventRepository,
+            settingsRepository: settingsRepository,
+            today: referenceToday,
+            calendar: calendar
+        )
+    }
+
+    private static func makeComputationSnapshot(
+        eventRepository: EventRepository,
+        settingsRepository: SettingsRepository?,
+        today: Date,
+        calendar: Calendar
+    ) -> CalendarComputationSnapshot {
+        CalendarComputationSnapshot(
+            allEvents: eventRepository.allEvents(),
+            pillCycles: eventRepository.pillCycles(),
+            settings: settingsRepository?.load() ?? .init(),
+            today: today,
+            calendar: calendar
+        )
     }
 
     private static func civilDayComponents(
@@ -372,54 +372,38 @@ extension CalendarViewModel {
 // DayInfoCard
 extension CalendarViewModel {
     func primaryStatus(for date: Date) -> CalendarPrimaryStatus {
-        let settings = settingsRepository?.load() ?? .init()
-        let periodDates = eventRepository.events(of: .period).map(\.date)
-        let pillDates = Set(eventRepository.events(of: .pill).map {
-            calendar.startOfDay(for: $0.date)
-        })
         let snapshot = DayInfoCardStatusUseCase.primaryStatus(
             for: date,
-            today: referenceToday,
-            periodDates: periodDates,
-            pillDates: pillDates,
-            pillCycles: eventRepository.pillCycles(),
-            settings: settings,
+            today: computationSnapshot.today,
+            periodDates: computationSnapshot.events(of: .period).map(\.date),
+            pillDates: computationSnapshot.dates(of: .pill),
+            pillCycles: computationSnapshot.pillCycles,
+            settings: computationSnapshot.settings,
             calendar: calendar
         )
         return CalendarStatusMapper.map(snapshot)
     }
     
     func secondaryStatus(for date: Date) -> CalendarSecondaryStatus {
-        let settings = settingsRepository?.load() ?? .init()
-        let pillDates = Set(eventRepository.events(of: .pill).map {
-            calendar.startOfDay(for: $0.date)
-        })
         let dayEvents = months
             .flatMap(\.days)
-            .first(where: { $0.date.isSameDay(as: date) })?
+            .first(where: {
+                $0.date.isSameDay(as: date, calendar: calendar)
+            })?
             .events
         
         let snapshot = DayInfoCardStatusUseCase.secondaryStatus(
             for: date,
-            allEventsEmpty: eventRepository.allEvents().isEmpty,
-            isPillEnabled: isPillEnabled,
+            allEventsEmpty: computationSnapshot.allEvents.isEmpty,
+            isPillEnabled: computationSnapshot.settings.pill.pillEnabled,
             dayEvents: dayEvents,
-            pillDates: pillDates,
-            pillCycles: eventRepository.pillCycles(),
-            settings: settings,
+            pillDates: computationSnapshot.dates(of: .pill),
+            pillCycles: computationSnapshot.pillCycles,
+            settings: computationSnapshot.settings,
             calendar: calendar
         )
         return CalendarStatusMapper.map(snapshot)
     }
-    
-    private func actualPeriodSummaries() -> [PeriodSummary] {
-        let events = eventRepository.events(of: .period)
-        return PeriodSummaryBuilder.build(
-            from: events.map { $0.date },
-            calendar: calendar
-        )
-    }
-    
 }
 
 enum CalendarPrimaryStatus: Equatable {

@@ -1,5 +1,5 @@
 //
-//  CalendarViewModelDayChangeTests.swift
+//  CalendarViewModelRefreshTests.swift
 //  BloodyDayTests
 //
 //  Created by Yunki on 7/24/26.
@@ -9,7 +9,7 @@ import Foundation
 import Testing
 @testable import BloodyDay
 
-struct CalendarViewModelDayChangeTests {
+struct CalendarViewModelRefreshTests {
     private let calendar = Calendar.current
 
     @Test
@@ -78,6 +78,52 @@ struct CalendarViewModelDayChangeTests {
         )
     }
 
+    @Test
+    func statusReadsReuseCapturedComputationSnapshotUntilRefresh() {
+        let today = makeDate(2026, 7, 24)
+        let repository = CountingEventRepository(
+            events: [
+                UserEvent(
+                    date: today,
+                    type: .period,
+                    calendar: calendar
+                ),
+                UserEvent(
+                    date: today,
+                    type: .love,
+                    calendar: calendar
+                )
+            ]
+        )
+        let settingsRepository = CountingSettingsRepository()
+        let viewModel = CalendarViewModel(
+            eventRepository: repository,
+            settingsRepository: settingsRepository,
+            now: today,
+            calendar: calendar
+        )
+        let initialAllEventsCallCount = repository.allEventsCallCount
+        let initialPillCyclesCallCount = repository.pillCyclesCallCount
+        let initialSettingsLoadCount = settingsRepository.loadCallCount
+
+        _ = viewModel.primaryStatus(for: today)
+        _ = viewModel.secondaryStatus(for: today)
+        _ = viewModel.toggleStatesForSelectedDate()
+        #expect(viewModel.isEventOnSelectedDate(.love))
+
+        #expect(repository.allEventsCallCount == initialAllEventsCallCount)
+        #expect(repository.eventsOfCallCount == 0)
+        #expect(repository.pillCyclesCallCount == initialPillCyclesCallCount)
+        #expect(settingsRepository.loadCallCount == initialSettingsLoadCount)
+
+        viewModel.refresh(now: today)
+
+        #expect(repository.allEventsCallCount == initialAllEventsCallCount + 1)
+        #expect(repository.eventsOfCallCount == 0)
+        #expect(repository.pillCyclesCallCount == initialPillCyclesCallCount + 1)
+        #expect(settingsRepository.loadCallCount == initialSettingsLoadCount + 1)
+    }
+
     private func makeDate(_ year: Int, _ month: Int, _ day: Int) -> Date {
         calendar.date(
             from: DateComponents(year: year, month: month, day: day)
@@ -93,6 +139,13 @@ struct CalendarViewModelDayChangeTests {
 
 private final class CountingEventRepository: EventRepository {
     private(set) var allEventsCallCount = 0
+    private(set) var eventsOfCallCount = 0
+    private(set) var pillCyclesCallCount = 0
+    private let storedEvents: [UserEvent]
+
+    init(events: [UserEvent] = []) {
+        self.storedEvents = events
+    }
 
     func save(_ event: UserEvent) {}
     func delete(id: UUID) {}
@@ -101,7 +154,7 @@ private final class CountingEventRepository: EventRepository {
 
     func allEvents() -> [UserEvent] {
         allEventsCallCount += 1
-        return []
+        return storedEvents
     }
 
     func events(forMonth month: Date) -> [UserEvent] {
@@ -109,6 +162,26 @@ private final class CountingEventRepository: EventRepository {
     }
 
     func events(of type: EventType) -> [UserEvent] {
-        []
+        eventsOfCallCount += 1
+        return storedEvents.filter { $0.type == type }
+    }
+
+    func pillCycles() -> [PillCycleInfo] {
+        pillCyclesCallCount += 1
+        return []
+    }
+}
+
+private final class CountingSettingsRepository: SettingsRepository {
+    private(set) var loadCallCount = 0
+    private var settings = UserSettings()
+
+    func load() -> UserSettings {
+        loadCallCount += 1
+        return settings
+    }
+
+    func save(_ settings: UserSettings) {
+        self.settings = settings
     }
 }

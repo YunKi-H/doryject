@@ -96,12 +96,6 @@ struct BloodyDayRootView: View {
                         syncStore: syncStore
                     )
                 }
-                let settingsChangeRefresher = SettingsChangeRefreshService(
-                    eventRepository: baseEventRepository,
-                    notificationScheduler: scheduler,
-                    appleCalendarSyncService: appleCalendarSyncService!,
-                    widgetReloader: widgetReloader
-                )
                 let syncingRepository = SyncingEventRepository(
                     base: baseEventRepository,
                     syncService: appleCalendarSyncService!,
@@ -109,12 +103,26 @@ struct BloodyDayRootView: View {
                     notificationScheduler: scheduler,
                     widgetReloader: widgetReloader
                 )
-                if calendarViewModel == nil {
-                    calendarViewModel = CalendarViewModel(
+                let activeCalendarViewModel: CalendarViewModel
+                if let existingCalendarViewModel = calendarViewModel {
+                    activeCalendarViewModel = existingCalendarViewModel
+                } else {
+                    let createdViewModel = CalendarViewModel(
                         eventRepository: syncingRepository,
                         settingsRepository: settingsRepository
                     )
+                    self.calendarViewModel = createdViewModel
+                    activeCalendarViewModel = createdViewModel
                 }
+                let settingsChangeRefresher = SettingsChangeRefreshService(
+                    eventRepository: baseEventRepository,
+                    notificationScheduler: scheduler,
+                    appleCalendarSyncService: appleCalendarSyncService!,
+                    widgetReloader: widgetReloader,
+                    calendarStateRefresher: { [weak activeCalendarViewModel] in
+                        activeCalendarViewModel?.refresh()
+                    }
+                )
                 if periodListViewModel == nil {
                     periodListViewModel = PeriodListViewModel(eventRepository: syncingRepository)
                 }

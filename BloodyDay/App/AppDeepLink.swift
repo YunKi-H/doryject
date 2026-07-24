@@ -28,7 +28,7 @@ enum AppDeepLink {
     static func calendarURL(for date: Date) -> URL? {
         let calendarDay = CalendarDay(
             date: date,
-            calendar: .autoupdatingCurrent
+            calendar: Calendar.autoupdatingCurrent
         )
         
         var urlComponents = URLComponents()
@@ -61,6 +61,6 @@ enum AppDeepLink {
               ) else {
             return nil
         }
-        return calendarDay.date(in: .autoupdatingCurrent)
+        return calendarDay.date(in: Calendar.autoupdatingCurrent)
     }
 }
