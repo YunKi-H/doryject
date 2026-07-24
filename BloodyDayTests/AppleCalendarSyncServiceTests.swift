@@ -24,7 +24,7 @@ struct AppleCalendarSyncServiceTests {
 
         let events = makeEvents(type: .period, start: makeDate(2026, 3, 1), length: 5)
         let settingsRepository = InMemorySettingsRepository(settings: settings)
-        let eventRepository = StaticEventRepository(events: events)
+        let eventRepository = StaticEventReader(events: events)
         let client = RecordingAppleCalendarClient(calendarIdentifier: "period-calendar")
         let store = InMemoryAppleCalendarSyncStore()
         let service = AppleCalendarSyncService(
@@ -58,7 +58,7 @@ struct AppleCalendarSyncServiceTests {
             makeEvents(type: .period, start: makeDate(2026, 3, 1), length: 5) +
             makeEvents(type: .period, start: makeDate(2026, 3, 29), length: 5)
         let settingsRepository = InMemorySettingsRepository(settings: settings)
-        let eventRepository = StaticEventRepository(events: events)
+        let eventRepository = StaticEventReader(events: events)
         let client = RecordingAppleCalendarClient(calendarIdentifier: "period-calendar")
         let store = InMemoryAppleCalendarSyncStore()
         let service = AppleCalendarSyncService(
@@ -93,7 +93,7 @@ struct AppleCalendarSyncServiceTests {
             makeEvents(type: .period, start: makeDate(2026, 3, 19), length: 5)
         let pillEvents = makeEvents(type: .pill, start: makeDate(2026, 3, 9), length: 21)
         let settingsRepository = InMemorySettingsRepository(settings: settings)
-        let eventRepository = StaticEventRepository(events: actualPeriods + pillEvents)
+        let eventRepository = StaticEventReader(events: actualPeriods + pillEvents)
         let client = RecordingAppleCalendarClient(calendarIdentifier: "period-calendar")
         let store = InMemoryAppleCalendarSyncStore()
         let service = AppleCalendarSyncService(
@@ -114,6 +114,68 @@ struct AppleCalendarSyncServiceTests {
 
         #expect(predictedStarts.contains(makeDate(2026, 4, 5)))
         #expect(predictedStarts.contains(makeDate(2026, 4, 29)) == false)
+    }
+
+    @Test
+    func syncAll_syncsEveryPillEventFromEventReader() async {
+        var settings = UserSettings()
+        settings.appleCalendar.isEnabled = true
+        settings.appleCalendar.eventSyncEnabled[.pill] = true
+
+        let pillEvents = makeEvents(
+            type: .pill,
+            start: makeDate(2026, 3, 9),
+            length: 21
+        )
+        let client = RecordingAppleCalendarClient(
+            calendarIdentifier: "pill-calendar"
+        )
+        let service = AppleCalendarSyncService(
+            settingsRepository: InMemorySettingsRepository(settings: settings),
+            eventRepository: StaticEventReader(events: pillEvents),
+            calendarClient: client,
+            syncStore: InMemoryAppleCalendarSyncStore()
+        )
+
+        await service.syncAll()
+
+        #expect(client.upsertedEvents.count == 21)
+        #expect(client.upsertedEvents.allSatisfy {
+            $0.calendarIdentifier == "pill-calendar"
+        })
+    }
+
+    @Test
+    func syncAll_removesPillCalendarRecordWhenPillEventWasDeleted() async {
+        var settings = UserSettings()
+        settings.appleCalendar.isEnabled = true
+        settings.appleCalendar.eventSyncEnabled[.pill] = true
+
+        let deletedEventID = UUID()
+        let store = InMemoryAppleCalendarSyncStore()
+        store.upsert(
+            AppleCalendarSyncRecord(
+                userEventId: deletedEventID,
+                eventType: .pill,
+                calendarIdentifier: "pill-calendar",
+                ekEventIdentifier: "deleted-pill-event",
+                lastSyncedAt: .now
+            )
+        )
+        let client = RecordingAppleCalendarClient(
+            calendarIdentifier: "pill-calendar"
+        )
+        let service = AppleCalendarSyncService(
+            settingsRepository: InMemorySettingsRepository(settings: settings),
+            eventRepository: StaticEventReader(events: []),
+            calendarClient: client,
+            syncStore: store
+        )
+
+        await service.syncAll()
+
+        #expect(client.deletedEventIdentifiers == ["deleted-pill-event"])
+        #expect(store.record(for: deletedEventID) == nil)
     }
 
     private func makeEvents(type: EventType, start: Date, length: Int) -> [UserEvent] {
@@ -151,15 +213,9 @@ private final class InMemorySettingsRepository: SettingsRepository {
     }
 }
 
-private struct StaticEventRepository: EventRepository {
+private struct StaticEventReader: EventReading {
     let events: [UserEvent]
 
-    func save(_ event: UserEvent) {}
-    func delete(id: UUID) {}
-    func delete(type: EventType, on: Date) {}
-    func replace(type: EventType, on dates: Set<Date>) {}
-    func allEvents() -> [UserEvent] { events }
-    func events(forMonth month: Date) -> [UserEvent] { events }
     func events(of type: EventType) -> [UserEvent] { events.filter { $0.type == type } }
 }
 
@@ -198,6 +254,7 @@ private final class RecordingAppleCalendarClient: AppleCalendarClient {
 
     private let fixedCalendarIdentifier: String
     private(set) var upsertedEvents: [UpsertedEvent] = []
+    private(set) var deletedEventIdentifiers: [String] = []
 
     init(calendarIdentifier: String) {
         self.fixedCalendarIdentifier = calendarIdentifier
@@ -232,5 +289,7 @@ private final class RecordingAppleCalendarClient: AppleCalendarClient {
         return existingEventIdentifier ?? "ek-\(event.id.uuidString)"
     }
 
-    func deleteEvent(identifier: String) {}
+    func deleteEvent(identifier: String) {
+        deletedEventIdentifiers.append(identifier)
+    }
 }

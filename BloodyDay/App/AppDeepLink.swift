@@ -26,18 +26,16 @@ enum AppDeepLink {
     }
     
     static func calendarURL(for date: Date) -> URL? {
-        let components = Calendar.current.dateComponents([.year, .month, .day], from: date.startOfDay)
-        guard let year = components.year,
-              let month = components.month,
-              let day = components.day else {
-            return nil
-        }
+        let calendarDay = CalendarDay(
+            date: date,
+            calendar: Calendar.autoupdatingCurrent
+        )
         
         var urlComponents = URLComponents()
         urlComponents.scheme = scheme
         urlComponents.host = "calendar"
         urlComponents.queryItems = [
-            URLQueryItem(name: "date", value: String(format: "%04d-%02d-%02d", year, month, day))
+            URLQueryItem(name: "date", value: calendarDay.dateString)
         ]
         return urlComponents.url
     }
@@ -48,24 +46,21 @@ enum AppDeepLink {
             return nil
         }
         
-        let parts = value.split(separator: "-").compactMap { Int($0) }
-        guard parts.count == 3 else { return nil }
-        
-        let calendar = Calendar.current
-        var dateComponents = DateComponents()
-        dateComponents.calendar = calendar
-        dateComponents.year = parts[0]
-        dateComponents.month = parts[1]
-        dateComponents.day = parts[2]
-        
-        guard let date = dateComponents.date?.startOfDay else { return nil }
-        let validatedComponents = calendar.dateComponents([.year, .month, .day], from: date)
-        guard validatedComponents.year == parts[0],
-              validatedComponents.month == parts[1],
-              validatedComponents.day == parts[2] else {
+        let parts = value.split(
+            separator: "-",
+            omittingEmptySubsequences: false
+        )
+        guard parts.count == 3,
+              let year = Int(parts[0]),
+              let month = Int(parts[1]),
+              let day = Int(parts[2]),
+              let calendarDay = CalendarDay(
+                year: year,
+                month: month,
+                day: day
+              ) else {
             return nil
         }
-        
-        return date
+        return calendarDay.date(in: Calendar.autoupdatingCurrent)
     }
 }

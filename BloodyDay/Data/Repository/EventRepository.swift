@@ -7,14 +7,24 @@
 
 import Foundation
 
-protocol EventRepository {
+protocol EventReading {
+    func events(of type: EventType) -> [UserEvent]
+    func pillCycles() -> [PillCycleInfo]
+}
+
+extension EventReading {
+    func pillCycles() -> [PillCycleInfo] {
+        []
+    }
+}
+
+protocol EventRepository: EventReading {
     func save(_ event: UserEvent)
     func delete(id: UUID)
     func delete(type: EventType, on: Date)
     func replace(type: EventType, on dates: Set<Date>)
     func allEvents() -> [UserEvent]
     func events(forMonth month: Date) -> [UserEvent]
-    func events(of type: EventType) -> [UserEvent]
 }
 
 final class MockEventRepository: EventRepository {
@@ -43,6 +53,10 @@ final class MockEventRepository: EventRepository {
     }
     
     func events(of type: EventType) -> [UserEvent] {
+        []
+    }
+
+    func pillCycles() -> [PillCycleInfo] {
         []
     }
 }

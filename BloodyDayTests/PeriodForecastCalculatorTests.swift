@@ -30,6 +30,34 @@ struct PeriodForecastCalculatorTests {
         
         #expect(resolved == makeDate(2026, 3, 10))
     }
+
+    @Test
+    func delayedPeriodStart_returnsNilDuringPredictedPeriod() {
+        let predictedStart = makeDate(2026, 2, 10)
+
+        let delayedStart = PeriodForecastCalculator.delayedPeriodStart(
+            for: makeDate(2026, 2, 14),
+            predictedStarts: [predictedStart],
+            predictedLength: 5,
+            calendar: calendar
+        )
+
+        #expect(delayedStart == nil)
+    }
+
+    @Test
+    func delayedPeriodStart_returnsExpectedStartAfterPredictedPeriodEnds() {
+        let predictedStart = makeDate(2026, 2, 10)
+
+        let delayedStart = PeriodForecastCalculator.delayedPeriodStart(
+            for: makeDate(2026, 2, 15),
+            predictedStarts: [predictedStart],
+            predictedLength: 5,
+            calendar: calendar
+        )
+
+        #expect(delayedStart == predictedStart)
+    }
     
     @Test
     func latestPillCycleProjection_autoRecordOnUsesActualLastIntakeDate() {
@@ -102,6 +130,110 @@ struct PeriodForecastCalculatorTests {
     }
 
     @Test
+    func latestPillCycleProjection_usesStoredActiveCycleSettings() {
+        var settings = UserSettings()
+        settings.pill.pillEnabled = true
+        settings.pill.pillAutoRecordEnabled = false
+        settings.pill.pillCount = 28
+        settings.pill.pillBreakDuration = 4
+
+        let start = makeDate(2026, 2, 1)
+        let dates = (0..<3).map { addDays(start, $0) }
+        let storedCycle = PillCycleInfo(
+            id: UUID(),
+            intakeDates: dates,
+            plannedPillCount: 21,
+            breakDays: 7,
+            autoRecordEnabled: true,
+            status: .active
+        )
+
+        let projection = PeriodForecastCalculator.latestPillCycleProjection(
+            settings: settings,
+            pillDates: Set(dates),
+            pillCycles: [storedCycle],
+            calendar: calendar
+        )
+
+        #expect(projection?.pillCount == 21)
+        #expect(projection?.breakDays == 7)
+        #expect(projection?.projectedLastIntakeDate == dates.last)
+        #expect(projection?.cycleLength == 28)
+    }
+
+    @Test
+    func predictionContext_usesCurrentSettingsForCyclesAfterStoredActiveCycle() {
+        var settings = UserSettings()
+        settings.pill.pillEnabled = true
+        settings.pill.pillAutoRecordEnabled = false
+        settings.pill.pillCount = 28
+        settings.pill.pillBreakDuration = 4
+
+        let start = makeDate(2026, 2, 1)
+        let dates = (0..<21).map { addDays(start, $0) }
+        let storedCycle = PillCycleInfo(
+            id: UUID(),
+            intakeDates: dates,
+            plannedPillCount: 21,
+            breakDays: 7,
+            autoRecordEnabled: true,
+            status: .active
+        )
+
+        let context = PeriodForecastCalculator.predictionContext(
+            target: addDays(start, 22),
+            settings: settings,
+            periodSummaries: [],
+            pillDates: Set(dates),
+            pillCycles: [storedCycle],
+            calendar: calendar
+        )
+
+        #expect(context?.firstExpected == addDays(start, 23))
+        #expect(context?.cycleLength == 28)
+        #expect(context?.subsequentCycleLength == 32)
+        #expect(context?.recurringCycleLength == 32)
+    }
+
+    @Test
+    func pillCycleProjection_activeRangeExtendsFromProjectedLastIntakeAfterMissedDays() {
+        let cycleStart = makeDate(2026, 2, 1)
+        let projectedLastIntake = addDays(cycleStart, 22)
+        let projection = PillCycleProjection(
+            cycleStart: cycleStart,
+            lastIntakeDate: addDays(cycleStart, 3),
+            intakeCount: 3,
+            projectedLastIntakeDate: projectedLastIntake,
+            pillCount: 21,
+            breakDays: 7
+        )
+
+        let range = projection.activeDateRange(calendar: calendar)
+
+        #expect(range?.start == cycleStart)
+        #expect(range?.end == addDays(projectedLastIntake, 8))
+    }
+
+    @Test
+    func pillCycleProjection_activeRangeShortensFromActualLastIntakeAfterInterruption() {
+        let cycleStart = makeDate(2026, 2, 1)
+        let actualLastIntake = addDays(cycleStart, 11)
+        let projection = PillCycleProjection(
+            cycleStart: cycleStart,
+            lastIntakeDate: actualLastIntake,
+            intakeCount: 12,
+            projectedLastIntakeDate: actualLastIntake,
+            pillCount: 21,
+            breakDays: 7
+        )
+
+        let range = projection.activeDateRange(calendar: calendar)
+
+        #expect(range?.start == cycleStart)
+        #expect(range?.end == addDays(actualLastIntake, 8))
+    }
+
+    @Test
     func predictionContext_prefersLatestActualPeriodWhenItIsNewerThanPillAnchor() {
         var settings = UserSettings()
         settings.period.autoCyclePredictionEnabled = false
@@ -128,6 +260,34 @@ struct PeriodForecastCalculatorTests {
         #expect(context?.firstExpected == makeDate(2026, 4, 3))
         #expect(context?.cycleLength == 28)
         #expect(context?.predictedLength == 5)
+    }
+
+    @Test
+    func predictionContext_ignoresExpiredPillCycleAndUsesActualPeriodCycle() {
+        var settings = UserSettings()
+        settings.period.autoCyclePredictionEnabled = false
+        settings.period.averageCycleDays = 28
+        settings.period.averagePeriodDays = 5
+        settings.pill.pillEnabled = true
+        settings.pill.pillAutoRecordEnabled = true
+        settings.pill.pillCount = 21
+        settings.pill.pillBreakDuration = 7
+
+        let actualStart = makeDate(2026, 3, 1)
+        let summaries = summaries(fromRuns: [(start: actualStart, length: 5)])
+        let stalePillStart = makeDate(2026, 1, 1)
+        let pillDates = Set((0..<21).map { addDays(stalePillStart, $0) })
+
+        let context = PeriodForecastCalculator.predictionContext(
+            target: makeDate(2026, 4, 1),
+            settings: settings,
+            periodSummaries: summaries,
+            pillDates: pillDates,
+            calendar: calendar
+        )
+
+        #expect(context?.firstExpected == makeDate(2026, 3, 29))
+        #expect(context?.cycleLength == 28)
     }
     
     @Test

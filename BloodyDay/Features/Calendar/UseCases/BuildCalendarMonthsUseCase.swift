@@ -18,20 +18,33 @@ enum BuildCalendarMonthsUseCase {
         keepingMonth: Date,
         previousCurrentIndex: Int,
         allEvents: [UserEvent],
+        calendar: Calendar = .current,
         buildContext: (_ bounds: (start: Date, endExclusive: Date), _ userEvents: [UserEvent]) -> Context,
         makeMonthInfo: (_ month: Date, _ userEvents: [UserEvent], _ context: Context) -> MonthInfo
     ) -> Result {
-        let normalizedMonthDates = monthDates.map(\.startOfMonth)
-        guard let bounds = calculationBounds(for: normalizedMonthDates) else {
+        let normalizedMonthDates = monthDates.map {
+            $0.startOfMonth(in: calendar)
+        }
+        guard let bounds = calculationBounds(
+            for: normalizedMonthDates,
+            calendar: calendar
+        ) else {
             return Result(months: [], currentIndex: 0)
         }
         
-        let calculationEvents = calculationEvents(in: bounds, allEvents: allEvents)
+        let calculationEvents = calculationEvents(
+            in: bounds,
+            allEvents: allEvents,
+            calendar: calendar
+        )
         let context = buildContext(bounds, calculationEvents)
         let months = normalizedMonthDates.map { makeMonthInfo($0, calculationEvents, context) }
         
         let resolvedIndex: Int
-        if let idx = months.firstIndex(where: { $0.monthDate == keepingMonth.startOfMonth }) {
+        let normalizedKeepingMonth = keepingMonth.startOfMonth(in: calendar)
+        if let idx = months.firstIndex(where: {
+            $0.monthDate == normalizedKeepingMonth
+        }) {
             resolvedIndex = idx
         } else {
             resolvedIndex = min(previousCurrentIndex, max(months.count - 1, 0))
@@ -40,22 +53,30 @@ enum BuildCalendarMonthsUseCase {
         return Result(months: months, currentIndex: resolvedIndex)
     }
     
-    private static func calculationBounds(for monthDates: [Date]) -> (start: Date, endExclusive: Date)? {
+    private static func calculationBounds(
+        for monthDates: [Date],
+        calendar: Calendar
+    ) -> (start: Date, endExclusive: Date)? {
         guard let firstMonth = monthDates.min(),
               let lastMonth = monthDates.max() else {
             return nil
         }
-        let start = firstMonth.startOfMonth.addingMonths(-1)
-        let endExclusive = lastMonth.startOfMonth.addingMonths(2)
+        let start = firstMonth
+            .startOfMonth(in: calendar)
+            .addingMonths(-1, calendar: calendar)
+        let endExclusive = lastMonth
+            .startOfMonth(in: calendar)
+            .addingMonths(2, calendar: calendar)
         return (start: start, endExclusive: endExclusive)
     }
     
     private static func calculationEvents(
         in bounds: (start: Date, endExclusive: Date),
-        allEvents: [UserEvent]
+        allEvents: [UserEvent],
+        calendar: Calendar
     ) -> [UserEvent] {
         allEvents.filter {
-            let day = $0.date.startOfDay
+            let day = calendar.startOfDay(for: $0.date)
             return day >= bounds.start && day < bounds.endExclusive
         }
     }

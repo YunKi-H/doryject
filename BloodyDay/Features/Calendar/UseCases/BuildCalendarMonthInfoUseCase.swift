@@ -11,30 +11,59 @@ enum BuildCalendarMonthInfoUseCase {
     static func execute(
         month: Date,
         userEvents: [UserEvent],
-        context: MonthComputationContext
+        context: MonthComputationContext,
+        calendar: Calendar = .current
     ) -> MonthInfo {
-        let monthStart = month.startOfMonth
-        let actualPeriodDates = Set(userEvents.filter { $0.type == .period }.map { $0.date.startOfDay })
-        let result = buildDayInfos(for: monthStart, context: context)
+        let monthStart = month.startOfMonth(in: calendar)
+        let actualPeriodDates = Set(
+            userEvents
+                .filter { $0.type == .period }
+                .map { calendar.startOfDay(for: $0.date) }
+        )
+        let result = buildDayInfos(
+            for: monthStart,
+            context: context,
+            calendar: calendar
+        )
         let days = result.days
         let predictedPeriodDates = result.predictedPeriodDates
         
-        let periodRanges = buildStyledRangesSplittingByWeeks(days: days, monthDate: monthStart) { day in
-            actualPeriodDates.contains(day.date.startOfDay)
+        let periodRanges = buildStyledRangesSplittingByWeeks(
+            days: days,
+            monthDate: monthStart,
+            calendar: calendar
+        ) { day in
+            actualPeriodDates.contains(calendar.startOfDay(for: day.date))
         }
-        let predictedPeriodRanges = buildStyledRangesSplittingByWeeks(days: days, monthDate: monthStart) { day in
-            predictedPeriodDates.contains(day.date.startOfDay)
+        let predictedPeriodRanges = buildStyledRangesSplittingByWeeks(
+            days: days,
+            monthDate: monthStart,
+            calendar: calendar
+        ) { day in
+            predictedPeriodDates.contains(calendar.startOfDay(for: day.date))
         }
         let delayedRanges: [CalendarRangeInfo] = []
-        let fertileRanges = buildStyledRangesSplittingByWeeks(days: days, monthDate: monthStart) { day in
+        let fertileRanges = buildStyledRangesSplittingByWeeks(
+            days: days,
+            monthDate: monthStart,
+            calendar: calendar
+        ) { day in
             day.events.contains { $0.type == .fertile }
         }
-        let rawOvulationRanges = buildStyledRangesSplittingByWeeks(days: days, monthDate: monthStart) { day in
+        let rawOvulationRanges = buildStyledRangesSplittingByWeeks(
+            days: days,
+            monthDate: monthStart,
+            calendar: calendar
+        ) { day in
             day.events.contains { $0.type == .ovulation }
         }
         let ovulationRanges: [CalendarRangeInfo] = rawOvulationRanges.map { ovulation in
-            let ovulationDate = ovulation.range.start.startOfDay
-            guard let opacity = fertileOpacity(containing: ovulationDate, fertileRanges: fertileRanges) else {
+            let ovulationDate = calendar.startOfDay(for: ovulation.range.start)
+            guard let opacity = fertileOpacity(
+                containing: ovulationDate,
+                fertileRanges: fertileRanges,
+                calendar: calendar
+            ) else {
                 return ovulation
             }
             return CalendarRangeInfo(range: ovulation.range, opacity: opacity)
@@ -54,15 +83,22 @@ enum BuildCalendarMonthInfoUseCase {
     
     private static func buildDayInfos(
         for month: Date,
-        context: MonthComputationContext
+        context: MonthComputationContext,
+        calendar: Calendar
     ) -> (days: [DayInfo], predictedPeriodDates: Set<Date>) {
-        let gridStart = month.startOfCalendarGrid()
-        let gridEndExclusive = month.endOfCalendarGridExclusiveStart()
+        let gridStart = month.startOfCalendarGrid(calendar: calendar)
+        let gridEndExclusive = month.endOfCalendarGridExclusiveStart(
+            calendar: calendar
+        )
         
-        var days: [DayInfo] = Date.dates(from: gridStart, toExclusive: gridEndExclusive).map { DayInfo(date: $0) }
+        var days: [DayInfo] = Date.dates(
+            from: gridStart,
+            toExclusive: gridEndExclusive,
+            calendar: calendar
+        ).map { DayInfo(date: $0) }
         
         for i in days.indices {
-            let key = days[i].date.startOfDay
+            let key = calendar.startOfDay(for: days[i].date)
             days[i].events = context.eventsByDay[key] ?? []
         }
         
@@ -72,7 +108,7 @@ enum BuildCalendarMonthInfoUseCase {
         
         if !context.predictedEventsByDay.isEmpty {
             for i in days.indices {
-                let key = days[i].date.startOfDay
+                let key = calendar.startOfDay(for: days[i].date)
                 guard key >= gridStart && key < gridEndExclusive,
                       let predicted = context.predictedEventsByDay[key] else { continue }
                 for type in predicted where !days[i].events.contains(where: { $0.type == type }) {
@@ -82,7 +118,7 @@ enum BuildCalendarMonthInfoUseCase {
         }
         
         for i in days.indices {
-            let dayDate = days[i].date.startOfDay
+            let dayDate = calendar.startOfDay(for: days[i].date)
             guard context.pillDates.contains(dayDate) else {
                 days[i].pillSequence = nil
                 continue
@@ -96,6 +132,7 @@ enum BuildCalendarMonthInfoUseCase {
     private static func buildStyledRangesSplittingByWeeks(
         days: [DayInfo],
         monthDate: Date,
+        calendar: Calendar,
         hasEvent: (DayInfo) -> Bool,
         columns: Int = 7
     ) -> [CalendarRangeInfo] {
@@ -117,7 +154,8 @@ enum BuildCalendarMonthInfoUseCase {
             let runOpacity = opacityForRun(
                 runStartDate: days[runStartIndex].date,
                 runEndDate: days[runEndIndex].date,
-                monthDate: monthDate
+                monthDate: monthDate,
+                calendar: calendar
             )
             
             var segmentStartIndex = runStartIndex
@@ -139,16 +177,26 @@ enum BuildCalendarMonthInfoUseCase {
         return ranges
     }
     
-    private static func opacityForRun(runStartDate: Date, runEndDate: Date, monthDate: Date) -> Double {
+    private static func opacityForRun(
+        runStartDate: Date,
+        runEndDate: Date,
+        monthDate: Date,
+        calendar: Calendar
+    ) -> Double {
         let isOutsideCurrentMonth =
-        !runStartDate.isInSameMonth(as: monthDate) &&
-        !runEndDate.isInSameMonth(as: monthDate)
+            !runStartDate.isInSameMonth(as: monthDate, calendar: calendar)
+            && !runEndDate.isInSameMonth(as: monthDate, calendar: calendar)
         return isOutsideCurrentMonth ? 0.3 : 1
     }
     
-    private static func fertileOpacity(containing date: Date, fertileRanges: [CalendarRangeInfo]) -> Double? {
+    private static func fertileOpacity(
+        containing date: Date,
+        fertileRanges: [CalendarRangeInfo],
+        calendar: Calendar
+    ) -> Double? {
         fertileRanges.first {
-            date >= $0.range.start.startOfDay && date <= $0.range.end.startOfDay
+            date >= calendar.startOfDay(for: $0.range.start)
+                && date <= calendar.startOfDay(for: $0.range.end)
         }?.opacity
     }
 }

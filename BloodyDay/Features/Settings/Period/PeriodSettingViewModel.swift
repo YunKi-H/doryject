@@ -12,11 +12,17 @@ import Observation
 final class PeriodSettingViewModel {
     private let repo: SettingsRepository
     private let eventRepository: EventRepository?
+    private let settingsChangeRefresher: SettingsChangeRefreshing?
     private(set) var settings: UserSettings
     
-    init(repo: SettingsRepository, eventRepository: EventRepository? = nil) {
+    init(
+        repo: SettingsRepository,
+        eventRepository: EventRepository? = nil,
+        settingsChangeRefresher: SettingsChangeRefreshing? = nil
+    ) {
         self.repo = repo
         self.eventRepository = eventRepository
+        self.settingsChangeRefresher = settingsChangeRefresher
         self.settings = repo.load()
     }
     
@@ -24,6 +30,7 @@ final class PeriodSettingViewModel {
         settings = repo.update {
             $0.period.autoCyclePredictionEnabled = enabled
         }
+        settingsChangeRefresher?.refresh(using: settings)
     }
     
     func updateAverages(cycle: Int?, period: Int?) {
@@ -31,6 +38,7 @@ final class PeriodSettingViewModel {
             $0.period.averageCycleDays = cycle
             $0.period.averagePeriodDays = period
         }
+        settingsChangeRefresher?.refresh(using: settings)
     }
     
     func resetAllEvents() {

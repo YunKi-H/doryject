@@ -47,10 +47,25 @@ struct ToggleTodayEventIntent: AppIntent {
     }
     
     func perform() async throws -> some IntentResult {
+        let settingsRepository = WidgetSettingsRepository()
         let toggledOn = WidgetSharedEventStore.toggle(eventType.widgetType, on: .now)
         if eventType == .pill, toggledOn {
-            enablePillIfNeeded()
+            enablePillIfNeeded(settingsRepository: settingsRepository)
         }
+        let eventReader = WidgetEventReader(
+            events: WidgetSharedEventStore.allEvents(),
+            pillCycleInfos: WidgetSharedEventStore.pillCycles()
+        )
+        if eventType != .love {
+            await rescheduleNotifications(
+                settings: settingsRepository.load(),
+                eventReader: eventReader
+            )
+        }
+        await resyncAppleCalendar(
+            settingsRepository: settingsRepository,
+            eventReader: eventReader
+        )
         rebuildSnapshot()
         WidgetCenter.shared.reloadAllTimelines()
         return .result()
@@ -61,18 +76,69 @@ struct ToggleTodayEventIntent: AppIntent {
         store.save(WidgetSnapshotBuilder.build())
     }
     
-    private func enablePillIfNeeded() {
-        let key = "user.settings.v1"
-        guard let defaults = UserDefaults(suiteName: WidgetSnapshotStore.appGroupIdentifier) else { return }
-        var settings: UserSettings
-        if let data = defaults.data(forKey: key),
-           let decoded = try? JSONDecoder().decode(UserSettings.self, from: data) {
-            settings = decoded
-        } else {
-            settings = .init()
+    private func enablePillIfNeeded(settingsRepository: WidgetSettingsRepository) {
+        settingsRepository.update { settings in
+            settings.pill.pillEnabled = true
         }
-        settings.pill.pillEnabled = true
-        guard let encoded = try? JSONEncoder().encode(settings) else { return }
-        defaults.set(encoded, forKey: key)
+    }
+
+    private func rescheduleNotifications(
+        settings: UserSettings,
+        eventReader: WidgetEventReader
+    ) async {
+        await UserNotificationScheduler().applyAndWait(
+            settings: settings,
+            eventReader: eventReader
+        )
+    }
+
+    private func resyncAppleCalendar(
+        settingsRepository: WidgetSettingsRepository,
+        eventReader: WidgetEventReader
+    ) async {
+        let syncService = AppleCalendarSyncService(
+            settingsRepository: settingsRepository,
+            eventRepository: eventReader,
+            calendarClient: EventKitAppleCalendarClient(),
+            syncStore: UserDefaultsAppleCalendarSyncStore()
+        )
+        await syncService.syncAll()
+    }
+}
+
+private struct WidgetEventReader: EventReading {
+    let events: [UserEvent]
+    let pillCycleInfos: [PillCycleInfo]
+
+    func events(of type: EventType) -> [UserEvent] {
+        events.filter { $0.type == type }
+    }
+
+    func pillCycles() -> [PillCycleInfo] {
+        pillCycleInfos
+    }
+}
+
+private final class WidgetSettingsRepository: SettingsRepository {
+    private static let settingsKey = "user.settings.v1"
+    private let defaults: UserDefaults
+
+    init() {
+        defaults = UserDefaults(
+            suiteName: WidgetSnapshotStore.appGroupIdentifier
+        ) ?? .standard
+    }
+
+    func load() -> UserSettings {
+        guard let data = defaults.data(forKey: Self.settingsKey),
+              let settings = try? JSONDecoder().decode(UserSettings.self, from: data) else {
+            return .init()
+        }
+        return settings
+    }
+
+    func save(_ settings: UserSettings) {
+        guard let data = try? JSONEncoder().encode(settings) else { return }
+        defaults.set(data, forKey: Self.settingsKey)
     }
 }

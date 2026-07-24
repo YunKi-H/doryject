@@ -57,9 +57,18 @@
 		2B61D4EB2F6FC1E4003299A7 /* Exceptions for "BloodyDay" folder in "BloodyDayWidgetExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				App/AppDeepLink.swift,
+				Data/DTO/PillCycleRecord.swift,
 				Data/DTO/UserEvent.swift,
+				Data/Repository/AppleCalendarSyncStore.swift,
+				Data/Repository/EventRepository.swift,
+				Data/Repository/PillCyclePersistence.swift,
+				Data/Repository/SettingsRepository.swift,
+				Data/Repository/UserDefaultsAppleCalendarSyncStore.swift,
+				Domain/Entities/CalendarDay.swift,
 				Domain/Entities/DayEvent.swift,
 				Domain/Entities/EventType.swift,
+				Domain/Entities/PillCycleInfo.swift,
 				Domain/Entities/Settings/AppearanceSettings.swift,
 				Domain/Entities/Settings/AppleCalendarSettings.swift,
 				Domain/Entities/Settings/NotificationSettings.swift,
@@ -73,6 +82,7 @@
 				Domain/UseCases/PeriodForecastCalculator.swift,
 				Domain/UseCases/PeriodSummaryBuilder.swift,
 				Domain/UseCases/PillCycleCalculator.swift,
+				Domain/UseCases/PillReminderScheduleCalculator.swift,
 				Domain/UseCases/PredictedCycleEventBuilder.swift,
 				Features/Calendar/UseCases/BuildCalendarMonthComputationContextUseCase.swift,
 				Resources/Assets.xcassets,
@@ -83,6 +93,12 @@
 				"Resources/Fonts/Pretendard-SemiBold.otf",
 				"Utilities/Date+Extension.swift",
 				"Utilities/Font+Extension.swift",
+				Utilities/Services/AppleCalendarClient.swift,
+				Utilities/Services/AppleCalendarSyncService.swift,
+				Utilities/Services/EventKitAppleCalendarClient.swift,
+				Utilities/Services/NotificationScheduler.swift,
+				Utilities/Services/PillReminderNotificationScheduler.swift,
+				Utilities/Services/UserNotificationScheduler.swift,
 			);
 			target = 2BE0DABA2F6DA546008394E3 /* BloodyDayWidgetExtension */;
 		};
@@ -389,7 +405,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.2.2;
+				MARKETING_VERSION = 1.2.3;
 				PRODUCT_BUNDLE_IDENTIFIER = dorypawn.BDay.BloodyDayWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -421,7 +437,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.2.2;
+				MARKETING_VERSION = 1.2.3;
 				PRODUCT_BUNDLE_IDENTIFIER = dorypawn.BDay.BloodyDayWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -459,7 +475,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.2.2;
+				MARKETING_VERSION = 1.2.3;
 				PRODUCT_BUNDLE_IDENTIFIER = dorypawn.BDay;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -499,7 +515,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.2.2;
+				MARKETING_VERSION = 1.2.3;
 				PRODUCT_BUNDLE_IDENTIFIER = dorypawn.BDay;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;

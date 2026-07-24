@@ -14,7 +14,7 @@ enum PillCycleCalculator {
         breakDays: Int,
         calendar: Calendar = .current
     ) -> [[Date]] {
-        let sorted = pillDates.map(\.startOfDay).sorted()
+        let sorted = pillDates.map { calendar.startOfDay(for: $0) }.sorted()
         guard sorted.isEmpty == false else { return [] }
         
         // Pill cycles are interpreted more strictly than the configured break length:
@@ -45,9 +45,37 @@ enum PillCycleCalculator {
         pillDates: Set<Date>,
         pillCount: Int,
         breakDays: Int,
+        pillCycles: [PillCycleInfo] = [],
         calendar: Calendar = .current
     ) -> [Date: Int] {
-        guard pillCount > 0, pillDates.isEmpty == false else { return [:] }
+        guard pillDates.isEmpty == false else { return [:] }
+
+        if pillCycles.isEmpty == false {
+            var map: [Date: Int] = [:]
+            for cycle in pillCycles {
+                for (index, day) in cycle.intakeDates
+                    .map({ calendar.startOfDay(for: $0) })
+                    .sorted()
+                    .enumerated() {
+                    map[day] = index + 1
+                }
+            }
+
+            let assignedDates = Set(map.keys)
+            let unassignedDates = pillDates.subtracting(assignedDates)
+            if unassignedDates.isEmpty == false, pillCount > 0 {
+                let fallback = sequenceMap(
+                    pillDates: unassignedDates,
+                    pillCount: pillCount,
+                    breakDays: breakDays,
+                    calendar: calendar
+                )
+                map.merge(fallback) { stored, _ in stored }
+            }
+            return map
+        }
+
+        guard pillCount > 0 else { return [:] }
         
         let cycles = groupedCycles(
             pillDates: pillDates,
@@ -63,6 +91,19 @@ enum PillCycleCalculator {
             }
         }
         return map
+    }
+
+    static func cycleInfo(
+        containing target: Date,
+        pillCycles: [PillCycleInfo],
+        calendar: Calendar = .current
+    ) -> PillCycleInfo? {
+        let normalizedTarget = calendar.startOfDay(for: target)
+        return pillCycles.first {
+            $0.intakeDates
+                .map { calendar.startOfDay(for: $0) }
+                .contains(normalizedTarget)
+        }
     }
 
     static func latestCycle(
@@ -86,12 +127,35 @@ enum PillCycleCalculator {
         breakDays: Int,
         calendar: Calendar = .current
     ) -> [Date]? {
-        let normalizedTarget = target.startOfDay
+        let normalizedTarget = calendar.startOfDay(for: target)
         return groupedCycles(
             pillDates: pillDates,
             pillCount: pillCount,
             breakDays: breakDays,
             calendar: calendar
         ).first { $0.contains(normalizedTarget) }
+    }
+
+    static func isActive(
+        projectedLastIntakeDate: Date,
+        breakDays: Int,
+        on date: Date,
+        calendar: Calendar = .current
+    ) -> Bool {
+        let normalizedDate = calendar.startOfDay(for: date)
+        let normalizedLastIntake = calendar.startOfDay(for: projectedLastIntakeDate)
+        guard let rawExpectedNextCycleStart = calendar.date(
+            byAdding: .day,
+            value: max(breakDays, 0) + 1,
+            to: normalizedLastIntake
+        ) else {
+            return false
+        }
+        let expectedNextCycleStart = calendar.startOfDay(for: rawExpectedNextCycleStart)
+
+        // Keep the cycle active through its expected restart date so that the
+        // first reminder for the next pack remains valid. If no new intake is
+        // recorded by the following day, the old cycle no longer anchors state.
+        return normalizedDate <= expectedNextCycleStart
     }
 }

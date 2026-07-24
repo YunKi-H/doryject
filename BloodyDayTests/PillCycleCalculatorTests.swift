@@ -99,6 +99,32 @@ struct PillCycleCalculatorTests {
         #expect(sequence[addDays(start, 21)] == 1)
         #expect(sequence[addDays(start, 22)] == 2)
     }
+
+    @Test
+    func sequenceMap_preservesStoredHistoricalCycleWhenGlobalPillCountChanges() {
+        let start = makeDate(2026, 2, 1)
+        let dates = (0..<23).map { addDays(start, $0) }
+        let storedCycle = PillCycleInfo(
+            id: UUID(),
+            intakeDates: dates,
+            plannedPillCount: nil,
+            breakDays: nil,
+            autoRecordEnabled: nil,
+            status: .completed
+        )
+
+        let sequence = PillCycleCalculator.sequenceMap(
+            pillDates: Set(dates),
+            pillCount: 21,
+            breakDays: 7,
+            pillCycles: [storedCycle],
+            calendar: calendar
+        )
+
+        #expect(sequence[addDays(start, 20)] == 21)
+        #expect(sequence[addDays(start, 21)] == 22)
+        #expect(sequence[addDays(start, 22)] == 23)
+    }
     
     @Test
     func latestCycle_returnsMostRecentGroupedCycle() {
@@ -155,6 +181,34 @@ struct PillCycleCalculatorTests {
         )
         
         #expect(cycle == nil)
+    }
+
+    @Test
+    func isActive_keepsCycleActiveThroughExpectedNextCycleStart() {
+        let lastIntake = makeDate(2026, 2, 21)
+
+        let isActive = PillCycleCalculator.isActive(
+            projectedLastIntakeDate: lastIntake,
+            breakDays: 7,
+            on: addDays(lastIntake, 8),
+            calendar: calendar
+        )
+
+        #expect(isActive)
+    }
+
+    @Test
+    func isActive_expiresCycleAfterExpectedNextCycleStartWithoutNewIntake() {
+        let lastIntake = makeDate(2026, 2, 21)
+
+        let isActive = PillCycleCalculator.isActive(
+            projectedLastIntakeDate: lastIntake,
+            breakDays: 7,
+            on: addDays(lastIntake, 9),
+            calendar: calendar
+        )
+
+        #expect(isActive == false)
     }
     
     private func makeDate(_ year: Int, _ month: Int, _ day: Int) -> Date {

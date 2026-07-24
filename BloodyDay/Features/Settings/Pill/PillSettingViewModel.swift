@@ -11,10 +11,15 @@ import Observation
 @Observable
 final class PillSettingsViewModel {
     private let repo: SettingsRepository
+    private let settingsChangeRefresher: SettingsChangeRefreshing?
     private(set) var settings: UserSettings
     
-    init(repo: SettingsRepository) {
+    init(
+        repo: SettingsRepository,
+        settingsChangeRefresher: SettingsChangeRefreshing? = nil
+    ) {
         self.repo = repo
+        self.settingsChangeRefresher = settingsChangeRefresher
         self.settings = repo.load()
     }
     
@@ -22,6 +27,7 @@ final class PillSettingsViewModel {
         settings = repo.update {
             update(&$0.pill)
         }
+        settingsChangeRefresher?.refresh(using: settings)
     }
 
     func reload() {

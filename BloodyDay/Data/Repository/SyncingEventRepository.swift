@@ -13,6 +13,7 @@ final class SyncingEventRepository: EventRepository {
     private let settingsRepository: SettingsRepository?
     private let notificationScheduler: NotificationScheduler?
     private let widgetReloader: WidgetReloading?
+    private var calendar: Calendar { .autoupdatingCurrent }
     
     init(
         base: EventRepository,
@@ -31,7 +32,7 @@ final class SyncingEventRepository: EventRepository {
     func save(_ event: UserEvent) {
         enablePillIfNeeded(for: event)
         base.save(event)
-        if event.type == .period {
+        if AppleCalendarEventSyncPolicy.requiresFullSync(for: event.type) {
             Task { await syncService.syncAll() }
         } else {
             Task { await syncService.syncUpsert(event: event) }
@@ -43,7 +44,8 @@ final class SyncingEventRepository: EventRepository {
     func delete(id: UUID) {
         let event = base.allEvents().first(where: { $0.id == id })
         base.delete(id: id)
-        if event?.type == .period {
+        if let type = event?.type,
+           AppleCalendarEventSyncPolicy.requiresFullSync(for: type) {
             Task { await syncService.syncAll() }
         } else {
             Task { await syncService.syncDelete(eventId: id, eventType: event?.type) }
@@ -53,10 +55,12 @@ final class SyncingEventRepository: EventRepository {
     }
     
     func delete(type: EventType, on: Date) {
-        let target = on.startOfDay
-        let events = base.events(of: type).filter { $0.date.startOfDay == target }
+        let target = calendar.startOfDay(for: on)
+        let events = base.events(of: type).filter {
+            calendar.startOfDay(for: $0.date) == target
+        }
         base.delete(type: type, on: on)
-        if type == .period {
+        if AppleCalendarEventSyncPolicy.requiresFullSync(for: type) {
             Task { await syncService.syncAll() }
         } else {
             Task { await syncService.syncDelete(events: events) }
@@ -86,6 +90,10 @@ final class SyncingEventRepository: EventRepository {
     func events(of type: EventType) -> [UserEvent] {
         base.events(of: type)
     }
+
+    func pillCycles() -> [PillCycleInfo] {
+        base.pillCycles()
+    }
     
     private func refreshNotifications() {
         guard let scheduler = notificationScheduler,
@@ -97,7 +105,7 @@ final class SyncingEventRepository: EventRepository {
     private func refreshWidgets() {
         widgetReloader?.reloadAll()
     }
-    
+
     private func enablePillIfNeeded(for event: UserEvent) {
         guard event.type == .pill,
               let settingsRepository else { return }
@@ -113,5 +121,11 @@ final class SyncingEventRepository: EventRepository {
         guard settings.pill.pillEnabled == false else { return }
         settings.pill.pillEnabled = true
         settingsRepository.save(settings)
+    }
+}
+
+enum AppleCalendarEventSyncPolicy {
+    static func requiresFullSync(for type: EventType) -> Bool {
+        type == .period || type == .pill
     }
 }

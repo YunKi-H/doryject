@@ -10,6 +10,7 @@ import Foundation
 
 final class EventKitAppleCalendarClient: AppleCalendarClient {
     private let eventStore = EKEventStore()
+    private var systemCalendar: Calendar { .autoupdatingCurrent }
     
     func requestAccess() async -> Bool {
         do {
@@ -32,22 +33,22 @@ final class EventKitAppleCalendarClient: AppleCalendarClient {
             return existing.calendarIdentifier
         }
         
-        let calendar = EKCalendar(for: .event, eventStore: eventStore)
-        calendar.title = name
-        calendar.source = eventStore.defaultCalendarForNewEvents?.source ?? preferredSource()
+        let eventCalendar = EKCalendar(for: .event, eventStore: eventStore)
+        eventCalendar.title = name
+        eventCalendar.source = eventStore.defaultCalendarForNewEvents?.source ?? preferredSource()
         
         do {
-            try eventStore.saveCalendar(calendar, commit: true)
-            return calendar.calendarIdentifier
+            try eventStore.saveCalendar(eventCalendar, commit: true)
+            return eventCalendar.calendarIdentifier
         } catch {
             return nil
         }
     }
     
     func removeCalendar(identifier: String) {
-        guard let calendar = eventStore.calendar(withIdentifier: identifier) else { return }
+        guard let eventCalendar = eventStore.calendar(withIdentifier: identifier) else { return }
         do {
-            try eventStore.removeCalendar(calendar, commit: true)
+            try eventStore.removeCalendar(eventCalendar, commit: true)
         } catch {
         }
     }
@@ -59,17 +60,20 @@ final class EventKitAppleCalendarClient: AppleCalendarClient {
         existingEventIdentifier: String?,
         dateRange: DateInterval?
     ) -> String? {
-        guard let calendar = eventStore.calendar(withIdentifier: calendarIdentifier) else { return nil }
-        let ekEvent = existingEventIdentifier.flatMap { eventStore.event(withIdentifier: $0) } ?? EKEvent(eventStore: eventStore)
-        ekEvent.calendar = calendar
+        guard let eventCalendar = eventStore.calendar(withIdentifier: calendarIdentifier) else { return nil }
+        let ekEvent = existingEventIdentifier
+            .flatMap { eventStore.event(withIdentifier: $0) }
+            ?? matchingEvent(for: event, in: eventCalendar, dateRange: dateRange)
+            ?? EKEvent(eventStore: eventStore)
+        ekEvent.calendar = eventCalendar
         ekEvent.title = title
         ekEvent.isAllDay = true
         if let range = dateRange {
-            ekEvent.startDate = range.start.startOfDay
+            ekEvent.startDate = systemCalendar.startOfDay(for: range.start)
             ekEvent.endDate = range.end
         } else {
-            ekEvent.startDate = event.date.startOfDay
-            ekEvent.endDate = event.date.endOfDay
+            ekEvent.startDate = systemCalendar.startOfDay(for: event.date)
+            ekEvent.endDate = event.date.endOfDay(in: systemCalendar)
         }
         ekEvent.url = AppDeepLink.calendarURL(for: event.date)
         do {
@@ -77,6 +81,29 @@ final class EventKitAppleCalendarClient: AppleCalendarClient {
             return ekEvent.eventIdentifier
         } catch {
             return nil
+        }
+    }
+
+    private func matchingEvent(
+        for event: UserEvent,
+        in eventCalendar: EKCalendar,
+        dateRange: DateInterval?
+    ) -> EKEvent? {
+        let rangeStart = dateRange.map {
+            systemCalendar.startOfDay(for: $0.start)
+        } ?? systemCalendar.startOfDay(for: event.date)
+        let rangeEnd = dateRange?.end ?? event.date.endOfDay(in: systemCalendar)
+        let predicate = eventStore.predicateForEvents(
+            withStart: rangeStart,
+            end: rangeEnd,
+            calendars: [eventCalendar]
+        )
+        let expectedURL = AppDeepLink.calendarURL(for: event.date)
+
+        return eventStore.events(matching: predicate).first { existing in
+            existing.isAllDay
+                && systemCalendar.startOfDay(for: existing.startDate) == rangeStart
+                && existing.url == expectedURL
         }
     }
     

@@ -103,19 +103,34 @@ struct BloodyDayRootView: View {
                     notificationScheduler: scheduler,
                     widgetReloader: widgetReloader
                 )
-                if calendarViewModel == nil {
-                    calendarViewModel = CalendarViewModel(
+                let activeCalendarViewModel: CalendarViewModel
+                if let existingCalendarViewModel = calendarViewModel {
+                    activeCalendarViewModel = existingCalendarViewModel
+                } else {
+                    let createdViewModel = CalendarViewModel(
                         eventRepository: syncingRepository,
                         settingsRepository: settingsRepository
                     )
+                    self.calendarViewModel = createdViewModel
+                    activeCalendarViewModel = createdViewModel
                 }
+                let settingsChangeRefresher = SettingsChangeRefreshService(
+                    eventRepository: baseEventRepository,
+                    notificationScheduler: scheduler,
+                    appleCalendarSyncService: appleCalendarSyncService!,
+                    widgetReloader: widgetReloader,
+                    calendarStateRefresher: { [weak activeCalendarViewModel] in
+                        activeCalendarViewModel?.refresh()
+                    }
+                )
                 if periodListViewModel == nil {
                     periodListViewModel = PeriodListViewModel(eventRepository: syncingRepository)
                 }
                 if periodSettingViewModel == nil {
                     periodSettingViewModel = PeriodSettingViewModel(
                         repo: settingsRepository,
-                        eventRepository: syncingRepository
+                        eventRepository: syncingRepository,
+                        settingsChangeRefresher: settingsChangeRefresher
                     )
                 }
                 if notificationSettingsViewModel == nil {
@@ -126,7 +141,10 @@ struct BloodyDayRootView: View {
                     )
                 }
                 if pillSettingsViewModel == nil {
-                    pillSettingsViewModel = PillSettingsViewModel(repo: settingsRepository)
+                    pillSettingsViewModel = PillSettingsViewModel(
+                        repo: settingsRepository,
+                        settingsChangeRefresher: settingsChangeRefresher
+                    )
                 }
                 if appleCalendarSettingsViewModel == nil {
                     appleCalendarSettingsViewModel = AppleCalendarSettingViewModel(
@@ -138,11 +156,20 @@ struct BloodyDayRootView: View {
                 if appearanceSettingViewModel == nil {
                     appearanceSettingViewModel = AppearanceSettingViewModel(repo: settingsRepository)
                 }
-                refreshAppStateAfterExternalChanges()
+                refreshAppStateForSystemCalendarChange()
                 consumePendingDeepLinkIfNeeded()
             }
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
-                refreshAppStateAfterExternalChanges()
+                refreshAppStateForSystemCalendarChange()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged)) { _ in
+                refreshAppStateForSystemCalendarChange()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in
+                refreshAppStateForSystemCalendarChange()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .NSSystemTimeZoneDidChange)) { _ in
+                refreshAppStateForSystemCalendarChange()
             }
         }
         .preferredColorScheme(preferredColorScheme)
@@ -151,8 +178,14 @@ struct BloodyDayRootView: View {
         }
     }
     
-    private func refreshAppStateAfterExternalChanges() {
-        calendarViewModel?.refresh()
+    private func refreshAppStateForSystemCalendarChange(
+        now: Date = .now,
+        calendar: Calendar = .autoupdatingCurrent
+    ) {
+        calendarViewModel?.refreshForSystemCalendarChange(
+            now: now,
+            calendar: calendar
+        )
         periodListViewModel?.refresh()
         pillSettingsViewModel?.reload()
         appearanceSettingViewModel?.reload()
@@ -201,7 +234,9 @@ struct BloodyDayRootView: View {
     private func openCalendarTab(on date: Date) {
         activeTab = .calendar
         isPresentedCalendarSheet = false
-        calendarViewModel?.selectDate(date.startOfDay)
+        calendarViewModel?.selectDate(
+            date.startOfDay(in: .autoupdatingCurrent)
+        )
     }
     
     @ViewBuilder

@@ -10,6 +10,8 @@
 		<string>Pretendard-Bold.otf</string>
 		<string>Clarendon Bold.otf</string>
 	</array>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>B-Day 기록을 위해 캘린더에 접근, 수정 권한이 필요합니다.</string>
 	<key>NSExtension</key>
 	<dict>
 		<key>NSExtensionPointIdentifier</key>

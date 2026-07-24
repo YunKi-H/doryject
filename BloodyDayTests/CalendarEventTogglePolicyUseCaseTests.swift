@@ -120,6 +120,40 @@ struct CalendarEventTogglePolicyUseCaseTests {
             CalendarEventMutation(type: .pill, dates: [addDays(start, 2), addDays(start, 4)])
         ])
     }
+
+    @Test
+    func mutationPlan_pillOnUsesStoredActiveCycleSettingsAfterGlobalSettingsChange() {
+        var settings = UserSettings()
+        settings.pill.pillEnabled = true
+        settings.pill.pillAutoRecordEnabled = false
+        settings.pill.pillCount = 28
+        settings.pill.pillBreakDuration = 4
+
+        let start = makeDate(2026, 2, 10)
+        let existingDates = [start, addDays(start, 2)]
+        let storedCycle = PillCycleInfo(
+            id: UUID(),
+            intakeDates: existingDates,
+            plannedPillCount: 3,
+            breakDays: 7,
+            autoRecordEnabled: true,
+            status: .active
+        )
+
+        let plan = CalendarEventTogglePolicyUseCase.mutationPlan(
+            type: .pill,
+            enabled: true,
+            selectedDate: addDays(start, 1),
+            existingDatesByType: [.pill: Set(existingDates)],
+            settings: settings,
+            pillCycles: [storedCycle],
+            calendar: calendar
+        )
+
+        #expect(plan.additions == [
+            CalendarEventMutation(type: .pill, dates: [addDays(start, 1)])
+        ])
+    }
     
     @Test
     func mutationPlan_returnsEmptyWhenToggleStateIsAlreadyEnabled() {
