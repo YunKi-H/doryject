@@ -36,6 +36,7 @@ enum ToggleTodayEventKind: String, AppEnum {
 struct ToggleTodayEventIntent: AppIntent {
     static let title: LocalizedStringResource = "오늘 이벤트 토글"
     static let openAppWhenRun = false
+    private static let settingsKey = "user.settings.v1"
     
     @Parameter(title: "이벤트")
     var eventType: ToggleTodayEventKind
@@ -51,6 +52,9 @@ struct ToggleTodayEventIntent: AppIntent {
         if eventType == .pill, toggledOn {
             enablePillIfNeeded()
         }
+        if eventType != .love {
+            await rescheduleNotifications()
+        }
         rebuildSnapshot()
         WidgetCenter.shared.reloadAllTimelines()
         return .result()
@@ -62,10 +66,9 @@ struct ToggleTodayEventIntent: AppIntent {
     }
     
     private func enablePillIfNeeded() {
-        let key = "user.settings.v1"
         guard let defaults = UserDefaults(suiteName: WidgetSnapshotStore.appGroupIdentifier) else { return }
         var settings: UserSettings
-        if let data = defaults.data(forKey: key),
+        if let data = defaults.data(forKey: Self.settingsKey),
            let decoded = try? JSONDecoder().decode(UserSettings.self, from: data) {
             settings = decoded
         } else {
@@ -73,6 +76,33 @@ struct ToggleTodayEventIntent: AppIntent {
         }
         settings.pill.pillEnabled = true
         guard let encoded = try? JSONEncoder().encode(settings) else { return }
-        defaults.set(encoded, forKey: key)
+        defaults.set(encoded, forKey: Self.settingsKey)
+    }
+
+    private func rescheduleNotifications() async {
+        let eventReader = WidgetEventReader(
+            events: WidgetSharedEventStore.allEvents()
+        )
+        await UserNotificationScheduler().applyAndWait(
+            settings: loadSettings(),
+            eventReader: eventReader
+        )
+    }
+
+    private func loadSettings() -> UserSettings {
+        guard let defaults = UserDefaults(suiteName: WidgetSnapshotStore.appGroupIdentifier),
+              let data = defaults.data(forKey: Self.settingsKey),
+              let settings = try? JSONDecoder().decode(UserSettings.self, from: data) else {
+            return .init()
+        }
+        return settings
+    }
+}
+
+private struct WidgetEventReader: EventReading {
+    let events: [UserEvent]
+
+    func events(of type: EventType) -> [UserEvent] {
+        events.filter { $0.type == type }
     }
 }

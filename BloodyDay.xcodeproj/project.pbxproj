@@ -58,6 +58,7 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Data/DTO/UserEvent.swift,
+				Data/Repository/EventRepository.swift,
 				Domain/Entities/DayEvent.swift,
 				Domain/Entities/EventType.swift,
 				Domain/Entities/Settings/AppearanceSettings.swift,
@@ -73,6 +74,7 @@
 				Domain/UseCases/PeriodForecastCalculator.swift,
 				Domain/UseCases/PeriodSummaryBuilder.swift,
 				Domain/UseCases/PillCycleCalculator.swift,
+				Domain/UseCases/PillReminderScheduleCalculator.swift,
 				Domain/UseCases/PredictedCycleEventBuilder.swift,
 				Features/Calendar/UseCases/BuildCalendarMonthComputationContextUseCase.swift,
 				Resources/Assets.xcassets,
@@ -83,6 +85,9 @@
 				"Resources/Fonts/Pretendard-SemiBold.otf",
 				"Utilities/Date+Extension.swift",
 				"Utilities/Font+Extension.swift",
+				Utilities/Services/NotificationScheduler.swift,
+				Utilities/Services/PillReminderNotificationScheduler.swift,
+				Utilities/Services/UserNotificationScheduler.swift,
 			);
 			target = 2BE0DABA2F6DA546008394E3 /* BloodyDayWidgetExtension */;
 		};
