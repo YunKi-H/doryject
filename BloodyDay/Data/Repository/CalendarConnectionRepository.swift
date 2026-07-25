@@ -5,10 +5,35 @@
 //  Created by Yunki on 7/26/26.
 //
 
+final class CalendarConnectionObservation {
+    private var cancellation: (() -> Void)?
+
+    init(cancellation: @escaping () -> Void = {}) {
+        self.cancellation = cancellation
+    }
+
+    func cancel() {
+        cancellation?()
+        cancellation = nil
+    }
+
+    deinit {
+        cancel()
+    }
+}
+
 protocol CalendarConnectionRepository {
     func ensureProfile(for user: AuthenticatedUser) async throws -> CalendarSharingProfile
     func activeConnection(for userID: String) async throws -> CalendarConnection?
     func incomingRequests(for userID: String) async throws -> [CalendarConnectionRequest]
+    func observeActiveConnection(
+        for userID: String,
+        onChange: @escaping (Result<CalendarConnection?, Error>) -> Void
+    ) -> CalendarConnectionObservation
+    func observeIncomingRequests(
+        for userID: String,
+        onChange: @escaping (Result<[CalendarConnectionRequest], Error>) -> Void
+    ) -> CalendarConnectionObservation
 
     func sendRequest(
         from profile: CalendarSharingProfile,

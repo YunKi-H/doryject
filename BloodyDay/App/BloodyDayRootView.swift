@@ -24,6 +24,9 @@ struct BloodyDayRootView: View {
     @State private var appleCalendarSyncService: AppleCalendarSyncService?
     @State private var notificationScheduler: UserNotificationScheduler?
     @State private var widgetReloadService: WidgetReloadService?
+    @State private var firebaseAuthenticationService: FirebaseAuthenticationService?
+    @State private var calendarConnectionRepository: FirestoreCalendarConnectionRepository?
+    @State private var sharedCalendarSyncScheduler: SharedCalendarSyncScheduler?
     
     @State private var activeTab: BloodyDayTab = .calendar
     @State private var isPresentedCalendarSheet: Bool = false
@@ -88,9 +91,15 @@ struct BloodyDayRootView: View {
                 let calendarClient = appleCalendarClient ?? EventKitAppleCalendarClient()
                 let scheduler = notificationScheduler ?? UserNotificationScheduler()
                 let widgetReloader = widgetReloadService ?? WidgetReloadService()
+                let authenticationService = firebaseAuthenticationService
+                    ?? FirebaseAuthenticationService()
+                let connectionRepository = calendarConnectionRepository
+                    ?? FirestoreCalendarConnectionRepository()
                 appleCalendarClient = calendarClient
                 notificationScheduler = scheduler
                 widgetReloadService = widgetReloader
+                firebaseAuthenticationService = authenticationService
+                calendarConnectionRepository = connectionRepository
                 if appleCalendarSyncService == nil {
                     appleCalendarSyncService = AppleCalendarSyncService(
                         settingsRepository: settingsRepository,
@@ -99,12 +108,26 @@ struct BloodyDayRootView: View {
                         syncStore: syncStore
                     )
                 }
+                let sharingSyncScheduler: SharedCalendarSyncScheduler
+                if let existingScheduler = sharedCalendarSyncScheduler {
+                    sharingSyncScheduler = existingScheduler
+                } else {
+                    let createdScheduler = SharedCalendarSyncScheduler(
+                        authenticationService: authenticationService,
+                        connectionRepository: connectionRepository,
+                        eventRepository: baseEventRepository,
+                        eventSyncService: FirestoreSharedCalendarEventSyncService()
+                    )
+                    sharedCalendarSyncScheduler = createdScheduler
+                    sharingSyncScheduler = createdScheduler
+                }
                 let syncingRepository = SyncingEventRepository(
                     base: baseEventRepository,
                     syncService: appleCalendarSyncService!,
                     settingsRepository: settingsRepository,
                     notificationScheduler: scheduler,
-                    widgetReloader: widgetReloader
+                    widgetReloader: widgetReloader,
+                    sharedCalendarSyncScheduler: sharingSyncScheduler
                 )
                 let activeCalendarViewModel: CalendarViewModel
                 if let existingCalendarViewModel = calendarViewModel {
@@ -160,10 +183,15 @@ struct BloodyDayRootView: View {
                     appearanceSettingViewModel = AppearanceSettingViewModel(repo: settingsRepository)
                 }
                 if calendarSharingSettingViewModel == nil {
-                    calendarSharingSettingViewModel = CalendarSharingSettingViewModel(
-                        authenticationService: FirebaseAuthenticationService(),
-                        connectionRepository: FirestoreCalendarConnectionRepository()
+                    let sharingViewModel = CalendarSharingSettingViewModel(
+                        authenticationService: authenticationService,
+                        connectionRepository: connectionRepository,
+                        sharedCalendarSyncScheduler: sharingSyncScheduler
                     )
+                    calendarSharingSettingViewModel = sharingViewModel
+                    Task {
+                        await sharingViewModel.refreshSharingState()
+                    }
                 }
                 refreshAppStateForSystemCalendarChange()
                 consumePendingDeepLinkIfNeeded()
@@ -203,6 +231,7 @@ struct BloodyDayRootView: View {
             await appleCalendarSyncService?.syncAll()
         }
         widgetReloadService?.reloadAll()
+        sharedCalendarSyncScheduler?.schedule()
     }
     
     private var preferredColorScheme: ColorScheme? {

@@ -96,6 +96,85 @@ final class FirestoreCalendarConnectionRepository: CalendarConnectionRepository 
             .sorted { $0.createdAt > $1.createdAt }
     }
 
+    func observeActiveConnection(
+        for userID: String,
+        onChange: @escaping (Result<CalendarConnection?, Error>) -> Void
+    ) -> CalendarConnectionObservation {
+        let listeners = FirestoreActiveConnectionListeners()
+        let membershipReference = database
+            .collection(FirestoreCalendarSharingMapper.Collection.memberships)
+            .document(userID)
+
+        let membershipListener = membershipReference.addSnapshotListener { [database] snapshot, error in
+            if let error {
+                onChange(.failure(error))
+                return
+            }
+
+            listeners.replaceConnectionListener(nil)
+
+            guard let connectionID = snapshot?.data()?["connectionID"] as? String else {
+                onChange(.success(nil))
+                return
+            }
+
+            let connectionListener = database
+                .collection(FirestoreCalendarSharingMapper.Collection.connections)
+                .document(connectionID)
+                .addSnapshotListener { document, error in
+                    if let error {
+                        onChange(.failure(error))
+                        return
+                    }
+                    guard let document,
+                          let data = document.data() else {
+                        onChange(.success(nil))
+                        return
+                    }
+                    let connection = FirestoreCalendarSharingMapper.connection(
+                        id: document.documentID,
+                        data: data
+                    )
+                    onChange(.success(connection))
+                }
+            listeners.replaceConnectionListener(connectionListener)
+        }
+        listeners.setMembershipListener(membershipListener)
+
+        return CalendarConnectionObservation {
+            listeners.cancel()
+        }
+    }
+
+    func observeIncomingRequests(
+        for userID: String,
+        onChange: @escaping (Result<[CalendarConnectionRequest], Error>) -> Void
+    ) -> CalendarConnectionObservation {
+        let listener = database
+            .collection(FirestoreCalendarSharingMapper.Collection.requests)
+            .whereField("recipientID", isEqualTo: userID)
+            .addSnapshotListener { snapshot, error in
+                if let error {
+                    onChange(.failure(error))
+                    return
+                }
+                let requests = snapshot?.documents
+                    .compactMap {
+                        FirestoreCalendarSharingMapper.request(
+                            id: $0.documentID,
+                            data: $0.data()
+                        )
+                    }
+                    .filter { $0.status == .pending }
+                    .sorted { $0.createdAt > $1.createdAt } ?? []
+                onChange(.success(requests))
+            }
+
+        return CalendarConnectionObservation {
+            listener.remove()
+        }
+    }
+
     func sendRequest(
         from profile: CalendarSharingProfile,
         to connectionCode: String
@@ -323,6 +402,45 @@ final class FirestoreCalendarConnectionRepository: CalendarConnectionRepository 
 
     private static let transactionErrorDomain = "BloodyDay.CalendarConnectionTransaction"
     private static let connectionCodeCollisionErrorCode = 1
+}
+
+private final class FirestoreActiveConnectionListeners: @unchecked Sendable {
+    private let lock = NSLock()
+    private var membershipListener: ListenerRegistration?
+    private var connectionListener: ListenerRegistration?
+    private var isCancelled = false
+
+    func setMembershipListener(_ listener: ListenerRegistration) {
+        lock.withLock {
+            guard isCancelled == false else {
+                listener.remove()
+                return
+            }
+            membershipListener = listener
+        }
+    }
+
+    func replaceConnectionListener(_ listener: ListenerRegistration?) {
+        lock.withLock {
+            connectionListener?.remove()
+            guard isCancelled == false else {
+                listener?.remove()
+                connectionListener = nil
+                return
+            }
+            connectionListener = listener
+        }
+    }
+
+    func cancel() {
+        lock.withLock {
+            isCancelled = true
+            membershipListener?.remove()
+            connectionListener?.remove()
+            membershipListener = nil
+            connectionListener = nil
+        }
+    }
 }
 
 private enum CalendarConnectionCodeGenerator {

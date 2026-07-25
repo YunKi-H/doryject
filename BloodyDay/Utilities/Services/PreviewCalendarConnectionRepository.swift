@@ -26,6 +26,22 @@ final class PreviewCalendarConnectionRepository: CalendarConnectionRepository {
         []
     }
 
+    func observeActiveConnection(
+        for userID: String,
+        onChange: @escaping (Result<CalendarConnection?, Error>) -> Void
+    ) -> CalendarConnectionObservation {
+        onChange(.success(connection))
+        return CalendarConnectionObservation()
+    }
+
+    func observeIncomingRequests(
+        for userID: String,
+        onChange: @escaping (Result<[CalendarConnectionRequest], Error>) -> Void
+    ) -> CalendarConnectionObservation {
+        onChange(.success([]))
+        return CalendarConnectionObservation()
+    }
+
     func sendRequest(
         from profile: CalendarSharingProfile,
         to connectionCode: String

@@ -56,6 +56,19 @@ struct SharedEventTypeSelection: Equatable, Sendable {
     var period = true
     var pill = true
     var love = true
+
+    func includes(_ type: EventType) -> Bool {
+        switch type {
+        case .period:
+            return period
+        case .pill:
+            return pill
+        case .love:
+            return love
+        case .ovulation, .fertile, .delayed:
+            return false
+        }
+    }
 }
 
 enum CalendarConnectionRole: Sendable {

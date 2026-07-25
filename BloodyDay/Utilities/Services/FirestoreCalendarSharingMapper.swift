@@ -15,6 +15,7 @@ enum FirestoreCalendarSharingMapper {
         static let requests = "connectionRequests"
         static let connections = "connections"
         static let memberships = "connectionMemberships"
+        static let events = "events"
     }
 
     static func profile(
@@ -79,5 +80,46 @@ enum FirestoreCalendarSharingMapper {
             sharedEventTypes: sharedEventTypes,
             createdAt: createdAt
         )
+    }
+
+    static func sharedEventData(
+        _ event: UserEvent,
+        ownerID: String,
+        calendar: Calendar
+    ) -> [String: Any] {
+        [
+            "ownerID": ownerID,
+            "eventID": event.id.uuidString,
+            "dayKey": CalendarDay(
+                date: event.resolvedDate(calendar: calendar),
+                calendar: calendar
+            ).dayKey,
+            "typeRaw": event.type.rawValue,
+            "updatedAt": FieldValue.serverTimestamp()
+        ]
+    }
+
+    static func sharedEventDataMatches(
+        _ existing: [String: Any]?,
+        expected: [String: Any]
+    ) -> Bool {
+        guard let existing else { return false }
+        return existing["ownerID"] as? String == expected["ownerID"] as? String
+            && existing["eventID"] as? String == expected["eventID"] as? String
+            && numericInt(existing["dayKey"]) == numericInt(expected["dayKey"])
+            && existing["typeRaw"] as? String == expected["typeRaw"] as? String
+    }
+
+    private static func numericInt(_ value: Any?) -> Int? {
+        if let value = value as? Int {
+            return value
+        }
+        if let value = value as? Int64 {
+            return Int(value)
+        }
+        if let value = value as? NSNumber {
+            return value.intValue
+        }
+        return nil
     }
 }

@@ -14,7 +14,10 @@ import Observation
 final class CalendarSharingSettingViewModel {
     private let authenticationService: AuthenticationService
     private let connectionRepository: CalendarConnectionRepository
+    private let sharedCalendarSyncScheduler: SharedCalendarSyncScheduling?
     private var currentNonce: String?
+    private var connectionObservation: CalendarConnectionObservation?
+    private var requestObservation: CalendarConnectionObservation?
 
     private(set) var user: AuthenticatedUser?
     private(set) var profile: CalendarSharingProfile?
@@ -29,10 +32,12 @@ final class CalendarSharingSettingViewModel {
 
     init(
         authenticationService: AuthenticationService,
-        connectionRepository: CalendarConnectionRepository
+        connectionRepository: CalendarConnectionRepository,
+        sharedCalendarSyncScheduler: SharedCalendarSyncScheduling? = nil
     ) {
         self.authenticationService = authenticationService
         self.connectionRepository = connectionRepository
+        self.sharedCalendarSyncScheduler = sharedCalendarSyncScheduler
         self.user = authenticationService.currentUser
     }
 
@@ -68,6 +73,7 @@ final class CalendarSharingSettingViewModel {
     func signOut() {
         do {
             try authenticationService.signOut()
+            stopObservingSharingState()
             user = nil
             clearSharingState()
         } catch {
@@ -94,6 +100,8 @@ final class CalendarSharingSettingViewModel {
             async let requests = connectionRepository.incomingRequests(for: user.id)
             activeConnection = try await connection
             incomingRequests = try await requests
+            startObservingSharingState(for: user.id)
+            sharedCalendarSyncScheduler?.schedule()
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -128,6 +136,7 @@ final class CalendarSharingSettingViewModel {
             )
             incomingRequests.removeAll { $0.id == request.id }
             statusMessage = nil
+            sharedCalendarSyncScheduler?.schedule()
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -180,6 +189,7 @@ final class CalendarSharingSettingViewModel {
                 sharedEventTypes: selection,
                 createdAt: connection.createdAt
             )
+            sharedCalendarSyncScheduler?.schedule()
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -227,5 +237,45 @@ final class CalendarSharingSettingViewModel {
         incomingRequests = []
         partnerConnectionCode = ""
         statusMessage = nil
+    }
+
+    private func startObservingSharingState(for userID: String) {
+        stopObservingSharingState()
+
+        connectionObservation = connectionRepository.observeActiveConnection(
+            for: userID
+        ) { [weak self] result in
+            Task { @MainActor in
+                guard let self else { return }
+                switch result {
+                case .success(let connection):
+                    self.activeConnection = connection
+                    self.sharedCalendarSyncScheduler?.schedule()
+                case .failure(let error):
+                    self.errorMessage = error.localizedDescription
+                }
+            }
+        }
+
+        requestObservation = connectionRepository.observeIncomingRequests(
+            for: userID
+        ) { [weak self] result in
+            Task { @MainActor in
+                guard let self else { return }
+                switch result {
+                case .success(let requests):
+                    self.incomingRequests = requests
+                case .failure(let error):
+                    self.errorMessage = error.localizedDescription
+                }
+            }
+        }
+    }
+
+    private func stopObservingSharingState() {
+        connectionObservation?.cancel()
+        requestObservation?.cancel()
+        connectionObservation = nil
+        requestObservation = nil
     }
 }
