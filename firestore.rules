@@ -1,0 +1,166 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    match /users/{userID} {
+      allow get: if signedIn() && request.auth.uid == userID;
+      allow create: if signedIn()
+        && request.auth.uid == userID
+        && request.resource.data.connectionCode is string;
+      allow update: if signedIn()
+        && request.auth.uid == userID
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(["displayName"]);
+      allow list, delete: if false;
+    }
+
+    match /connectionCodes/{code} {
+      allow get: if signedIn();
+      allow list: if false;
+      allow create: if signedIn()
+        && request.resource.data.userID == request.auth.uid;
+      allow update: if false;
+      allow delete: if signedIn()
+        && resource.data.userID == request.auth.uid;
+    }
+
+    match /connectionRequests/{requestID} {
+      allow create: if signedIn()
+        && request.resource.data.senderID == request.auth.uid
+        && request.resource.data.recipientID != request.auth.uid
+        && request.resource.data.status == "pending";
+
+      allow read: if signedIn()
+        && (
+          resource.data.senderID == request.auth.uid
+          || resource.data.recipientID == request.auth.uid
+        );
+
+      allow update: if signedIn()
+        && request.resource.data.senderID == resource.data.senderID
+        && request.resource.data.recipientID == resource.data.recipientID
+        && (
+          (
+            resource.data.recipientID == request.auth.uid
+            && resource.data.status == "pending"
+            && request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(["status"])
+            && request.resource.data.status in ["accepted", "declined"]
+            && (
+              request.resource.data.status == "declined"
+              || (
+                existsAfter(
+                  /databases/$(database)/documents/connections/$(requestID)
+                )
+                && existsAfter(
+                  /databases/$(database)/documents/connectionMemberships/$(resource.data.senderID)
+                )
+                && existsAfter(
+                  /databases/$(database)/documents/connectionMemberships/$(resource.data.recipientID)
+                )
+              )
+            )
+          )
+          ||
+          (
+            resource.data.senderID == request.auth.uid
+            && resource.data.status in ["pending", "declined"]
+            && request.resource.data.status == "pending"
+            && request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(["senderDisplayName", "status", "createdAt"])
+          )
+        );
+
+      allow delete: if false;
+    }
+
+    match /connections/{connectionID} {
+      function connection() {
+        return get(
+          /databases/$(database)/documents/connections/$(connectionID)
+        ).data;
+      }
+
+      function acceptedRequest() {
+        return getAfter(
+          /databases/$(database)/documents/connectionRequests/$(connectionID)
+        ).data;
+      }
+
+      allow create: if signedIn()
+        && acceptedRequest().status == "accepted"
+        && acceptedRequest().recipientID == request.auth.uid
+        && request.resource.data.participantIDs.size() == 2
+        && request.resource.data.ownerID in request.resource.data.participantIDs
+        && request.resource.data.viewerID in request.resource.data.participantIDs
+        && request.resource.data.ownerID != request.resource.data.viewerID
+        && acceptedRequest().senderID in request.resource.data.participantIDs
+        && acceptedRequest().recipientID in request.resource.data.participantIDs;
+
+      allow read: if signedIn()
+        && request.auth.uid in resource.data.participantIDs;
+
+      allow update: if signedIn()
+        && request.auth.uid == resource.data.ownerID
+        && request.resource.data.ownerID == resource.data.ownerID
+        && request.resource.data.viewerID == resource.data.viewerID
+        && request.resource.data.participantIDs == resource.data.participantIDs
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly([
+            "sharedPeriod",
+            "sharedPill",
+            "sharedLove",
+            "sharingUpdatedAt",
+            "sharingUpdatedBy"
+          ])
+        && request.resource.data.sharingUpdatedBy == request.auth.uid;
+
+      allow delete: if signedIn()
+        && request.auth.uid in resource.data.participantIDs;
+
+      match /events/{eventID} {
+        allow read: if signedIn()
+          && request.auth.uid in connection().participantIDs;
+
+        allow create, update: if signedIn()
+          && request.auth.uid == connection().ownerID
+          && request.resource.data.ownerID == request.auth.uid
+          && request.resource.data.eventID == eventID
+          && request.resource.data.dayKey is int
+          && request.resource.data.typeRaw in ["period", "pill", "love"]
+          && request.resource.data.keys().hasOnly([
+            "ownerID",
+            "eventID",
+            "dayKey",
+            "typeRaw",
+            "updatedAt"
+          ]);
+
+        allow delete: if signedIn()
+          && request.auth.uid == connection().ownerID;
+      }
+    }
+
+    match /connectionMemberships/{userID} {
+      function connectedCalendar() {
+        return getAfter(
+          /databases/$(database)/documents/connections/$(request.resource.data.connectionID)
+        ).data;
+      }
+
+      allow get: if signedIn() && request.auth.uid == userID;
+      allow list: if false;
+      allow create: if signedIn()
+        && request.resource.data.userID == userID
+        && request.auth.uid in request.resource.data.participantIDs
+        && userID in request.resource.data.participantIDs
+        && request.resource.data.participantIDs.size() == 2
+        && connectedCalendar().participantIDs == request.resource.data.participantIDs;
+      allow update, delete: if false;
+    }
+  }
+}
