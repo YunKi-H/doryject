@@ -27,6 +27,8 @@ struct BloodyDayRootView: View {
     @State private var firebaseAuthenticationService: FirebaseAuthenticationService?
     @State private var calendarConnectionRepository: FirestoreCalendarConnectionRepository?
     @State private var sharedCalendarSyncScheduler: SharedCalendarSyncScheduler?
+    @State private var calendarDisplayEventRepository: CalendarDisplayEventRepository?
+    @State private var sharedCalendarEventRepository: FirestoreSharedCalendarEventRepository?
     
     @State private var activeTab: BloodyDayTab = .calendar
     @State private var isPresentedCalendarSheet: Bool = false
@@ -129,16 +131,30 @@ struct BloodyDayRootView: View {
                     widgetReloader: widgetReloader,
                     sharedCalendarSyncScheduler: sharingSyncScheduler
                 )
+                let displayEventRepository = calendarDisplayEventRepository
+                    ?? CalendarDisplayEventRepository(
+                        localRepository: syncingRepository
+                    )
+                let remoteEventRepository = sharedCalendarEventRepository
+                    ?? FirestoreSharedCalendarEventRepository()
+                calendarDisplayEventRepository = displayEventRepository
+                sharedCalendarEventRepository = remoteEventRepository
                 let activeCalendarViewModel: CalendarViewModel
                 if let existingCalendarViewModel = calendarViewModel {
                     activeCalendarViewModel = existingCalendarViewModel
                 } else {
                     let createdViewModel = CalendarViewModel(
-                        eventRepository: syncingRepository,
+                        eventRepository: displayEventRepository,
                         settingsRepository: settingsRepository
                     )
                     self.calendarViewModel = createdViewModel
                     activeCalendarViewModel = createdViewModel
+                }
+                displayEventRepository.onDisplayEventsChanged = {
+                    activeCalendarViewModel.refreshDisplayMode(
+                        canEditEvents: displayEventRepository
+                            .isDisplayingSharedCalendar == false
+                    )
                 }
                 let settingsChangeRefresher = SettingsChangeRefreshService(
                     eventRepository: baseEventRepository,
@@ -186,7 +202,9 @@ struct BloodyDayRootView: View {
                     let sharingViewModel = CalendarSharingSettingViewModel(
                         authenticationService: authenticationService,
                         connectionRepository: connectionRepository,
-                        sharedCalendarSyncScheduler: sharingSyncScheduler
+                        sharedCalendarSyncScheduler: sharingSyncScheduler,
+                        sharedEventRepository: remoteEventRepository,
+                        calendarDisplayUpdater: displayEventRepository
                     )
                     calendarSharingSettingViewModel = sharingViewModel
                     Task {
@@ -296,7 +314,8 @@ struct BloodyDayRootView: View {
                     .glassEffect(.regular.interactive(), in: .capsule)
                 }
                 
-                if activeTab == .calendar {
+                if activeTab == .calendar,
+                   calendarViewModel?.canEditEvents != false {
                     Circle()
                         .fill(.mainRed)
                         .overlay {

@@ -15,9 +15,13 @@ final class CalendarSharingSettingViewModel {
     private let authenticationService: AuthenticationService
     private let connectionRepository: CalendarConnectionRepository
     private let sharedCalendarSyncScheduler: SharedCalendarSyncScheduling?
+    private let sharedEventRepository: SharedCalendarEventRepository?
+    private let calendarDisplayUpdater: CalendarDisplayEventUpdating?
     private var currentNonce: String?
     private var connectionObservation: CalendarConnectionObservation?
     private var requestObservation: CalendarConnectionObservation?
+    private var sharedEventObservation: CalendarConnectionObservation?
+    private var observedSharedConnectionID: String?
 
     private(set) var user: AuthenticatedUser?
     private(set) var profile: CalendarSharingProfile?
@@ -33,11 +37,15 @@ final class CalendarSharingSettingViewModel {
     init(
         authenticationService: AuthenticationService,
         connectionRepository: CalendarConnectionRepository,
-        sharedCalendarSyncScheduler: SharedCalendarSyncScheduling? = nil
+        sharedCalendarSyncScheduler: SharedCalendarSyncScheduling? = nil,
+        sharedEventRepository: SharedCalendarEventRepository? = nil,
+        calendarDisplayUpdater: CalendarDisplayEventUpdating? = nil
     ) {
         self.authenticationService = authenticationService
         self.connectionRepository = connectionRepository
         self.sharedCalendarSyncScheduler = sharedCalendarSyncScheduler
+        self.sharedEventRepository = sharedEventRepository
+        self.calendarDisplayUpdater = calendarDisplayUpdater
         self.user = authenticationService.currentUser
     }
 
@@ -100,6 +108,7 @@ final class CalendarSharingSettingViewModel {
             async let requests = connectionRepository.incomingRequests(for: user.id)
             activeConnection = try await connection
             incomingRequests = try await requests
+            updateDisplayedCalendar(for: activeConnection, userID: user.id)
             startObservingSharingState(for: user.id)
             sharedCalendarSyncScheduler?.schedule()
         } catch {
@@ -136,6 +145,10 @@ final class CalendarSharingSettingViewModel {
             )
             incomingRequests.removeAll { $0.id == request.id }
             statusMessage = nil
+            updateDisplayedCalendar(
+                for: activeConnection,
+                userID: profile.userID
+            )
             sharedCalendarSyncScheduler?.schedule()
         } catch {
             errorMessage = error.localizedDescription
@@ -232,6 +245,8 @@ final class CalendarSharingSettingViewModel {
     }
 
     private func clearSharingState() {
+        stopObservingSharedEvents()
+        calendarDisplayUpdater?.displayLocalCalendar()
         profile = nil
         activeConnection = nil
         incomingRequests = []
@@ -250,6 +265,10 @@ final class CalendarSharingSettingViewModel {
                 switch result {
                 case .success(let connection):
                     self.activeConnection = connection
+                    self.updateDisplayedCalendar(
+                        for: connection,
+                        userID: userID
+                    )
                     self.sharedCalendarSyncScheduler?.schedule()
                 case .failure(let error):
                     self.errorMessage = error.localizedDescription
@@ -277,5 +296,47 @@ final class CalendarSharingSettingViewModel {
         requestObservation?.cancel()
         connectionObservation = nil
         requestObservation = nil
+    }
+
+    private func updateDisplayedCalendar(
+        for connection: CalendarConnection?,
+        userID: String
+    ) {
+        guard let connection,
+              connection.viewerID == userID,
+              let sharedEventRepository else {
+            stopObservingSharedEvents()
+            calendarDisplayUpdater?.displayLocalCalendar()
+            return
+        }
+
+        guard observedSharedConnectionID != connection.id else { return }
+        stopObservingSharedEvents()
+        observedSharedConnectionID = connection.id
+        calendarDisplayUpdater?.displaySharedCalendar(events: [])
+
+        sharedEventObservation = sharedEventRepository.observeEvents(
+            connectionID: connection.id
+        ) { [weak self] result in
+            Task { @MainActor in
+                guard let self,
+                      self.observedSharedConnectionID == connection.id else {
+                    return
+                }
+                switch result {
+                case .success(let events):
+                    self.calendarDisplayUpdater?
+                        .displaySharedCalendar(events: events)
+                case .failure(let error):
+                    self.errorMessage = error.localizedDescription
+                }
+            }
+        }
+    }
+
+    private func stopObservingSharedEvents() {
+        sharedEventObservation?.cancel()
+        sharedEventObservation = nil
+        observedSharedConnectionID = nil
     }
 }

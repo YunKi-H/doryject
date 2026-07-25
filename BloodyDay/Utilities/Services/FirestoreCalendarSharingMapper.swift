@@ -99,6 +99,25 @@ enum FirestoreCalendarSharingMapper {
         ]
     }
 
+    static func sharedEvent(
+        id: String,
+        data: [String: Any]
+    ) -> SharedCalendarEvent? {
+        guard let eventID = UUID(uuidString: data["eventID"] as? String ?? id),
+              let dayKey = numericInt(data["dayKey"]),
+              let day = CalendarDay(dayKey: dayKey),
+              let typeRaw = data["typeRaw"] as? String,
+              let type = EventType(rawValue: typeRaw),
+              SharedEventTypeSelection().includes(type) else {
+            return nil
+        }
+        return SharedCalendarEvent(
+            id: eventID,
+            day: day,
+            type: type
+        )
+    }
+
     static func sharedEventDataMatches(
         _ existing: [String: Any]?,
         expected: [String: Any]
