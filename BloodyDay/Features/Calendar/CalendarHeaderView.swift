@@ -15,6 +15,7 @@ struct CalendarHeaderView: View {
     let pillViewModel: PillSettingsViewModel
     let appleCalendarViewModel: AppleCalendarSettingViewModel
     let appearanceViewModel: AppearanceSettingViewModel
+    let calendarSharingViewModel: CalendarSharingSettingViewModel
     
     @State private var datePickerPresented: Bool = false
     @State private var newDate: Date = .now
@@ -70,6 +71,12 @@ struct CalendarHeaderView: View {
                         AppearanceSettingView(viewModel: appearanceViewModel)
                     } label: {
                         Label("화면 테마", systemImage: "circle.lefthalf.filled")
+                    }
+
+                    NavigationLink {
+                        CalendarSharingSettingView(viewModel: calendarSharingViewModel)
+                    } label: {
+                        Label("캘린더 연결", systemImage: "person.2.fill")
                     }
                     
                     NavigationLink {
@@ -180,6 +187,7 @@ struct CalendarHeaderView: View {
                 syncStore: UserDefaultsAppleCalendarSyncStore()
             )
         ),
-        appearanceViewModel: .init(repo: UserDefaultsSettingsRepository())
+        appearanceViewModel: .init(repo: UserDefaultsSettingsRepository()),
+        calendarSharingViewModel: .init(authenticationService: PreviewAuthenticationService())
     )
 }

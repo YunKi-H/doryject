@@ -14,6 +14,7 @@ struct CalendarMainView: View {
     @Bindable var pillViewModel: PillSettingsViewModel
     @Bindable var appleCalendarViewModel: AppleCalendarSettingViewModel
     @Bindable var appearanceViewModel: AppearanceSettingViewModel
+    @Bindable var calendarSharingViewModel: CalendarSharingSettingViewModel
     @State private var selectionMonth: Date?
     
     @Binding var isPresentedEventSheet: Bool
@@ -38,7 +39,8 @@ struct CalendarMainView: View {
                 periodSettingViewModel: periodSettingViewModel,
                 pillViewModel: pillViewModel,
                 appleCalendarViewModel: appleCalendarViewModel,
-                appearanceViewModel: appearanceViewModel
+                appearanceViewModel: appearanceViewModel,
+                calendarSharingViewModel: calendarSharingViewModel
             )
             
             ScrollView(.vertical) {
@@ -270,6 +272,9 @@ struct CalendarMainView: View {
             )
         ),
         appearanceViewModel: .init(repo: UserDefaultsSettingsRepository()),
+        calendarSharingViewModel: .init(
+            authenticationService: PreviewAuthenticationService()
+        ),
         isPresentedEventSheet: .constant(false)
     )
 }

@@ -19,6 +19,7 @@ struct BloodyDayRootView: View {
     @State private var pillSettingsViewModel: PillSettingsViewModel?
     @State private var appleCalendarSettingsViewModel: AppleCalendarSettingViewModel?
     @State private var appearanceSettingViewModel: AppearanceSettingViewModel?
+    @State private var calendarSharingSettingViewModel: CalendarSharingSettingViewModel?
     @State private var appleCalendarClient: EventKitAppleCalendarClient?
     @State private var appleCalendarSyncService: AppleCalendarSyncService?
     @State private var notificationScheduler: UserNotificationScheduler?
@@ -37,7 +38,8 @@ struct BloodyDayRootView: View {
                        let periodSettingViewModel = periodSettingViewModel,
                        let pillViewModel = pillSettingsViewModel,
                        let appleCalendarViewModel = appleCalendarSettingsViewModel,
-                       let appearanceViewModel = appearanceSettingViewModel {
+                       let appearanceViewModel = appearanceSettingViewModel,
+                       let calendarSharingViewModel = calendarSharingSettingViewModel {
                         CalendarMainView(
                             viewModel: viewModel,
                             notificationViewModel: notificationViewModel,
@@ -45,6 +47,7 @@ struct BloodyDayRootView: View {
                             pillViewModel: pillViewModel,
                             appleCalendarViewModel: appleCalendarViewModel,
                             appearanceViewModel: appearanceViewModel,
+                            calendarSharingViewModel: calendarSharingViewModel,
                             isPresentedEventSheet: $isPresentedCalendarSheet
                         )
                         .toolbarVisibility(.hidden, for: .tabBar)
@@ -155,6 +158,11 @@ struct BloodyDayRootView: View {
                 }
                 if appearanceSettingViewModel == nil {
                     appearanceSettingViewModel = AppearanceSettingViewModel(repo: settingsRepository)
+                }
+                if calendarSharingSettingViewModel == nil {
+                    calendarSharingSettingViewModel = CalendarSharingSettingViewModel(
+                        authenticationService: FirebaseAuthenticationService()
+                    )
                 }
                 refreshAppStateForSystemCalendarChange()
                 consumePendingDeepLinkIfNeeded()
