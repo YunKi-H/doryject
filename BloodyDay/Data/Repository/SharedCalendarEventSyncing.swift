@@ -8,7 +8,8 @@
 protocol SharedCalendarEventSyncing {
     func syncOwnedEvents(
         _ events: [UserEvent],
-        connection: CalendarConnection
+        connection: CalendarConnection,
+        computationSettings: SharedCalendarComputationSettings
     ) async throws
 }
 

@@ -36,6 +36,27 @@ struct CalendarConnection: Identifiable, Equatable, Sendable {
     let viewerDisplayName: String
     let sharedEventTypes: SharedEventTypeSelection
     let createdAt: Date
+    let computationSettings: SharedCalendarComputationSettings?
+
+    init(
+        id: String,
+        ownerID: String,
+        ownerDisplayName: String,
+        viewerID: String,
+        viewerDisplayName: String,
+        sharedEventTypes: SharedEventTypeSelection,
+        createdAt: Date,
+        computationSettings: SharedCalendarComputationSettings? = nil
+    ) {
+        self.id = id
+        self.ownerID = ownerID
+        self.ownerDisplayName = ownerDisplayName
+        self.viewerID = viewerID
+        self.viewerDisplayName = viewerDisplayName
+        self.sharedEventTypes = sharedEventTypes
+        self.createdAt = createdAt
+        self.computationSettings = computationSettings
+    }
 
     func role(for userID: String) -> CalendarConnectionRole? {
         if ownerID == userID {

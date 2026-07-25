@@ -16,6 +16,7 @@ final class SettingsChangeRefreshService: SettingsChangeRefreshing {
     private let notificationScheduler: NotificationScheduler
     private let appleCalendarSyncService: AppleCalendarSyncService
     private let widgetReloader: WidgetReloading
+    private let sharedCalendarSyncScheduler: SharedCalendarSyncScheduling?
     private let calendarStateRefresher: () -> Void
 
     init(
@@ -23,12 +24,14 @@ final class SettingsChangeRefreshService: SettingsChangeRefreshing {
         notificationScheduler: NotificationScheduler,
         appleCalendarSyncService: AppleCalendarSyncService,
         widgetReloader: WidgetReloading,
+        sharedCalendarSyncScheduler: SharedCalendarSyncScheduling? = nil,
         calendarStateRefresher: @escaping () -> Void = {}
     ) {
         self.eventRepository = eventRepository
         self.notificationScheduler = notificationScheduler
         self.appleCalendarSyncService = appleCalendarSyncService
         self.widgetReloader = widgetReloader
+        self.sharedCalendarSyncScheduler = sharedCalendarSyncScheduler
         self.calendarStateRefresher = calendarStateRefresher
     }
 
@@ -39,6 +42,7 @@ final class SettingsChangeRefreshService: SettingsChangeRefreshing {
             eventRepository: eventRepository
         )
         widgetReloader.reloadAll()
+        sharedCalendarSyncScheduler?.schedule()
         Task {
             await appleCalendarSyncService.syncAll()
         }

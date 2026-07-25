@@ -22,11 +22,19 @@ final class FirestoreSharedCalendarEventSyncService: SharedCalendarEventSyncing 
 
     func syncOwnedEvents(
         _ events: [UserEvent],
-        connection: CalendarConnection
+        connection: CalendarConnection,
+        computationSettings: SharedCalendarComputationSettings
     ) async throws {
-        let collection = database
+        let connectionReference = database
             .collection(FirestoreCalendarSharingMapper.Collection.connections)
             .document(connection.id)
+        try await connectionReference.updateData(
+            FirestoreCalendarSharingMapper.computationSettingsData(
+                computationSettings,
+                ownerID: connection.ownerID
+            )
+        )
+        let collection = connectionReference
             .collection(FirestoreCalendarSharingMapper.Collection.events)
         let existingSnapshot = try await collection.getDocuments()
         let desiredEvents = events.filter {

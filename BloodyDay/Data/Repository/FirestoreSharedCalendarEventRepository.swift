@@ -27,8 +27,13 @@ final class FirestoreSharedCalendarEventRepository: SharedCalendarEventRepositor
                     onChange(.failure(error))
                     return
                 }
+                guard let snapshot else { return }
+                if snapshot.metadata.isFromCache,
+                   snapshot.documents.isEmpty {
+                    return
+                }
 
-                let events = snapshot?.documents
+                let events = snapshot.documents
                     .compactMap {
                         FirestoreCalendarSharingMapper.sharedEvent(
                             id: $0.documentID,
@@ -40,7 +45,7 @@ final class FirestoreSharedCalendarEventRepository: SharedCalendarEventRepositor
                             return $0.type.rawValue < $1.type.rawValue
                         }
                         return $0.day < $1.day
-                    } ?? []
+                    }
                 onChange(.success(events))
             }
 

@@ -66,17 +66,30 @@ final class FirestoreCalendarConnectionRepository: CalendarConnectionRepository 
             .document(userID)
             .getDocument()
         guard let connectionID = membershipSnapshot.data()?["connectionID"] as? String else {
+            if membershipSnapshot.metadata.isFromCache {
+                throw CalendarConnectionRepositoryError
+                    .cachedConnectionUnavailable
+            }
             return nil
         }
         let document = try await database
             .collection(FirestoreCalendarSharingMapper.Collection.connections)
             .document(connectionID)
             .getDocument()
-        guard let data = document.data() else { return nil }
-        return FirestoreCalendarSharingMapper.connection(
+        guard let data = document.data() else {
+            if document.metadata.isFromCache {
+                throw CalendarConnectionRepositoryError
+                    .cachedConnectionUnavailable
+            }
+            return nil
+        }
+        guard let connection = FirestoreCalendarSharingMapper.connection(
             id: document.documentID,
             data: data
-        )
+        ) else {
+            throw CalendarConnectionRepositoryError.invalidServerResponse
+        }
+        return connection
     }
 
     func incomingRequests(for userID: String) async throws -> [CalendarConnectionRequest] {
@@ -114,6 +127,9 @@ final class FirestoreCalendarConnectionRepository: CalendarConnectionRepository 
             listeners.replaceConnectionListener(nil)
 
             guard let connectionID = snapshot?.data()?["connectionID"] as? String else {
+                if snapshot?.metadata.isFromCache == true {
+                    return
+                }
                 onChange(.success(nil))
                 return
             }
@@ -128,13 +144,22 @@ final class FirestoreCalendarConnectionRepository: CalendarConnectionRepository 
                     }
                     guard let document,
                           let data = document.data() else {
+                        if document?.metadata.isFromCache == true {
+                            return
+                        }
                         onChange(.success(nil))
                         return
                     }
-                    let connection = FirestoreCalendarSharingMapper.connection(
+                    guard let connection = FirestoreCalendarSharingMapper.connection(
                         id: document.documentID,
                         data: data
-                    )
+                    ) else {
+                        onChange(.failure(
+                            CalendarConnectionRepositoryError
+                                .invalidServerResponse
+                        ))
+                        return
+                    }
                     onChange(.success(connection))
                 }
             listeners.replaceConnectionListener(connectionListener)
@@ -469,6 +494,7 @@ enum CalendarConnectionRepositoryError: LocalizedError {
     case requestUnavailable
     case invalidOwner
     case alreadyConnected
+    case cachedConnectionUnavailable
 
     var errorDescription: String? {
         switch self {
@@ -490,6 +516,8 @@ enum CalendarConnectionRepositoryError: LocalizedError {
             return "사용할 캘린더를 확인하지 못했어요."
         case .alreadyConnected:
             return "두 사람 중 한 명이 이미 다른 캘린더와 연결되어 있어요."
+        case .cachedConnectionUnavailable:
+            return "오프라인 상태라 최신 연결 정보를 확인하지 못했어요."
         }
     }
 }

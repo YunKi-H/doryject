@@ -13,9 +13,16 @@ enum WidgetSnapshotBuilder {
         calendar: Calendar = .autoupdatingCurrent
     ) -> WidgetSnapshot {
         let normalizedToday = calendar.startOfDay(for: today)
-        let settings = loadSettings()
-        let events = WidgetSharedEventStore.allEvents()
-        let pillCycles = WidgetSharedEventStore.pillCycles()
+        let runtimeState = CalendarSharingRuntimeStore().load()
+        let settings = runtimeState.map {
+            $0.computationSettings?.makeUserSettings() ?? .init()
+        } ?? loadSettings()
+        let events = runtimeState.map {
+            makeUserEvents(from: $0.events, calendar: calendar)
+        } ?? WidgetSharedEventStore.allEvents()
+        let pillCycles = runtimeState == nil
+            ? WidgetSharedEventStore.pillCycles()
+            : []
         let todayEvents = events.filter { calendar.isDate($0.date, inSameDayAs: normalizedToday) }
         let todayEventTypes = Set(todayEvents.map(\.type))
         let eventsByType = Dictionary(grouping: events, by: \.type)
@@ -112,6 +119,23 @@ enum WidgetSnapshotBuilder {
             return 1
         case .period:
             return 2
+        }
+    }
+
+    private static func makeUserEvents(
+        from events: [CachedSharedCalendarEvent],
+        calendar: Calendar
+    ) -> [UserEvent] {
+        events.compactMap { cachedEvent in
+            guard let date = cachedEvent.day.date(in: calendar) else {
+                return nil
+            }
+            return UserEvent(
+                id: cachedEvent.id,
+                date: date,
+                type: cachedEvent.type,
+                calendar: calendar
+            )
         }
     }
 }

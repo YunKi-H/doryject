@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct PeriodSettings: Codable {
+struct PeriodSettings: Codable, Equatable, Sendable {
     var autoCyclePredictionEnabled: Bool = true
     var averageCycleDays: Int? = nil
     var averagePeriodDays: Int? = nil

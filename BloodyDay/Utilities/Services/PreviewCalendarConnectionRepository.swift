@@ -90,7 +90,8 @@ final class PreviewCalendarConnectionRepository: CalendarConnectionRepository {
             viewerID: connection.viewerID,
             viewerDisplayName: connection.viewerDisplayName,
             sharedEventTypes: selection,
-            createdAt: connection.createdAt
+            createdAt: connection.createdAt,
+            computationSettings: connection.computationSettings
         )
     }
 }

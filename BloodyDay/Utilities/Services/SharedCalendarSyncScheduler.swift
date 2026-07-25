@@ -12,6 +12,7 @@ final class SharedCalendarSyncScheduler: SharedCalendarSyncScheduling {
     private let authenticationService: AuthenticationService
     private let connectionRepository: CalendarConnectionRepository
     private let eventRepository: EventRepository
+    private let settingsRepository: SettingsRepository
     private let eventSyncService: SharedCalendarEventSyncing
     private var syncTask: Task<Void, Never>?
     private var needsAnotherSync = false
@@ -20,11 +21,13 @@ final class SharedCalendarSyncScheduler: SharedCalendarSyncScheduling {
         authenticationService: AuthenticationService,
         connectionRepository: CalendarConnectionRepository,
         eventRepository: EventRepository,
+        settingsRepository: SettingsRepository,
         eventSyncService: SharedCalendarEventSyncing
     ) {
         self.authenticationService = authenticationService
         self.connectionRepository = connectionRepository
         self.eventRepository = eventRepository
+        self.settingsRepository = settingsRepository
         self.eventSyncService = eventSyncService
     }
 
@@ -53,7 +56,10 @@ final class SharedCalendarSyncScheduler: SharedCalendarSyncScheduling {
             }
             try await eventSyncService.syncOwnedEvents(
                 eventRepository.allEvents(),
-                connection: connection
+                connection: connection,
+                computationSettings: SharedCalendarComputationSettings(
+                    settings: settingsRepository.load()
+                )
             )
         } catch {
             #if DEBUG

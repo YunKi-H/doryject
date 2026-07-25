@@ -47,6 +47,10 @@ struct ToggleTodayEventIntent: AppIntent {
     }
     
     func perform() async throws -> some IntentResult {
+        guard CalendarSharingRuntimeStore().load() == nil else {
+            WidgetCenter.shared.reloadAllTimelines()
+            return .result()
+        }
         let settingsRepository = WidgetSettingsRepository()
         let toggledOn = WidgetSharedEventStore.toggle(eventType.widgetType, on: .now)
         if eventType == .pill, toggledOn {

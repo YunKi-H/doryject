@@ -21,11 +21,16 @@ struct CalendarDisplayEventRepositoryTests {
         )
         let repository = CalendarDisplayEventRepository(
             localRepository: localRepository,
+            runtimeStore: makeRuntimeStore(),
             calendar: calendar
         )
         let sharedDay = CalendarDay(date: sharedDate, calendar: calendar)
         let sharedEventID = UUID()
 
+        repository.prepareSharedCalendar(
+            connectionID: "shared-calendar",
+            computationSettings: nil
+        )
         repository.displaySharedCalendar(
             events: [
                 SharedCalendarEvent(
@@ -58,7 +63,12 @@ struct CalendarDisplayEventRepositoryTests {
         )
         let repository = CalendarDisplayEventRepository(
             localRepository: localRepository,
+            runtimeStore: makeRuntimeStore(),
             calendar: calendar
+        )
+        repository.prepareSharedCalendar(
+            connectionID: "shared-calendar",
+            computationSettings: nil
         )
         repository.displaySharedCalendar(events: [])
 
@@ -72,10 +82,69 @@ struct CalendarDisplayEventRepositoryTests {
         #expect(localRepository.saveCallCount == 1)
     }
 
+    @Test
+    func cachedViewerStateKeepsSharedCalendarAndOwnerSettingsOffline() {
+        let runtimeStore = makeRuntimeStore()
+        let sharedDate = makeDate(2026, 7, 8)
+        var pillSettings = PillSettings()
+        pillSettings.pillEnabled = true
+        pillSettings.pillCount = 24
+        pillSettings.pillBreakDuration = 4
+        let computationSettings = SharedCalendarComputationSettings(
+            period: PeriodSettings(
+                autoCyclePredictionEnabled: true,
+                averageCycleDays: 31,
+                averagePeriodDays: 6
+            ),
+            pill: pillSettings
+        )
+        let initialRepository = CalendarDisplayEventRepository(
+            localRepository: RecordingDisplayEventRepository(events: []),
+            runtimeStore: runtimeStore,
+            calendar: calendar
+        )
+        initialRepository.prepareSharedCalendar(
+            connectionID: "shared-calendar",
+            computationSettings: computationSettings
+        )
+        initialRepository.displaySharedCalendar(
+            events: [
+                SharedCalendarEvent(
+                    id: UUID(),
+                    day: CalendarDay(date: sharedDate, calendar: calendar),
+                    type: .period
+                )
+            ]
+        )
+
+        let restoredRepository = CalendarDisplayEventRepository(
+            localRepository: RecordingDisplayEventRepository(
+                events: [UserEvent(date: sharedDate, type: .love)]
+            ),
+            runtimeStore: runtimeStore,
+            calendar: calendar
+        )
+        let restoredSettings = restoredRepository.load()
+
+        #expect(restoredRepository.isDisplayingSharedCalendar)
+        #expect(restoredRepository.allEvents().map(\.type) == [.period])
+        #expect(restoredSettings.period.averageCycleDays == 31)
+        #expect(restoredSettings.period.averagePeriodDays == 6)
+        #expect(restoredSettings.pill.pillCount == 24)
+        #expect(restoredSettings.pill.pillBreakDuration == 4)
+    }
+
     private func makeDate(_ year: Int, _ month: Int, _ day: Int) -> Date {
         calendar.date(
             from: DateComponents(year: year, month: month, day: day)
         )!
+    }
+
+    private func makeRuntimeStore() -> CalendarSharingRuntimeStore {
+        let suiteName = "CalendarDisplayEventRepositoryTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        return CalendarSharingRuntimeStore(defaults: defaults)
     }
 }
 

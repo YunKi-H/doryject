@@ -144,6 +144,7 @@ struct BloodyDayWidgetEntryView: View {
             .frame(width: 36, height: 36)
         }
         .buttonStyle(.plain)
+        .disabled(CalendarSharingRuntimeStore().load() != nil)
     }
     
     @ViewBuilder

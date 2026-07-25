@@ -115,9 +115,63 @@ service cloud.firestore {
             "sharedPill",
             "sharedLove",
             "sharingUpdatedAt",
-            "sharingUpdatedBy"
+            "sharingUpdatedBy",
+            "periodAutoCyclePredictionEnabled",
+            "periodAverageCycleDays",
+            "periodAveragePeriodDays",
+            "pillEnabled",
+            "pillAutoRecordEnabled",
+            "pillCount",
+            "pillBreakDuration",
+            "calculationUpdatedAt",
+            "calculationUpdatedBy"
           ])
-        && request.resource.data.sharingUpdatedBy == request.auth.uid;
+        && (
+          !request.resource.data.diff(resource.data).affectedKeys()
+            .hasAny(["sharedPeriod", "sharedPill", "sharedLove"])
+          || request.resource.data.sharingUpdatedBy == request.auth.uid
+        )
+        && (
+          !request.resource.data.diff(resource.data).affectedKeys()
+            .hasAny([
+              "periodAutoCyclePredictionEnabled",
+              "periodAverageCycleDays",
+              "periodAveragePeriodDays",
+              "pillEnabled",
+              "pillAutoRecordEnabled",
+              "pillCount",
+              "pillBreakDuration"
+            ])
+          || request.resource.data.calculationUpdatedBy == request.auth.uid
+        )
+        && (
+          !("periodAutoCyclePredictionEnabled" in request.resource.data)
+          || request.resource.data.periodAutoCyclePredictionEnabled is bool
+        )
+        && (
+          !("periodAverageCycleDays" in request.resource.data)
+          || request.resource.data.periodAverageCycleDays is int
+        )
+        && (
+          !("periodAveragePeriodDays" in request.resource.data)
+          || request.resource.data.periodAveragePeriodDays is int
+        )
+        && (
+          !("pillEnabled" in request.resource.data)
+          || request.resource.data.pillEnabled is bool
+        )
+        && (
+          !("pillAutoRecordEnabled" in request.resource.data)
+          || request.resource.data.pillAutoRecordEnabled is bool
+        )
+        && (
+          !("pillCount" in request.resource.data)
+          || request.resource.data.pillCount is int
+        )
+        && (
+          !("pillBreakDuration" in request.resource.data)
+          || request.resource.data.pillBreakDuration is int
+        );
 
       allow delete: if signedIn()
         && request.auth.uid in resource.data.participantIDs;

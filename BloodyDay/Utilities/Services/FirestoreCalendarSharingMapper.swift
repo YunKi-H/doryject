@@ -78,8 +78,31 @@ enum FirestoreCalendarSharingMapper {
             viewerID: viewerID,
             viewerDisplayName: viewerDisplayName,
             sharedEventTypes: sharedEventTypes,
-            createdAt: createdAt
+            createdAt: createdAt,
+            computationSettings: computationSettings(data)
         )
+    }
+
+    static func computationSettingsData(
+        _ settings: SharedCalendarComputationSettings,
+        ownerID: String
+    ) -> [String: Any] {
+        [
+            "periodAutoCyclePredictionEnabled":
+                settings.period.autoCyclePredictionEnabled,
+            "periodAverageCycleDays":
+                settings.period.averageCycleDays.map { $0 as Any }
+                    ?? FieldValue.delete(),
+            "periodAveragePeriodDays":
+                settings.period.averagePeriodDays.map { $0 as Any }
+                    ?? FieldValue.delete(),
+            "pillEnabled": settings.pill.pillEnabled,
+            "pillAutoRecordEnabled": settings.pill.pillAutoRecordEnabled,
+            "pillCount": settings.pill.pillCount,
+            "pillBreakDuration": settings.pill.pillBreakDuration,
+            "calculationUpdatedAt": FieldValue.serverTimestamp(),
+            "calculationUpdatedBy": ownerID
+        ]
     }
 
     static func sharedEventData(
@@ -140,5 +163,30 @@ enum FirestoreCalendarSharingMapper {
             return value.intValue
         }
         return nil
+    }
+
+    private static func computationSettings(
+        _ data: [String: Any]
+    ) -> SharedCalendarComputationSettings? {
+        guard let autoPrediction =
+                data["periodAutoCyclePredictionEnabled"] as? Bool,
+              let pillEnabled = data["pillEnabled"] as? Bool,
+              let pillAutoRecord = data["pillAutoRecordEnabled"] as? Bool,
+              let pillCount = numericInt(data["pillCount"]),
+              let pillBreakDuration = numericInt(data["pillBreakDuration"]) else {
+            return nil
+        }
+
+        let period = PeriodSettings(
+            autoCyclePredictionEnabled: autoPrediction,
+            averageCycleDays: numericInt(data["periodAverageCycleDays"]),
+            averagePeriodDays: numericInt(data["periodAveragePeriodDays"])
+        )
+        var pill = PillSettings()
+        pill.pillEnabled = pillEnabled
+        pill.pillAutoRecordEnabled = pillAutoRecord
+        pill.pillCount = pillCount
+        pill.pillBreakDuration = pillBreakDuration
+        return SharedCalendarComputationSettings(period: period, pill: pill)
     }
 }

@@ -118,6 +118,7 @@ struct BloodyDayRootView: View {
                         authenticationService: authenticationService,
                         connectionRepository: connectionRepository,
                         eventRepository: baseEventRepository,
+                        settingsRepository: settingsRepository,
                         eventSyncService: FirestoreSharedCalendarEventSyncService()
                     )
                     sharedCalendarSyncScheduler = createdScheduler
@@ -133,7 +134,8 @@ struct BloodyDayRootView: View {
                 )
                 let displayEventRepository = calendarDisplayEventRepository
                     ?? CalendarDisplayEventRepository(
-                        localRepository: syncingRepository
+                        localRepository: syncingRepository,
+                        localSettingsRepository: settingsRepository
                     )
                 let remoteEventRepository = sharedCalendarEventRepository
                     ?? FirestoreSharedCalendarEventRepository()
@@ -145,7 +147,7 @@ struct BloodyDayRootView: View {
                 } else {
                     let createdViewModel = CalendarViewModel(
                         eventRepository: displayEventRepository,
-                        settingsRepository: settingsRepository
+                        settingsRepository: displayEventRepository
                     )
                     self.calendarViewModel = createdViewModel
                     activeCalendarViewModel = createdViewModel
@@ -155,12 +157,19 @@ struct BloodyDayRootView: View {
                         canEditEvents: displayEventRepository
                             .isDisplayingSharedCalendar == false
                     )
+                    widgetReloader.reloadAll()
+                }
+                if displayEventRepository.isDisplayingSharedCalendar {
+                    activeCalendarViewModel.refreshDisplayMode(
+                        canEditEvents: false
+                    )
                 }
                 let settingsChangeRefresher = SettingsChangeRefreshService(
                     eventRepository: baseEventRepository,
                     notificationScheduler: scheduler,
                     appleCalendarSyncService: appleCalendarSyncService!,
                     widgetReloader: widgetReloader,
+                    sharedCalendarSyncScheduler: sharingSyncScheduler,
                     calendarStateRefresher: { [weak activeCalendarViewModel] in
                         activeCalendarViewModel?.refresh()
                     }

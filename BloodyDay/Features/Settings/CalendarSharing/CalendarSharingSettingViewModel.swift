@@ -83,7 +83,7 @@ final class CalendarSharingSettingViewModel {
             try authenticationService.signOut()
             stopObservingSharingState()
             user = nil
-            clearSharingState()
+            clearSharingState(clearDisplayedCalendar: true)
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -95,7 +95,7 @@ final class CalendarSharingSettingViewModel {
 
     func refreshSharingState() async {
         guard let user else {
-            clearSharingState()
+            clearSharingState(clearDisplayedCalendar: false)
             return
         }
 
@@ -200,7 +200,8 @@ final class CalendarSharingSettingViewModel {
                 viewerID: connection.viewerID,
                 viewerDisplayName: connection.viewerDisplayName,
                 sharedEventTypes: selection,
-                createdAt: connection.createdAt
+                createdAt: connection.createdAt,
+                computationSettings: connection.computationSettings
             )
             sharedCalendarSyncScheduler?.schedule()
         } catch {
@@ -244,9 +245,11 @@ final class CalendarSharingSettingViewModel {
         return authorizationError.code == .canceled
     }
 
-    private func clearSharingState() {
+    private func clearSharingState(clearDisplayedCalendar: Bool) {
         stopObservingSharedEvents()
-        calendarDisplayUpdater?.displayLocalCalendar()
+        if clearDisplayedCalendar {
+            calendarDisplayUpdater?.displayLocalCalendar()
+        }
         profile = nil
         activeConnection = nil
         incomingRequests = []
@@ -310,10 +313,13 @@ final class CalendarSharingSettingViewModel {
             return
         }
 
+        calendarDisplayUpdater?.prepareSharedCalendar(
+            connectionID: connection.id,
+            computationSettings: connection.computationSettings
+        )
         guard observedSharedConnectionID != connection.id else { return }
         stopObservingSharedEvents()
         observedSharedConnectionID = connection.id
-        calendarDisplayUpdater?.displaySharedCalendar(events: [])
 
         sharedEventObservation = sharedEventRepository.observeEvents(
             connectionID: connection.id
