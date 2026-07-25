@@ -188,6 +188,9 @@ struct CalendarHeaderView: View {
             )
         ),
         appearanceViewModel: .init(repo: UserDefaultsSettingsRepository()),
-        calendarSharingViewModel: .init(authenticationService: PreviewAuthenticationService())
+        calendarSharingViewModel: .init(
+            authenticationService: PreviewAuthenticationService(),
+            connectionRepository: PreviewCalendarConnectionRepository()
+        )
     )
 }

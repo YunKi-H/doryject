@@ -1,0 +1,64 @@
+//
+//  CalendarSharingModels.swift
+//  BloodyDay
+//
+//  Created by Yunki on 7/26/26.
+//
+
+import Foundation
+
+struct CalendarSharingProfile: Equatable, Sendable {
+    let userID: String
+    let displayName: String
+    let connectionCode: String
+}
+
+enum CalendarConnectionRequestStatus: String, Sendable {
+    case pending
+    case accepted
+    case declined
+}
+
+struct CalendarConnectionRequest: Identifiable, Equatable, Sendable {
+    let id: String
+    let senderID: String
+    let senderDisplayName: String
+    let recipientID: String
+    let status: CalendarConnectionRequestStatus
+    let createdAt: Date
+}
+
+struct CalendarConnection: Identifiable, Equatable, Sendable {
+    let id: String
+    let ownerID: String
+    let ownerDisplayName: String
+    let viewerID: String
+    let viewerDisplayName: String
+    let sharedEventTypes: SharedEventTypeSelection
+    let createdAt: Date
+
+    func role(for userID: String) -> CalendarConnectionRole? {
+        if ownerID == userID {
+            return .owner
+        }
+        if viewerID == userID {
+            return .viewer
+        }
+        return nil
+    }
+
+    func partnerDisplayName(for userID: String) -> String {
+        ownerID == userID ? viewerDisplayName : ownerDisplayName
+    }
+}
+
+struct SharedEventTypeSelection: Equatable, Sendable {
+    var period = true
+    var pill = true
+    var love = true
+}
+
+enum CalendarConnectionRole: Sendable {
+    case owner
+    case viewer
+}

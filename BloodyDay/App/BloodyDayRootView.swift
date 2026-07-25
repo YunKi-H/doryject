@@ -161,7 +161,8 @@ struct BloodyDayRootView: View {
                 }
                 if calendarSharingSettingViewModel == nil {
                     calendarSharingSettingViewModel = CalendarSharingSettingViewModel(
-                        authenticationService: FirebaseAuthenticationService()
+                        authenticationService: FirebaseAuthenticationService(),
+                        connectionRepository: FirestoreCalendarConnectionRepository()
                     )
                 }
                 refreshAppStateForSystemCalendarChange()

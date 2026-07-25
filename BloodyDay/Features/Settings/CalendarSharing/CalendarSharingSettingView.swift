@@ -7,10 +7,12 @@
 
 import AuthenticationServices
 import SwiftUI
+import UIKit
 
 struct CalendarSharingSettingView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Bindable var viewModel: CalendarSharingSettingViewModel
+    @State private var requestToAccept: CalendarConnectionRequest?
 
     var body: some View {
         List {
@@ -23,6 +25,9 @@ struct CalendarSharingSettingView: View {
         .listSectionSpacing(14)
         .contentMargins(.top, 14)
         .scrollContentBackground(.hidden)
+        .refreshable {
+            await viewModel.refreshSharingState()
+        }
         .background {
             Color.bgPrimary
                 .ignoresSafeArea()
@@ -34,8 +39,30 @@ struct CalendarSharingSettingView: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
+        .task(id: viewModel.user?.id) {
+            await viewModel.refreshSharingState()
+        }
+        .confirmationDialog(
+            "사용할 캘린더를 선택해주세요",
+            isPresented: acceptRequestBinding,
+            titleVisibility: .visible
+        ) {
+            if let request = requestToAccept {
+                Button("내 캘린더 사용") {
+                    accept(request, useMyCalendar: true)
+                }
+                Button("\(request.senderDisplayName)의 캘린더 사용") {
+                    accept(request, useMyCalendar: false)
+                }
+                Button("취소", role: .cancel) {
+                    requestToAccept = nil
+                }
+            }
+        } message: {
+            Text("선택한 캘린더의 소유자만 기록을 편집할 수 있어요.")
+        }
         .alert(
-            "로그인할 수 없어요",
+            "캘린더 연결을 처리하지 못했어요",
             isPresented: errorBinding
         ) {
             Button("확인") {
@@ -56,7 +83,7 @@ struct CalendarSharingSettingView: View {
 
                     Text("Apple 계정으로 로그인하면 한 사람의 기록을 상대방과 안전하게 공유할 수 있어요.")
                         .font(.regular_16)
-                        .foregroundStyle(.textPrimary)
+                        .foregroundStyle(.textSecondary40)
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
@@ -87,6 +114,30 @@ struct CalendarSharingSettingView: View {
 
     @ViewBuilder
     private func authenticatedContent(_ user: AuthenticatedUser) -> some View {
+        if viewModel.isLoadingSharingState && viewModel.profile == nil {
+            Section {
+                HStack {
+                    Spacer()
+                    ProgressView()
+                    Spacer()
+                }
+                .padding(.vertical, 12)
+            }
+            .listRowBackground(Color.bgSecondary)
+        } else if let connection = viewModel.activeConnection {
+            connectedSection(connection, userID: user.id)
+            sharedEventTypesSection(connection, userID: user.id)
+        } else {
+            if let profile = viewModel.profile {
+                myConnectionIDSection(profile)
+                sendRequestSection
+            }
+
+            if viewModel.incomingRequests.isEmpty == false {
+                incomingRequestsSection
+            }
+        }
+
         Section("계정") {
             VStack(alignment: .leading, spacing: 4) {
                 Text(user.displayName ?? "Apple 사용자")
@@ -96,7 +147,7 @@ struct CalendarSharingSettingView: View {
                 if let email = user.email {
                     Text(email)
                         .font(.regular_14)
-                        .foregroundStyle(.textPrimary)
+                        .foregroundStyle(.textSecondary40)
                 }
             }
 
@@ -107,20 +158,241 @@ struct CalendarSharingSettingView: View {
             .foregroundStyle(.mainRed)
         }
         .listRowBackground(Color.bgSecondary)
+    }
 
-        Section("캘린더 연결") {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("로그인이 완료됐어요")
-                    .font(.regular_18)
-                    .foregroundStyle(.textPrimary)
+    private func connectedSection(
+        _ connection: CalendarConnection,
+        userID: String
+    ) -> some View {
+        Section("연결된 캘린더") {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(connection.partnerDisplayName(for: userID))
+                        .font(.regular_18)
+                        .foregroundStyle(.textPrimary)
 
-                Text("다음 단계에서 내 연결 ID와 상대방 연결 요청 기능을 추가할 예정이에요.")
-                    .font(.regular_14)
-                    .foregroundStyle(.textPrimary)
-                    .fixedSize(horizontal: false, vertical: true)
+                    Text(roleDescription(connection.role(for: userID)))
+                        .font(.regular_14)
+                        .foregroundStyle(.textSecondary40)
+                }
+                Spacer()
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(.mainRed)
             }
         }
         .listRowBackground(Color.bgSecondary)
+    }
+
+    @ViewBuilder
+    private func sharedEventTypesSection(
+        _ connection: CalendarConnection,
+        userID: String
+    ) -> some View {
+        let canEdit = connection.ownerID == userID
+        Section {
+            sharingTypeRow(
+                title: "생리 기록",
+                icon: Image(systemName: "drop.fill"),
+                color: .mainRed,
+                isOn: connection.sharedEventTypes.period,
+                canEdit: canEdit,
+                type: .period
+            )
+            sharingTypeRow(
+                title: "피임약 기록",
+                icon: Image(.pillHalf),
+                color: .subBlue,
+                isOn: connection.sharedEventTypes.pill,
+                canEdit: canEdit,
+                type: .pill
+            )
+            sharingTypeRow(
+                title: "사랑한 날 기록",
+                icon: Image(systemName: "heart.fill"),
+                color: .subPink,
+                isOn: connection.sharedEventTypes.love,
+                canEdit: canEdit,
+                type: .love
+            )
+        } header: {
+            Text("공유 데이터")
+        } footer: {
+            if canEdit == false {
+                Text("캘린더 소유자만 공유 항목을 변경할 수 있어요.")
+                    .font(.regular_14)
+            } else {
+                EmptyView()
+            }
+        }
+        .listRowBackground(Color.bgSecondary)
+    }
+
+    private func sharingTypeRow(
+        title: String,
+        icon: Image,
+        color: Color,
+        isOn: Bool,
+        canEdit: Bool,
+        type: EventType
+    ) -> some View {
+        HStack {
+            icon
+                .foregroundStyle(color)
+                .frame(width: 22)
+            Text(title)
+                .font(.regular_18)
+                .foregroundStyle(.textPrimary)
+            Spacer()
+            if canEdit {
+                Toggle(
+                    "",
+                    isOn: Binding(
+                        get: { isOn },
+                        set: { enabled in
+                            Task {
+                                await viewModel.setSharedEventType(
+                                    type,
+                                    enabled: enabled
+                                )
+                            }
+                        }
+                    )
+                )
+                .labelsHidden()
+                .tint(color)
+            } else {
+                Text(isOn ? "공유 중" : "공유 안 함")
+                    .font(.regular_14)
+                    .foregroundStyle(.textSecondary40)
+            }
+        }
+    }
+
+    private func myConnectionIDSection(
+        _ profile: CalendarSharingProfile
+    ) -> some View {
+        Section {
+            HStack {
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("내 연결 ID")
+                        .font(.regular_14)
+                        .foregroundStyle(.textSecondary40)
+                    Text(profile.connectionCode)
+                        .font(.system(size: 20, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(.textPrimary)
+                }
+                Spacer()
+                Button {
+                    UIPasteboard.general.string = profile.connectionCode
+                } label: {
+                    Image(systemName: "doc.on.doc")
+                        .foregroundStyle(.icon)
+                }
+                .buttonStyle(.plain)
+            }
+        } header: {
+            EmptyView()
+        } footer: {
+            Text("상대방에게 이 ID를 알려주세요.")
+                .font(.regular_14)
+        }
+        .listRowBackground(Color.bgSecondary)
+    }
+
+    @ViewBuilder
+    private var sendRequestSection: some View {
+        Section {
+            TextField("상대방 연결 ID", text: partnerCodeBinding)
+                .font(.system(size: 18, weight: .medium, design: .monospaced))
+                .textInputAutocapitalization(.characters)
+                .autocorrectionDisabled()
+                .onSubmit {
+                    sendConnectionRequest()
+                }
+
+            Button {
+                sendConnectionRequest()
+            } label: {
+                HStack {
+                    Spacer()
+                    if viewModel.isSendingRequest {
+                        ProgressView()
+                    } else {
+                        Text("연결 요청 보내기")
+                    }
+                    Spacer()
+                }
+            }
+            .disabled(
+                viewModel.partnerConnectionCode.count != 8
+                || viewModel.isSendingRequest
+            )
+        } header: {
+            Text("상대방 연결")
+        } footer: {
+            if let statusMessage = viewModel.statusMessage {
+                Text(statusMessage)
+                    .font(.regular_14)
+                    .foregroundStyle(.mainRed)
+            } else {
+                EmptyView()
+            }
+        }
+        .listRowBackground(Color.bgSecondary)
+        .tint(.mainRed)
+    }
+
+    private var incomingRequestsSection: some View {
+        Section("받은 연결 요청") {
+            ForEach(viewModel.incomingRequests) { request in
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("\(request.senderDisplayName)님이 캘린더 연결을 요청했어요.")
+                        .font(.regular_16)
+                        .foregroundStyle(.textPrimary)
+
+                    HStack {
+                        Button("거절", role: .destructive) {
+                            Task {
+                                await viewModel.decline(request)
+                            }
+                        }
+                        Spacer()
+                        Button("연결") {
+                            requestToAccept = request
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(.mainRed)
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+        }
+        .listRowBackground(Color.bgSecondary)
+    }
+
+    private var partnerCodeBinding: Binding<String> {
+        Binding(
+            get: { viewModel.partnerConnectionCode },
+            set: { value in
+                viewModel.partnerConnectionCode = String(
+                    value
+                        .uppercased()
+                        .filter { $0.isLetter || $0.isNumber }
+                        .prefix(8)
+                )
+            }
+        )
+    }
+
+    private var acceptRequestBinding: Binding<Bool> {
+        Binding(
+            get: { requestToAccept != nil },
+            set: { isPresented in
+                if isPresented == false {
+                    requestToAccept = nil
+                }
+            }
+        )
     }
 
     private var appleButtonStyle: SignInWithAppleButton.Style {
@@ -137,13 +409,51 @@ struct CalendarSharingSettingView: View {
             }
         )
     }
+
+    private func sendConnectionRequest() {
+        guard viewModel.partnerConnectionCode.count == 8 else { return }
+        Task {
+            await viewModel.sendConnectionRequest()
+        }
+    }
+
+    private func accept(
+        _ request: CalendarConnectionRequest,
+        useMyCalendar: Bool
+    ) {
+        requestToAccept = nil
+        Task {
+            await viewModel.accept(
+                request,
+                useMyCalendar: useMyCalendar
+            )
+        }
+    }
+
+    private func roleDescription(_ role: CalendarConnectionRole?) -> String {
+        switch role {
+        case .owner:
+            return "내 캘린더를 공유 중 · 편집 가능"
+        case .viewer:
+            return "상대방 캘린더를 보는 중 · 읽기 전용"
+        case .none:
+            return "연결 상태를 확인할 수 없어요"
+        }
+    }
 }
 
 #Preview {
     NavigationStack {
         CalendarSharingSettingView(
             viewModel: .init(
-                authenticationService: PreviewAuthenticationService()
+                authenticationService: PreviewAuthenticationService(
+                    currentUser: AuthenticatedUser(
+                        id: "preview-user",
+                        displayName: "윤기",
+                        email: "yunki@example.com"
+                    )
+                ),
+                connectionRepository: PreviewCalendarConnectionRepository()
             )
         )
     }

@@ -273,7 +273,8 @@ struct CalendarMainView: View {
         ),
         appearanceViewModel: .init(repo: UserDefaultsSettingsRepository()),
         calendarSharingViewModel: .init(
-            authenticationService: PreviewAuthenticationService()
+            authenticationService: PreviewAuthenticationService(),
+            connectionRepository: PreviewCalendarConnectionRepository()
         ),
         isPresentedEventSheet: .constant(false)
     )
