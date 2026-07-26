@@ -6,8 +6,8 @@
 //
 
 protocol SharedCalendarEventRepository {
-    func observeEvents(
+    func observeSnapshot(
         connectionID: String,
-        onChange: @escaping (Result<[SharedCalendarEvent], Error>) -> Void
+        onChange: @escaping (Result<SharedCalendarSnapshot, Error>) -> Void
     ) -> CalendarConnectionObservation
 }

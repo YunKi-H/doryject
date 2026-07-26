@@ -28,6 +28,7 @@ const viewerID = "viewer";
 const outsiderID = "outsider";
 const connectionID = `${ownerID}_${viewerID}`;
 const eventID = "period-20260726";
+const pillCycleID = "11111111-1111-1111-1111-111111111111";
 
 let testEnvironment;
 
@@ -78,6 +79,16 @@ function requestReference(database) {
   return doc(database, "connectionRequests", connectionID);
 }
 
+function pillCycleReference(database) {
+  return doc(
+    database,
+    "connections",
+    connectionID,
+    "pillCycles",
+    pillCycleID
+  );
+}
+
 function membershipReference(database, userID) {
   return doc(database, "connectionMemberships", userID);
 }
@@ -124,6 +135,16 @@ async function seedActiveConnection() {
       typeRaw: "period",
       updatedAt: new Date("2026-07-26T00:00:00Z")
     });
+    await setDoc(pillCycleReference(database), {
+      ownerID,
+      cycleID: pillCycleID,
+      startDayKey: 20260701,
+      plannedPillCount: 21,
+      breakDays: 7,
+      autoRecordEnabled: false,
+      statusRaw: "completed",
+      updatedAt: new Date("2026-07-26T00:00:00Z")
+    });
   });
 }
 
@@ -143,9 +164,12 @@ describe("calendar connection access", () => {
     await assertSucceeds(getDoc(connectionReference(databaseFor(viewerID))));
     await assertSucceeds(getDoc(eventReference(databaseFor(ownerID))));
     await assertSucceeds(getDoc(eventReference(databaseFor(viewerID))));
+    await assertSucceeds(getDoc(pillCycleReference(databaseFor(ownerID))));
+    await assertSucceeds(getDoc(pillCycleReference(databaseFor(viewerID))));
 
     await assertFails(getDoc(connectionReference(databaseFor(outsiderID))));
     await assertFails(getDoc(eventReference(databaseFor(outsiderID))));
+    await assertFails(getDoc(pillCycleReference(databaseFor(outsiderID))));
     await assertFails(
       getDoc(connectionReference(unauthenticatedDatabase()))
     );
@@ -196,6 +220,24 @@ describe("calendar connection access", () => {
 
     await assertSucceeds(setDoc(ownerEventReference, eventData));
     await assertFails(setDoc(viewerEventReference, eventData));
+    await assertSucceeds(
+      updateDoc(pillCycleReference(ownerDatabase), {
+        plannedPillCount: 24,
+        updatedAt: serverTimestamp()
+      })
+    );
+    await assertFails(
+      updateDoc(pillCycleReference(viewerDatabase), {
+        plannedPillCount: 24,
+        updatedAt: serverTimestamp()
+      })
+    );
+    await assertFails(
+      updateDoc(pillCycleReference(ownerDatabase), {
+        plannedPillCount: 0,
+        updatedAt: serverTimestamp()
+      })
+    );
   });
 });
 
@@ -230,6 +272,7 @@ describe("calendar connection termination", () => {
     );
 
     await assertSucceeds(deleteDoc(eventReference(viewerDatabase)));
+    await assertSucceeds(deleteDoc(pillCycleReference(viewerDatabase)));
 
     const batch = writeBatch(viewerDatabase);
     batch.delete(requestReference(viewerDatabase));
@@ -264,7 +307,30 @@ describe("calendar connection termination", () => {
         updatedAt: serverTimestamp()
       })
     );
+    const newCycleID = "22222222-2222-2222-2222-222222222222";
+    await assertFails(
+      setDoc(
+        doc(
+          ownerDatabase,
+          "connections",
+          connectionID,
+          "pillCycles",
+          newCycleID
+        ),
+        {
+          ownerID,
+          cycleID: newCycleID,
+          startDayKey: 20260727,
+          plannedPillCount: 21,
+          breakDays: 7,
+          autoRecordEnabled: false,
+          statusRaw: "active",
+          updatedAt: serverTimestamp()
+        }
+      )
+    );
     await assertFails(deleteDoc(eventReference(outsiderDatabase)));
+    await assertFails(deleteDoc(pillCycleReference(outsiderDatabase)));
     await assertFails(deleteDoc(connectionReference(outsiderDatabase)));
   });
 });

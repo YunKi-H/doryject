@@ -22,6 +22,7 @@ final class FirestoreSharedCalendarEventSyncService: SharedCalendarEventSyncing 
 
     func syncOwnedEvents(
         _ events: [UserEvent],
+        pillCycles: [PillCycleInfo],
         connection: CalendarConnection,
         computationSettings: SharedCalendarComputationSettings
     ) async throws {
@@ -36,7 +37,12 @@ final class FirestoreSharedCalendarEventSyncService: SharedCalendarEventSyncing 
         )
         let collection = connectionReference
             .collection(FirestoreCalendarSharingMapper.Collection.events)
+        let pillCycleCollection = connectionReference.collection(
+            FirestoreCalendarSharingMapper.Collection.pillCycles
+        )
         let existingSnapshot = try await collection.getDocuments()
+        let existingPillCycleSnapshot = try await pillCycleCollection
+            .getDocuments()
         let desiredEvents = events.filter {
             connection.sharedEventTypes.includes($0.type)
         }
@@ -47,7 +53,8 @@ final class FirestoreSharedCalendarEventSyncService: SharedCalendarEventSyncing 
             }
         )
 
-        var mutations: [FirestoreEventMutation] = []
+        var eventSetMutations: [FirestoreSharedCalendarMutation] = []
+        var eventDeleteMutations: [FirestoreSharedCalendarMutation] = []
         for event in desiredEvents {
             let documentID = event.id.uuidString
             let data = FirestoreCalendarSharingMapper.sharedEventData(
@@ -59,22 +66,78 @@ final class FirestoreSharedCalendarEventSyncService: SharedCalendarEventSyncing 
                 existingByID[documentID],
                 expected: data
             ) == false {
-                mutations.append(.set(documentID: documentID, data: data))
+                eventSetMutations.append(
+                    .set(
+                        reference: collection.document(documentID),
+                        data: data
+                    )
+                )
             }
         }
 
         for existingID in existingByID.keys where desiredIDs.contains(existingID) == false {
-            mutations.append(.delete(documentID: existingID))
+            eventDeleteMutations.append(
+                .delete(reference: collection.document(existingID))
+            )
         }
 
+        let sharedPillCycleIDs = Set(
+            desiredEvents.compactMap { event -> UUID? in
+                guard event.type == .pill else { return nil }
+                return event.pillCycleID
+            }
+        )
+        var desiredPillCycleData: [String: [String: Any]] = [:]
+        for cycle in pillCycles where sharedPillCycleIDs.contains(cycle.id) {
+            guard let data = FirestoreCalendarSharingMapper
+                .sharedPillCycleData(
+                    cycle,
+                    ownerID: connection.ownerID,
+                    calendar: calendar
+                ) else {
+                continue
+            }
+            desiredPillCycleData[cycle.id.uuidString] = data
+        }
+        let existingPillCyclesByID = Dictionary(
+            uniqueKeysWithValues: existingPillCycleSnapshot.documents.map {
+                ($0.documentID, $0.data())
+            }
+        )
+
+        var pillCycleSetMutations: [FirestoreSharedCalendarMutation] = []
+        var pillCycleDeleteMutations: [FirestoreSharedCalendarMutation] = []
+        for (documentID, data) in desiredPillCycleData
+        where FirestoreCalendarSharingMapper.sharedPillCycleDataMatches(
+            existingPillCyclesByID[documentID],
+            expected: data
+        ) == false {
+            pillCycleSetMutations.append(
+                .set(
+                    reference: pillCycleCollection.document(documentID),
+                    data: data
+                )
+            )
+        }
+        for existingID in existingPillCyclesByID.keys
+        where desiredPillCycleData[existingID] == nil {
+            pillCycleDeleteMutations.append(
+                .delete(reference: pillCycleCollection.document(existingID))
+            )
+        }
+
+        let mutations = pillCycleSetMutations
+            + eventSetMutations
+            + eventDeleteMutations
+            + pillCycleDeleteMutations
         for chunk in mutations.chunked(maxCount: 450) {
             let batch = database.batch()
             for mutation in chunk {
                 switch mutation {
-                case .set(let documentID, let data):
-                    batch.setData(data, forDocument: collection.document(documentID))
-                case .delete(let documentID):
-                    batch.deleteDocument(collection.document(documentID))
+                case .set(let reference, let data):
+                    batch.setData(data, forDocument: reference)
+                case .delete(let reference):
+                    batch.deleteDocument(reference)
                 }
             }
             try await batch.commit()
@@ -82,9 +145,9 @@ final class FirestoreSharedCalendarEventSyncService: SharedCalendarEventSyncing 
     }
 }
 
-private enum FirestoreEventMutation {
-    case set(documentID: String, data: [String: Any])
-    case delete(documentID: String)
+private enum FirestoreSharedCalendarMutation {
+    case set(reference: DocumentReference, data: [String: Any])
+    case delete(reference: DocumentReference)
 }
 
 private extension Array {

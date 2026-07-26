@@ -13,7 +13,7 @@ protocol CalendarDisplayEventUpdating: AnyObject {
         connectionID: String,
         computationSettings: SharedCalendarComputationSettings?
     )
-    func displaySharedCalendar(events: [SharedCalendarEvent])
+    func displaySharedCalendar(snapshot: SharedCalendarSnapshot)
 }
 
 final class CalendarDisplayEventRepository:
@@ -79,6 +79,9 @@ final class CalendarDisplayEventRepository:
         let state = CalendarSharingRuntimeState(
             viewerConnectionID: connectionID,
             events: cachedEvents,
+            pillCycles: runtimeState?.viewerConnectionID == connectionID
+                ? runtimeState?.pillCycles ?? []
+                : [],
             computationSettings: resolvedSettings
         )
         runtimeState = state
@@ -90,12 +93,18 @@ final class CalendarDisplayEventRepository:
         onDisplayEventsChanged?()
     }
 
-    func displaySharedCalendar(events: [SharedCalendarEvent]) {
+    func displaySharedCalendar(snapshot: SharedCalendarSnapshot) {
         guard var state = runtimeState else { return }
-        state.events = events.map(CachedSharedCalendarEvent.init)
+        state.events = snapshot.events.map(CachedSharedCalendarEvent.init)
+        state.pillCycles = snapshot.pillCycles.map(
+            CachedSharedPillCycleMetadata.init
+        )
         runtimeState = state
         runtimeStore.save(state)
-        sharedEvents = Self.makeUserEvents(from: events, calendar: calendar)
+        sharedEvents = Self.makeUserEvents(
+            from: snapshot.events,
+            calendar: calendar
+        )
         onDisplayEventsChanged?()
     }
 
@@ -140,8 +149,35 @@ final class CalendarDisplayEventRepository:
     }
 
     func pillCycles() -> [PillCycleInfo] {
-        guard isDisplayingSharedCalendar == false else { return [] }
-        return localRepository.pillCycles()
+        guard let sharedEvents else {
+            return localRepository.pillCycles()
+        }
+        var intakeDatesByCycleID: [UUID: [Date]] = [:]
+        for event in sharedEvents where event.type == .pill {
+            guard let cycleID = event.pillCycleID else { continue }
+            intakeDatesByCycleID[cycleID, default: []].append(
+                event.resolvedDate(calendar: calendar)
+            )
+        }
+        intakeDatesByCycleID = intakeDatesByCycleID.mapValues {
+            $0.sorted()
+        }
+
+        return (runtimeState?.pillCycles ?? []).compactMap { cached in
+            let metadata = cached.sharedMetadata
+            guard let intakeDates = intakeDatesByCycleID[metadata.id],
+                  intakeDates.isEmpty == false else {
+                return nil
+            }
+            return PillCycleInfo(
+                id: metadata.id,
+                intakeDates: intakeDates,
+                plannedPillCount: metadata.plannedPillCount,
+                breakDays: metadata.breakDays,
+                autoRecordEnabled: metadata.autoRecordEnabled,
+                status: metadata.status
+            )
+        }
     }
 
     func load() -> UserSettings {
@@ -166,6 +202,7 @@ final class CalendarDisplayEventRepository:
                 id: event.id,
                 date: date,
                 type: event.type,
+                pillCycleID: event.pillCycleID,
                 calendar: calendar
             )
         }

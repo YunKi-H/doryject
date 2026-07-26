@@ -16,6 +16,7 @@ enum FirestoreCalendarSharingMapper {
         static let connections = "connections"
         static let memberships = "connectionMemberships"
         static let events = "events"
+        static let pillCycles = "pillCycles"
     }
 
     static func profile(
@@ -110,7 +111,7 @@ enum FirestoreCalendarSharingMapper {
         ownerID: String,
         calendar: Calendar
     ) -> [String: Any] {
-        [
+        var data: [String: Any] = [
             "ownerID": ownerID,
             "eventID": event.id.uuidString,
             "dayKey": CalendarDay(
@@ -120,6 +121,11 @@ enum FirestoreCalendarSharingMapper {
             "typeRaw": event.type.rawValue,
             "updatedAt": FieldValue.serverTimestamp()
         ]
+        if event.type == .pill,
+           let pillCycleID = event.pillCycleID {
+            data["pillCycleID"] = pillCycleID.uuidString
+        }
+        return data
     }
 
     static func sharedEvent(
@@ -137,7 +143,9 @@ enum FirestoreCalendarSharingMapper {
         return SharedCalendarEvent(
             id: eventID,
             day: day,
-            type: type
+            type: type,
+            pillCycleID: (data["pillCycleID"] as? String)
+                .flatMap(UUID.init(uuidString:))
         )
     }
 
@@ -150,6 +158,79 @@ enum FirestoreCalendarSharingMapper {
             && existing["eventID"] as? String == expected["eventID"] as? String
             && numericInt(existing["dayKey"]) == numericInt(expected["dayKey"])
             && existing["typeRaw"] as? String == expected["typeRaw"] as? String
+            && existing["pillCycleID"] as? String
+                == expected["pillCycleID"] as? String
+    }
+
+    static func sharedPillCycleData(
+        _ cycle: PillCycleInfo,
+        ownerID: String,
+        calendar: Calendar
+    ) -> [String: Any]? {
+        guard let startDate = cycle.startDate(calendar: calendar) else {
+            return nil
+        }
+        var data: [String: Any] = [
+            "ownerID": ownerID,
+            "cycleID": cycle.id.uuidString,
+            "startDayKey": CalendarDay(
+                date: startDate,
+                calendar: calendar
+            ).dayKey,
+            "statusRaw": cycle.status.rawValue,
+            "updatedAt": FieldValue.serverTimestamp()
+        ]
+        if let plannedPillCount = cycle.plannedPillCount {
+            data["plannedPillCount"] = plannedPillCount
+        }
+        if let breakDays = cycle.breakDays {
+            data["breakDays"] = breakDays
+        }
+        if let autoRecordEnabled = cycle.autoRecordEnabled {
+            data["autoRecordEnabled"] = autoRecordEnabled
+        }
+        return data
+    }
+
+    static func sharedPillCycle(
+        id: String,
+        data: [String: Any]
+    ) -> SharedPillCycleMetadata? {
+        guard let cycleID = UUID(uuidString: data["cycleID"] as? String ?? id),
+              let startDayKey = numericInt(data["startDayKey"]),
+              let startDay = CalendarDay(dayKey: startDayKey),
+              let statusRaw = data["statusRaw"] as? String,
+              let status = PillCycleStatus(rawValue: statusRaw) else {
+            return nil
+        }
+        return SharedPillCycleMetadata(
+            id: cycleID,
+            startDay: startDay,
+            plannedPillCount: numericInt(data["plannedPillCount"]),
+            breakDays: numericInt(data["breakDays"]),
+            autoRecordEnabled: data["autoRecordEnabled"] as? Bool,
+            status: status
+        )
+    }
+
+    static func sharedPillCycleDataMatches(
+        _ existing: [String: Any]?,
+        expected: [String: Any]
+    ) -> Bool {
+        guard let existing else { return false }
+        return existing["ownerID"] as? String == expected["ownerID"] as? String
+            && existing["cycleID"] as? String
+                == expected["cycleID"] as? String
+            && numericInt(existing["startDayKey"])
+                == numericInt(expected["startDayKey"])
+            && numericInt(existing["plannedPillCount"])
+                == numericInt(expected["plannedPillCount"])
+            && numericInt(existing["breakDays"])
+                == numericInt(expected["breakDays"])
+            && existing["autoRecordEnabled"] as? Bool
+                == expected["autoRecordEnabled"] as? Bool
+            && existing["statusRaw"] as? String
+                == expected["statusRaw"] as? String
     }
 
     private static func numericInt(_ value: Any?) -> Int? {

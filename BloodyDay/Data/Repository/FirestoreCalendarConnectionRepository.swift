@@ -380,7 +380,7 @@ final class FirestoreCalendarConnectionRepository: CalendarConnectionRepository 
             connectionReference,
             requestedBy: userID
         )
-        try await deleteSharedEvents(connectionReference: connectionReference)
+        try await deleteSharedData(connectionReference: connectionReference)
         try await deleteConnectionDocuments(
             connection,
             connectionReference: connectionReference,
@@ -464,14 +464,26 @@ final class FirestoreCalendarConnectionRepository: CalendarConnectionRepository 
         }
     }
 
-    private func deleteSharedEvents(
+    private func deleteSharedData(
         connectionReference: DocumentReference
     ) async throws {
-        let eventsReference = connectionReference
-            .collection(FirestoreCalendarSharingMapper.Collection.events)
+        try await deleteDocuments(
+            in: connectionReference.collection(
+                FirestoreCalendarSharingMapper.Collection.events
+            )
+        )
+        try await deleteDocuments(
+            in: connectionReference.collection(
+                FirestoreCalendarSharingMapper.Collection.pillCycles
+            )
+        )
+    }
 
+    private func deleteDocuments(
+        in collection: CollectionReference
+    ) async throws {
         while true {
-            let snapshot = try await eventsReference
+            let snapshot = try await collection
                 .limit(to: Self.disconnectBatchSize)
                 .getDocuments()
             guard snapshot.documents.isEmpty == false else { return }

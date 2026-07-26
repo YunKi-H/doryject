@@ -56,6 +56,7 @@ final class SharedCalendarSyncScheduler: SharedCalendarSyncScheduling {
             }
             try await eventSyncService.syncOwnedEvents(
                 eventRepository.allEvents(),
+                pillCycles: eventRepository.pillCycles(),
                 connection: connection,
                 computationSettings: SharedCalendarComputationSettings(
                     settings: settingsRepository.load()

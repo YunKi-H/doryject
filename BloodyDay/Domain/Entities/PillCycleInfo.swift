@@ -7,7 +7,7 @@
 
 import Foundation
 
-enum PillCycleStatus: String, Codable {
+enum PillCycleStatus: String, Codable, Sendable {
     case active
     case completed
 }

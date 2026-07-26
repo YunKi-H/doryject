@@ -228,11 +228,69 @@ service cloud.firestore {
           && request.resource.data.eventID == eventID
           && request.resource.data.dayKey is int
           && request.resource.data.typeRaw in ["period", "pill", "love"]
+          && (
+            !("pillCycleID" in request.resource.data)
+            || (
+              request.resource.data.typeRaw == "pill"
+              && request.resource.data.pillCycleID is string
+            )
+          )
           && request.resource.data.keys().hasOnly([
             "ownerID",
             "eventID",
             "dayKey",
             "typeRaw",
+            "pillCycleID",
+            "updatedAt"
+          ]);
+
+        allow delete: if signedIn()
+          && (
+            request.auth.uid == connection().ownerID
+            || (
+              connection().status == "terminating"
+              && request.auth.uid in connection().participantIDs
+            )
+          );
+      }
+
+      match /pillCycles/{cycleID} {
+        allow read: if signedIn()
+          && request.auth.uid in connection().participantIDs;
+
+        allow create, update: if signedIn()
+          && isActive(connection())
+          && request.auth.uid == connection().ownerID
+          && request.resource.data.ownerID == request.auth.uid
+          && request.resource.data.cycleID == cycleID
+          && request.resource.data.startDayKey is int
+          && request.resource.data.statusRaw in ["active", "completed"]
+          && (
+            !("plannedPillCount" in request.resource.data)
+            || (
+              request.resource.data.plannedPillCount is int
+              && request.resource.data.plannedPillCount > 0
+            )
+          )
+          && (
+            !("breakDays" in request.resource.data)
+            || (
+              request.resource.data.breakDays is int
+              && request.resource.data.breakDays >= 0
+            )
+          )
+          && (
+            !("autoRecordEnabled" in request.resource.data)
+            || request.resource.data.autoRecordEnabled is bool
+          )
+          && request.resource.data.keys().hasOnly([
+            "ownerID",
+            "cycleID",
+            "startDayKey",
+            "plannedPillCount",
+            "breakDays",
+            "autoRecordEnabled",
+            "statusRaw",
             "updatedAt"
           ]);
 

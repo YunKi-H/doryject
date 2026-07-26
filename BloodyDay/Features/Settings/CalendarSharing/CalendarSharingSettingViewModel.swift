@@ -346,7 +346,7 @@ final class CalendarSharingSettingViewModel {
         stopObservingSharedEvents()
         observedSharedConnectionID = connection.id
 
-        sharedEventObservation = sharedEventRepository.observeEvents(
+        sharedEventObservation = sharedEventRepository.observeSnapshot(
             connectionID: connection.id
         ) { [weak self] result in
             Task { @MainActor in
@@ -355,9 +355,9 @@ final class CalendarSharingSettingViewModel {
                     return
                 }
                 switch result {
-                case .success(let events):
+                case .success(let snapshot):
                     self.calendarDisplayUpdater?
-                        .displaySharedCalendar(events: events)
+                        .displaySharedCalendar(snapshot: snapshot)
                 case .failure(let error):
                     self.errorMessage = error.localizedDescription
                 }
