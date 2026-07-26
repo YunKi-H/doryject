@@ -421,8 +421,7 @@ final class FirestoreCalendarConnectionRepository: CalendarConnectionRepository 
         try await deleteSharedData(connectionReference: connectionReference)
         try await deleteConnectionDocuments(
             connection,
-            connectionReference: connectionReference,
-            requestedBy: userID
+            connectionReference: connectionReference
         )
     }
 
@@ -536,8 +535,7 @@ final class FirestoreCalendarConnectionRepository: CalendarConnectionRepository 
 
     private func deleteConnectionDocuments(
         _ connection: CalendarConnection,
-        connectionReference: DocumentReference,
-        requestedBy userID: String
+        connectionReference: DocumentReference
     ) async throws {
         let requestReference = database
             .collection(FirestoreCalendarSharingMapper.Collection.requests)
@@ -549,41 +547,12 @@ final class FirestoreCalendarConnectionRepository: CalendarConnectionRepository 
             .collection(FirestoreCalendarSharingMapper.Collection.memberships)
             .document(connection.viewerID)
 
-        _ = try await database.runTransaction { transaction, errorPointer -> Any? in
-            do {
-                let connectionSnapshot = try transaction
-                    .getDocument(connectionReference)
-                let requestSnapshot = try transaction
-                    .getDocument(requestReference)
-                let ownerMembershipSnapshot = try transaction
-                    .getDocument(ownerMembershipReference)
-                let viewerMembershipSnapshot = try transaction
-                    .getDocument(viewerMembershipReference)
-
-                guard let data = connectionSnapshot.data(),
-                      data["status"] as? String == Self.terminatingStatus,
-                      let participantIDs = data["participantIDs"] as? [String],
-                      participantIDs.contains(userID) else {
-                    throw CalendarConnectionRepositoryError
-                        .connectionTerminationUnavailable
-                }
-
-                if requestSnapshot.exists {
-                    transaction.deleteDocument(requestReference)
-                }
-                if ownerMembershipSnapshot.exists {
-                    transaction.deleteDocument(ownerMembershipReference)
-                }
-                if viewerMembershipSnapshot.exists {
-                    transaction.deleteDocument(viewerMembershipReference)
-                }
-                transaction.deleteDocument(connectionReference)
-                return nil
-            } catch {
-                errorPointer?.pointee = error as NSError
-                return nil
-            }
-        }
+        let batch = database.batch()
+        batch.deleteDocument(requestReference)
+        batch.deleteDocument(ownerMembershipReference)
+        batch.deleteDocument(viewerMembershipReference)
+        batch.deleteDocument(connectionReference)
+        try await batch.commit()
     }
 
     private func normalizedDisplayName(for user: AuthenticatedUser) -> String {
@@ -676,7 +645,6 @@ enum CalendarConnectionRepositoryError: LocalizedError {
     case alreadyConnected
     case cachedConnectionUnavailable
     case notConnectionParticipant
-    case connectionTerminationUnavailable
 
     var errorDescription: String? {
         switch self {
@@ -706,8 +674,6 @@ enum CalendarConnectionRepositoryError: LocalizedError {
             return "오프라인 상태라 최신 연결 정보를 확인하지 못했어요."
         case .notConnectionParticipant:
             return "이 캘린더 연결을 해제할 권한이 없어요."
-        case .connectionTerminationUnavailable:
-            return "연결 종료 상태를 확인하지 못했어요. 다시 시도해주세요."
         }
     }
 }
