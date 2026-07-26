@@ -15,6 +15,7 @@ final class CalendarViewModel {
     var months: [MonthInfo] = []
     var currentIndex: Int = 0
     private(set) var referenceToday: Date
+    private(set) var canEditEvents = true
     
     private let eventRepository: EventRepository
     private let settingsRepository: SettingsRepository?
@@ -72,6 +73,11 @@ final class CalendarViewModel {
         refresh(now: normalizedToday)
     }
 
+    func refreshDisplayMode(canEditEvents: Bool, now: Date = .now) {
+        self.canEditEvents = canEditEvents
+        refresh(now: now)
+    }
+
     func refreshForSystemCalendarChange(
         now: Date = .now,
         calendar: Calendar = .autoupdatingCurrent
@@ -115,6 +121,7 @@ extension CalendarViewModel {
     }
     
     func setEvent(_ type: EventType, enabled: Bool) {
+        guard canEditEvents else { return }
         let date = calendar.startOfDay(for: selectedDate)
         let plan = CalendarEventTogglePolicyUseCase.mutationPlan(
             type: type,
@@ -135,7 +142,7 @@ extension CalendarViewModel {
     }
     
     func pillDisableConfirmationPlanForSelectedDate() -> PillDisableConfirmationPlan? {
-        guard settingsRepository != nil else {
+        guard canEditEvents, settingsRepository != nil else {
             return nil
         }
         return CalendarEventTogglePolicyUseCase.pillDisableConfirmationPlan(
@@ -148,6 +155,7 @@ extension CalendarViewModel {
     }
     
     func deletePillEvents(on dates: [Date]) {
+        guard canEditEvents else { return }
         applyMutationPlan(.init(deletions: [CalendarEventMutation(type: .pill, dates: dates)]))
         reloadComputationSnapshot()
         let keepingMonth = months.indices.contains(currentIndex)

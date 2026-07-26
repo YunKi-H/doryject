@@ -1,0 +1,336 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    match /users/{userID} {
+      allow get: if signedIn() && request.auth.uid == userID;
+      allow create: if signedIn()
+        && request.auth.uid == userID
+        && request.resource.data.connectionCode is string;
+      allow update: if signedIn()
+        && request.auth.uid == userID
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(["displayName"]);
+      allow list, delete: if false;
+    }
+
+    match /connectionCodes/{code} {
+      allow get: if signedIn();
+      allow list: if false;
+      allow create: if signedIn()
+        && request.resource.data.userID == request.auth.uid;
+      allow update: if false;
+      allow delete: if signedIn()
+        && resource.data.userID == request.auth.uid;
+    }
+
+    match /connectionRequests/{requestID} {
+      function requestConnection() {
+        return get(
+          /databases/$(database)/documents/connections/$(requestID)
+        ).data;
+      }
+
+      function isRequestParticipant() {
+        return resource.data.senderID == request.auth.uid
+          || resource.data.recipientID == request.auth.uid;
+      }
+
+      allow create: if signedIn()
+        && request.resource.data.senderID == request.auth.uid
+        && request.resource.data.recipientID != request.auth.uid
+        && request.resource.data.status == "pending";
+
+      allow get: if signedIn() && isRequestParticipant();
+      allow list: if signedIn()
+        && resource.data.senderID == request.auth.uid;
+      allow list: if signedIn()
+        && resource.data.recipientID == request.auth.uid;
+
+      allow update: if signedIn()
+        && request.resource.data.senderID == resource.data.senderID
+        && request.resource.data.recipientID == resource.data.recipientID
+        && (
+          (
+            resource.data.recipientID == request.auth.uid
+            && resource.data.status == "pending"
+            && request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(["status"])
+            && request.resource.data.status in ["accepted", "declined"]
+            && (
+              request.resource.data.status == "declined"
+              || (
+                existsAfter(
+                  /databases/$(database)/documents/connections/$(requestID)
+                )
+                && existsAfter(
+                  /databases/$(database)/documents/connectionMemberships/$(resource.data.senderID)
+                )
+                && existsAfter(
+                  /databases/$(database)/documents/connectionMemberships/$(resource.data.recipientID)
+                )
+              )
+            )
+          )
+          ||
+          (
+            resource.data.senderID == request.auth.uid
+            && resource.data.status in ["pending", "declined"]
+            && request.resource.data.status == "pending"
+            && request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(["senderDisplayName", "status", "createdAt"])
+          )
+        );
+
+      allow delete: if signedIn()
+        && requestConnection().status == "terminating"
+        && request.auth.uid in [
+          resource.data.senderID,
+          resource.data.recipientID
+        ];
+    }
+
+    match /connections/{connectionID} {
+      function connection() {
+        return get(
+          /databases/$(database)/documents/connections/$(connectionID)
+        ).data;
+      }
+
+      function acceptedRequest() {
+        return getAfter(
+          /databases/$(database)/documents/connectionRequests/$(connectionID)
+        ).data;
+      }
+
+      function isActive(data) {
+        return !("status" in data) || data.status == "active";
+      }
+
+      function identityIsUnchanged() {
+        return request.resource.data.ownerID == resource.data.ownerID
+          && request.resource.data.viewerID == resource.data.viewerID
+          && request.resource.data.participantIDs
+            == resource.data.participantIDs;
+      }
+
+      function isOwnerSettingsUpdate() {
+        return request.auth.uid == resource.data.ownerID
+          && isActive(resource.data)
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly([
+              "sharedPeriod",
+              "sharedPill",
+              "sharedLove",
+              "sharingUpdatedAt",
+              "sharingUpdatedBy",
+              "periodAutoCyclePredictionEnabled",
+              "periodAverageCycleDays",
+              "periodAveragePeriodDays",
+              "pillEnabled",
+              "pillAutoRecordEnabled",
+              "pillCount",
+              "pillBreakDuration",
+              "calculationUpdatedAt",
+              "calculationUpdatedBy"
+            ])
+          && (
+            !request.resource.data.diff(resource.data).affectedKeys()
+              .hasAny(["sharedPeriod", "sharedPill", "sharedLove"])
+            || request.resource.data.sharingUpdatedBy == request.auth.uid
+          )
+          && (
+            !request.resource.data.diff(resource.data).affectedKeys()
+              .hasAny([
+                "periodAutoCyclePredictionEnabled",
+                "periodAverageCycleDays",
+                "periodAveragePeriodDays",
+                "pillEnabled",
+                "pillAutoRecordEnabled",
+                "pillCount",
+                "pillBreakDuration"
+              ])
+            || request.resource.data.calculationUpdatedBy == request.auth.uid
+          );
+      }
+
+      function isTerminationRequest() {
+        return request.auth.uid in resource.data.participantIDs
+          && isActive(resource.data)
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly([
+              "status",
+              "terminationRequestedBy",
+              "terminationStartedAt"
+            ])
+          && request.resource.data.status == "terminating"
+          && request.resource.data.terminationRequestedBy
+            == request.auth.uid;
+      }
+
+      allow create: if signedIn()
+        && acceptedRequest().status == "accepted"
+        && acceptedRequest().recipientID == request.auth.uid
+        && request.resource.data.participantIDs.size() == 2
+        && request.resource.data.ownerID in request.resource.data.participantIDs
+        && request.resource.data.viewerID in request.resource.data.participantIDs
+        && request.resource.data.ownerID != request.resource.data.viewerID
+        && request.resource.data.status == "active"
+        && acceptedRequest().senderID in request.resource.data.participantIDs
+        && acceptedRequest().recipientID in request.resource.data.participantIDs;
+
+      allow read: if signedIn()
+        && request.auth.uid in resource.data.participantIDs;
+
+      allow update: if signedIn()
+        && identityIsUnchanged()
+        && (isOwnerSettingsUpdate() || isTerminationRequest())
+        && (
+          !("periodAutoCyclePredictionEnabled" in request.resource.data)
+          || request.resource.data.periodAutoCyclePredictionEnabled is bool
+        )
+        && (
+          !("periodAverageCycleDays" in request.resource.data)
+          || request.resource.data.periodAverageCycleDays is int
+        )
+        && (
+          !("periodAveragePeriodDays" in request.resource.data)
+          || request.resource.data.periodAveragePeriodDays is int
+        )
+        && (
+          !("pillEnabled" in request.resource.data)
+          || request.resource.data.pillEnabled is bool
+        )
+        && (
+          !("pillAutoRecordEnabled" in request.resource.data)
+          || request.resource.data.pillAutoRecordEnabled is bool
+        )
+        && (
+          !("pillCount" in request.resource.data)
+          || request.resource.data.pillCount is int
+        )
+        && (
+          !("pillBreakDuration" in request.resource.data)
+          || request.resource.data.pillBreakDuration is int
+        );
+
+      allow delete: if signedIn()
+        && resource.data.status == "terminating"
+        && request.auth.uid in resource.data.participantIDs;
+
+      match /events/{eventID} {
+        allow read: if signedIn()
+          && request.auth.uid in connection().participantIDs;
+
+        allow create, update: if signedIn()
+          && isActive(connection())
+          && request.auth.uid == connection().ownerID
+          && request.resource.data.ownerID == request.auth.uid
+          && request.resource.data.eventID == eventID
+          && request.resource.data.dayKey is int
+          && request.resource.data.typeRaw in ["period", "pill", "love"]
+          && (
+            !("pillCycleID" in request.resource.data)
+            || (
+              request.resource.data.typeRaw == "pill"
+              && request.resource.data.pillCycleID is string
+            )
+          )
+          && request.resource.data.keys().hasOnly([
+            "ownerID",
+            "eventID",
+            "dayKey",
+            "typeRaw",
+            "pillCycleID",
+            "updatedAt"
+          ]);
+
+        allow delete: if signedIn()
+          && (
+            request.auth.uid == connection().ownerID
+            || (
+              connection().status == "terminating"
+              && request.auth.uid in connection().participantIDs
+            )
+          );
+      }
+
+      match /pillCycles/{cycleID} {
+        allow read: if signedIn()
+          && request.auth.uid in connection().participantIDs;
+
+        allow create, update: if signedIn()
+          && isActive(connection())
+          && request.auth.uid == connection().ownerID
+          && request.resource.data.ownerID == request.auth.uid
+          && request.resource.data.cycleID == cycleID
+          && request.resource.data.startDayKey is int
+          && request.resource.data.statusRaw in ["active", "completed"]
+          && (
+            !("plannedPillCount" in request.resource.data)
+            || (
+              request.resource.data.plannedPillCount is int
+              && request.resource.data.plannedPillCount > 0
+            )
+          )
+          && (
+            !("breakDays" in request.resource.data)
+            || (
+              request.resource.data.breakDays is int
+              && request.resource.data.breakDays >= 0
+            )
+          )
+          && (
+            !("autoRecordEnabled" in request.resource.data)
+            || request.resource.data.autoRecordEnabled is bool
+          )
+          && request.resource.data.keys().hasOnly([
+            "ownerID",
+            "cycleID",
+            "startDayKey",
+            "plannedPillCount",
+            "breakDays",
+            "autoRecordEnabled",
+            "statusRaw",
+            "updatedAt"
+          ]);
+
+        allow delete: if signedIn()
+          && (
+            request.auth.uid == connection().ownerID
+            || (
+              connection().status == "terminating"
+              && request.auth.uid in connection().participantIDs
+            )
+          );
+      }
+    }
+
+    match /connectionMemberships/{userID} {
+      function connectedCalendar() {
+        return getAfter(
+          /databases/$(database)/documents/connections/$(request.resource.data.connectionID)
+        ).data;
+      }
+
+      allow get: if signedIn() && request.auth.uid == userID;
+      allow list: if false;
+      allow create: if signedIn()
+        && request.resource.data.userID == userID
+        && request.auth.uid in request.resource.data.participantIDs
+        && userID in request.resource.data.participantIDs
+        && request.resource.data.participantIDs.size() == 2
+        && connectedCalendar().participantIDs == request.resource.data.participantIDs;
+      allow update: if false;
+      allow delete: if signedIn()
+        && request.auth.uid in resource.data.participantIDs
+        && get(
+          /databases/$(database)/documents/connections/$(resource.data.connectionID)
+        ).data.status == "terminating";
+    }
+  }
+}

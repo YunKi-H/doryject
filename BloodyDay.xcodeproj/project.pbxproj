@@ -7,9 +7,15 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		2B3914473014B7DD00910BBF /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 2B3914463014B7DD00910BBF /* FirebaseAuth */; };
+		2B3914493014B7DD00910BBF /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = 2B3914483014B7DD00910BBF /* FirebaseCore */; };
+		2B39144B3014B7DD00910BBF /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 2B39144A3014B7DD00910BBF /* FirebaseFirestore */; };
 		2BE0DABE2F6DA547008394E3 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2BE0DABD2F6DA546008394E3 /* WidgetKit.framework */; };
 		2BE0DAC02F6DA547008394E3 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2BE0DABF2F6DA547008394E3 /* SwiftUI.framework */; };
 		2BE0DACF2F6DA547008394E3 /* BloodyDayWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 2BE0DABB2F6DA546008394E3 /* BloodyDayWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		C0D000013026072600000001 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = C0D000013026072600000011 /* FirebaseAuth */; };
+		C0D000013026072600000002 /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = C0D000013026072600000012 /* FirebaseCore */; };
+		C0D000013026072600000003 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = C0D000013026072600000013 /* FirebaseFirestore */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -64,6 +70,7 @@
 				Data/Repository/EventRepository.swift,
 				Data/Repository/PillCyclePersistence.swift,
 				Data/Repository/SettingsRepository.swift,
+				Data/Repository/SharedCalendarEventSyncing.swift,
 				Data/Repository/UserDefaultsAppleCalendarSyncStore.swift,
 				Domain/Entities/CalendarDay.swift,
 				Domain/Entities/DayEvent.swift,
@@ -75,6 +82,9 @@
 				Domain/Entities/Settings/PeriodSettings.swift,
 				Domain/Entities/Settings/PillSettings.swift,
 				Domain/Entities/Settings/UserSettings.swift,
+				Domain/Entities/Sharing/CalendarSharingModels.swift,
+				Domain/Entities/Sharing/CalendarSharingRuntimeState.swift,
+				Domain/Entities/Sharing/SharedCalendarEvent.swift,
 				Domain/Models/CalendarEventTogglePolicy.swift,
 				Domain/Models/DayInfoCardStatusSnapshot.swift,
 				Domain/UseCases/CalendarEventTogglePolicyUseCase.swift,
@@ -96,8 +106,12 @@
 				Utilities/Services/AppleCalendarClient.swift,
 				Utilities/Services/AppleCalendarSyncService.swift,
 				Utilities/Services/EventKitAppleCalendarClient.swift,
+				Utilities/Services/FirebaseAuthSharedAccess.swift,
+				Utilities/Services/FirestoreCalendarSharingMapper.swift,
+				Utilities/Services/FirestoreSharedCalendarEventSyncService.swift,
 				Utilities/Services/NotificationScheduler.swift,
 				Utilities/Services/PillReminderNotificationScheduler.swift,
+				Utilities/Services/SharedCalendarSyncRetryPolicy.swift,
 				Utilities/Services/UserNotificationScheduler.swift,
 			);
 			target = 2BE0DABA2F6DA546008394E3 /* BloodyDayWidgetExtension */;
@@ -153,6 +167,9 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C0D000013026072600000001 /* FirebaseAuth in Frameworks */,
+				C0D000013026072600000002 /* FirebaseCore in Frameworks */,
+				C0D000013026072600000003 /* FirebaseFirestore in Frameworks */,
 				2BE0DAC02F6DA547008394E3 /* SwiftUI.framework in Frameworks */,
 				2BE0DABE2F6DA547008394E3 /* WidgetKit.framework in Frameworks */,
 			);
@@ -162,6 +179,9 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2B3914493014B7DD00910BBF /* FirebaseCore in Frameworks */,
+				2B3914473014B7DD00910BBF /* FirebaseAuth in Frameworks */,
+				2B39144B3014B7DD00910BBF /* FirebaseFirestore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -228,6 +248,9 @@
 			);
 			name = BloodyDayWidgetExtension;
 			packageProductDependencies = (
+				C0D000013026072600000011 /* FirebaseAuth */,
+				C0D000013026072600000012 /* FirebaseCore */,
+				C0D000013026072600000013 /* FirebaseFirestore */,
 			);
 			productName = BloodyDayWidgetExtension;
 			productReference = 2BE0DABB2F6DA546008394E3 /* BloodyDayWidgetExtension.appex */;
@@ -252,6 +275,9 @@
 			);
 			name = BloodyDay;
 			packageProductDependencies = (
+				2B3914463014B7DD00910BBF /* FirebaseAuth */,
+				2B3914483014B7DD00910BBF /* FirebaseCore */,
+				2B39144A3014B7DD00910BBF /* FirebaseFirestore */,
 			);
 			productName = BloodyDay;
 			productReference = 2BF454542E97DB6900C1190F /* BloodyDay.app */;
@@ -312,6 +338,9 @@
 			);
 			mainGroup = 2BF4544B2E97DB6900C1190F;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				2B3914453014B7DD00910BBF /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 2BF454552E97DB6900C1190F /* Products */;
 			projectDirPath = "";
@@ -405,7 +434,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.2.3;
+				MARKETING_VERSION = 1.3.0;
 				PRODUCT_BUNDLE_IDENTIFIER = dorypawn.BDay.BloodyDayWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -437,7 +466,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.2.3;
+				MARKETING_VERSION = 1.3.0;
 				PRODUCT_BUNDLE_IDENTIFIER = dorypawn.BDay.BloodyDayWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -475,7 +504,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.2.3;
+				MARKETING_VERSION = 1.3.0;
 				PRODUCT_BUNDLE_IDENTIFIER = dorypawn.BDay;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -515,7 +544,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.2.3;
+				MARKETING_VERSION = 1.3.0;
 				PRODUCT_BUNDLE_IDENTIFIER = dorypawn.BDay;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -735,6 +764,50 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		2B3914453014B7DD00910BBF /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 12.16.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		2B3914463014B7DD00910BBF /* FirebaseAuth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 2B3914453014B7DD00910BBF /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAuth;
+		};
+		2B3914483014B7DD00910BBF /* FirebaseCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 2B3914453014B7DD00910BBF /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCore;
+		};
+		2B39144A3014B7DD00910BBF /* FirebaseFirestore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 2B3914453014B7DD00910BBF /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseFirestore;
+		};
+		C0D000013026072600000011 /* FirebaseAuth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 2B3914453014B7DD00910BBF /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAuth;
+		};
+		C0D000013026072600000012 /* FirebaseCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 2B3914453014B7DD00910BBF /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCore;
+		};
+		C0D000013026072600000013 /* FirebaseFirestore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 2B3914453014B7DD00910BBF /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseFirestore;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 2BF4544C2E97DB6900C1190F /* Project object */;
 }

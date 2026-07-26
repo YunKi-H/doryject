@@ -14,6 +14,7 @@ struct CalendarMainView: View {
     @Bindable var pillViewModel: PillSettingsViewModel
     @Bindable var appleCalendarViewModel: AppleCalendarSettingViewModel
     @Bindable var appearanceViewModel: AppearanceSettingViewModel
+    @Bindable var calendarSharingViewModel: CalendarSharingSettingViewModel
     @State private var selectionMonth: Date?
     
     @Binding var isPresentedEventSheet: Bool
@@ -23,6 +24,9 @@ struct CalendarMainView: View {
     @State private var love: Bool = false
     @State private var isPillDisableDialogPresented: Bool = false
     @State private var pillDisablePlan: PillDisableConfirmationPlan?
+    @State private var incomingConnectionRequest: CalendarConnectionRequest?
+    @State private var connectionRequestToAccept: CalendarConnectionRequest?
+    @State private var lastNotifiedRequestVersion: String?
     
     var body: some View {
         VStack(spacing: 0) {
@@ -38,7 +42,8 @@ struct CalendarMainView: View {
                 periodSettingViewModel: periodSettingViewModel,
                 pillViewModel: pillViewModel,
                 appleCalendarViewModel: appleCalendarViewModel,
-                appearanceViewModel: appearanceViewModel
+                appearanceViewModel: appearanceViewModel,
+                calendarSharingViewModel: calendarSharingViewModel
             )
             
             ScrollView(.vertical) {
@@ -48,7 +53,8 @@ struct CalendarMainView: View {
                             month: month,
                             selectedDate: viewModel.selectedDate,
                             onSelectDate: {
-                                if viewModel.selectedDate.isSameDay(as: $0) {
+                                if viewModel.canEditEvents,
+                                   viewModel.selectedDate.isSameDay(as: $0) {
                                     isPresentedEventSheet = true
                                 }
                                 viewModel.selectDate($0)
@@ -217,6 +223,45 @@ struct CalendarMainView: View {
                 syncToggleState()
             }
         }
+        .alert(
+            "캘린더 연결 요청",
+            isPresented: incomingConnectionRequestBinding,
+            presenting: incomingConnectionRequest
+        ) { request in
+            Button("나중에", role: .cancel) {}
+            Button("연결") {
+                Task { @MainActor in
+                    connectionRequestToAccept = request
+                }
+            }
+        } message: { request in
+            Text("\(request.senderDisplayName)님이 캘린더 연결을 요청했어요.")
+        }
+        .confirmationDialog(
+            "사용할 캘린더를 선택해주세요",
+            isPresented: connectionRequestAcceptBinding,
+            titleVisibility: .visible,
+            presenting: connectionRequestToAccept
+        ) { request in
+            Button("내 캘린더 사용") {
+                acceptConnectionRequest(request, useMyCalendar: true)
+            }
+            Button("\(request.senderDisplayName)의 캘린더 사용") {
+                acceptConnectionRequest(request, useMyCalendar: false)
+            }
+            Button("취소", role: .cancel) {}
+        } message: { _ in
+            Text("선택한 캘린더의 소유자만 기록을 편집할 수 있어요.")
+        }
+        .onChange(of: calendarSharingViewModel.incomingRequests, initial: true) {
+            _, requests in
+            presentNewestConnectionRequestIfNeeded(requests)
+        }
+        .onChange(of: viewModel.canEditEvents) { _, canEditEvents in
+            if canEditEvents == false {
+                isPresentedEventSheet = false
+            }
+        }
     }
     
     private func syncToggleState() {
@@ -224,6 +269,54 @@ struct CalendarMainView: View {
         period = states.period
         pill = states.pill
         love = states.love
+    }
+
+    private var incomingConnectionRequestBinding: Binding<Bool> {
+        Binding(
+            get: { incomingConnectionRequest != nil },
+            set: { isPresented in
+                if isPresented == false {
+                    incomingConnectionRequest = nil
+                }
+            }
+        )
+    }
+
+    private var connectionRequestAcceptBinding: Binding<Bool> {
+        Binding(
+            get: { connectionRequestToAccept != nil },
+            set: { isPresented in
+                if isPresented == false {
+                    connectionRequestToAccept = nil
+                }
+            }
+        )
+    }
+
+    private func presentNewestConnectionRequestIfNeeded(
+        _ requests: [CalendarConnectionRequest]
+    ) {
+        guard calendarSharingViewModel.activeConnection == nil,
+              let request = requests.first else {
+            return
+        }
+        let version = "\(request.id)|\(request.createdAt.timeIntervalSince1970)"
+        guard version != lastNotifiedRequestVersion else { return }
+        lastNotifiedRequestVersion = version
+        incomingConnectionRequest = request
+    }
+
+    private func acceptConnectionRequest(
+        _ request: CalendarConnectionRequest,
+        useMyCalendar: Bool
+    ) {
+        connectionRequestToAccept = nil
+        Task {
+            await calendarSharingViewModel.accept(
+                request,
+                useMyCalendar: useMyCalendar
+            )
+        }
     }
     
     private func handlePillToggleChange(newValue: Bool) {
@@ -270,6 +363,10 @@ struct CalendarMainView: View {
             )
         ),
         appearanceViewModel: .init(repo: UserDefaultsSettingsRepository()),
+        calendarSharingViewModel: .init(
+            authenticationService: PreviewAuthenticationService(),
+            connectionRepository: PreviewCalendarConnectionRepository()
+        ),
         isPresentedEventSheet: .constant(false)
     )
 }

@@ -47,11 +47,26 @@ struct ToggleTodayEventIntent: AppIntent {
     }
     
     func perform() async throws -> some IntentResult {
+        let sharingState = WidgetCalendarSharingStateStore().load()
+        guard CalendarSharingRuntimeStore().load() == nil,
+              sharingState?.role != .viewer else {
+            WidgetCenter.shared.reloadAllTimelines()
+            return .result()
+        }
         let settingsRepository = WidgetSettingsRepository()
         let toggledOn = WidgetSharedEventStore.toggle(eventType.widgetType, on: .now)
         if eventType == .pill, toggledOn {
             enablePillIfNeeded(settingsRepository: settingsRepository)
         }
+        rebuildSnapshot()
+        WidgetCenter.shared.reloadAllTimelines()
+
+        if sharingState?.role == .owner {
+            await WidgetSharedCalendarSyncService.shared
+                .synchronizeOwnedCalendarIfNeeded()
+            WidgetCenter.shared.reloadAllTimelines()
+        }
+
         let eventReader = WidgetEventReader(
             events: WidgetSharedEventStore.allEvents(),
             pillCycleInfos: WidgetSharedEventStore.pillCycles()
@@ -66,8 +81,6 @@ struct ToggleTodayEventIntent: AppIntent {
             settingsRepository: settingsRepository,
             eventReader: eventReader
         )
-        rebuildSnapshot()
-        WidgetCenter.shared.reloadAllTimelines()
         return .result()
     }
     

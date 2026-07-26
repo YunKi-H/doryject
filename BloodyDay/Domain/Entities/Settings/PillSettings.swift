@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct PillSettings: Codable {
+struct PillSettings: Codable, Equatable, Sendable {
     var pillEnabled: Bool = false
     var pillTime: DateComponents = .init(hour: 9, minute: 0)
     var pillAutoRecordEnabled: Bool = false

@@ -13,6 +13,7 @@ final class SyncingEventRepository: EventRepository {
     private let settingsRepository: SettingsRepository?
     private let notificationScheduler: NotificationScheduler?
     private let widgetReloader: WidgetReloading?
+    private let sharedCalendarSyncScheduler: SharedCalendarSyncScheduling?
     private var calendar: Calendar { .autoupdatingCurrent }
     
     init(
@@ -20,13 +21,15 @@ final class SyncingEventRepository: EventRepository {
         syncService: AppleCalendarSyncService,
         settingsRepository: SettingsRepository? = nil,
         notificationScheduler: NotificationScheduler? = nil,
-        widgetReloader: WidgetReloading? = nil
+        widgetReloader: WidgetReloading? = nil,
+        sharedCalendarSyncScheduler: SharedCalendarSyncScheduling? = nil
     ) {
         self.base = base
         self.syncService = syncService
         self.settingsRepository = settingsRepository
         self.notificationScheduler = notificationScheduler
         self.widgetReloader = widgetReloader
+        self.sharedCalendarSyncScheduler = sharedCalendarSyncScheduler
     }
     
     func save(_ event: UserEvent) {
@@ -39,6 +42,7 @@ final class SyncingEventRepository: EventRepository {
         }
         refreshNotifications()
         refreshWidgets()
+        refreshSharedCalendar()
     }
     
     func delete(id: UUID) {
@@ -52,6 +56,7 @@ final class SyncingEventRepository: EventRepository {
         }
         refreshNotifications()
         refreshWidgets()
+        refreshSharedCalendar()
     }
     
     func delete(type: EventType, on: Date) {
@@ -67,6 +72,7 @@ final class SyncingEventRepository: EventRepository {
         }
         refreshNotifications()
         refreshWidgets()
+        refreshSharedCalendar()
     }
     
     func replace(type: EventType, on dates: Set<Date>) {
@@ -77,6 +83,7 @@ final class SyncingEventRepository: EventRepository {
         Task { await syncService.syncAll() }
         refreshNotifications()
         refreshWidgets()
+        refreshSharedCalendar()
     }
     
     func allEvents() -> [UserEvent] {
@@ -104,6 +111,10 @@ final class SyncingEventRepository: EventRepository {
     
     private func refreshWidgets() {
         widgetReloader?.reloadAll()
+    }
+
+    private func refreshSharedCalendar() {
+        sharedCalendarSyncScheduler?.schedule()
     }
 
     private func enablePillIfNeeded(for event: UserEvent) {

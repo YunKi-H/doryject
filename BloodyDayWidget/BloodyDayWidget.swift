@@ -28,6 +28,8 @@ struct Provider: AppIntentTimelineProvider {
     }
     
     func timeline(for configuration: ConfigurationAppIntent, in context: Context) async -> Timeline<SimpleEntry> {
+        await WidgetSharedCalendarSyncService.shared
+            .retryPendingSyncIfNeeded()
         let currentDate = Date()
         let calendar = Calendar.autoupdatingCurrent
         let entry = SimpleEntry(
@@ -44,7 +46,15 @@ struct Provider: AppIntentTimelineProvider {
             value: 1,
             to: startOfToday
         ) ?? currentDate.addingTimeInterval(60 * 60)
-        return Timeline(entries: [entry], policy: .after(refreshDate))
+        let nextRetryDate = await WidgetSharedCalendarSyncService.shared
+            .nextRetryDate
+        let nextRefreshDate = nextRetryDate.map {
+            min(refreshDate, $0)
+        } ?? refreshDate
+        return Timeline(
+            entries: [entry],
+            policy: .after(nextRefreshDate)
+        )
     }
 
     private func currentSnapshot(
@@ -144,6 +154,10 @@ struct BloodyDayWidgetEntryView: View {
             .frame(width: 36, height: 36)
         }
         .buttonStyle(.plain)
+        .disabled(
+            CalendarSharingRuntimeStore().load() != nil
+            || WidgetCalendarSharingStateStore().load()?.role == .viewer
+        )
     }
     
     @ViewBuilder

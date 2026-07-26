@@ -7,7 +7,7 @@
 
 import Foundation
 
-enum EventType: String, Equatable, Hashable, Codable {
+enum EventType: String, Equatable, Hashable, Codable, Sendable {
     case period // 생리기간
     case ovulation // 배란일
     case fertile // 가임기

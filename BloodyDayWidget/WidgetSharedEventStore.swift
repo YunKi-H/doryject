@@ -25,6 +25,9 @@ enum WidgetSharedEventStore {
     }()
     
     static func toggle(_ type: EventType, on date: Date, calendar: Calendar = .current) -> Bool {
+        guard CalendarSharingRuntimeStore().load() == nil else {
+            return false
+        }
         let context = ModelContext(sharedContainer)
         let target = calendar.startOfDay(for: date)
         
