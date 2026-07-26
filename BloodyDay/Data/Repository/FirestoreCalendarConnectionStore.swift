@@ -157,47 +157,7 @@ final class FirestoreCalendarConnectionStore {
             .document(request.senderID)
         let recipientMembershipReference = membershipsCollection
             .document(recipient.userID)
-
-        let batch = database.batch()
-        batch.updateData(
-            ["status": CalendarConnectionRequestStatus.accepted.rawValue],
-            forDocument: requestReference
-        )
-        batch.setData([
-            "ownerID": ownerID,
-            "ownerDisplayName": ownerDisplayName,
-            "viewerID": viewerID,
-            "viewerDisplayName": viewerDisplayName,
-            "participantIDs": [ownerID, viewerID],
-            "sharedPeriod": true,
-            "sharedPill": true,
-            "sharedLove": true,
-            "status": Self.activeStatus,
-            "createdAt": FieldValue.serverTimestamp()
-        ], forDocument: connectionReference)
-        let membershipData: [String: Any] = [
-            "connectionID": request.id,
-            "participantIDs": [
-                request.senderID,
-                recipient.userID
-            ],
-            "createdAt": FieldValue.serverTimestamp()
-        ]
-        var senderMembershipData = membershipData
-        senderMembershipData["userID"] = request.senderID
-        var recipientMembershipData = membershipData
-        recipientMembershipData["userID"] = recipient.userID
-        batch.setData(
-            senderMembershipData,
-            forDocument: senderMembershipReference
-        )
-        batch.setData(
-            recipientMembershipData,
-            forDocument: recipientMembershipReference
-        )
-        try await batch.commit()
-
-        return CalendarConnection(
+        let connection = CalendarConnection(
             id: request.id,
             ownerID: ownerID,
             ownerDisplayName: ownerDisplayName,
@@ -206,6 +166,33 @@ final class FirestoreCalendarConnectionStore {
             sharedEventTypes: SharedEventTypeSelection(),
             createdAt: .now
         )
+
+        let batch = database.batch()
+        batch.updateData(
+            FirestoreCalendarSharingMapper.requestStatusData(.accepted),
+            forDocument: requestReference
+        )
+        batch.setData(
+            FirestoreCalendarSharingMapper.connectionData(connection),
+            forDocument: connectionReference
+        )
+        batch.setData(
+            FirestoreCalendarSharingMapper.membershipData(
+                userID: request.senderID,
+                connection: connection
+            ),
+            forDocument: senderMembershipReference
+        )
+        batch.setData(
+            FirestoreCalendarSharingMapper.membershipData(
+                userID: recipient.userID,
+                connection: connection
+            ),
+            forDocument: recipientMembershipReference
+        )
+        try await batch.commit()
+
+        return connection
     }
 
     func updateSharedEventTypes(
@@ -215,13 +202,12 @@ final class FirestoreCalendarConnectionStore {
     ) async throws {
         try await connectionsCollection
             .document(connectionID)
-            .updateData([
-                "sharedPeriod": selection.period,
-                "sharedPill": selection.pill,
-                "sharedLove": selection.love,
-                "sharingUpdatedAt": FieldValue.serverTimestamp(),
-                "sharingUpdatedBy": ownerID
-            ])
+            .updateData(
+                FirestoreCalendarSharingMapper.sharedEventTypesData(
+                    selection,
+                    ownerID: ownerID
+                )
+            )
     }
 
     func disconnect(
@@ -279,14 +265,15 @@ final class FirestoreCalendarConnectionStore {
                         .notConnectionParticipant
                 }
 
-                if data["status"] as? String
-                    != Self.terminatingStatus {
-                    transaction.updateData([
-                        "status": Self.terminatingStatus,
-                        "terminationRequestedBy": userID,
-                        "terminationStartedAt":
-                            FieldValue.serverTimestamp()
-                    ], forDocument: connectionReference)
+                if FirestoreCalendarSharingMapper.connectionStatus(
+                    in: data
+                ) != .terminating {
+                    transaction.updateData(
+                        FirestoreCalendarSharingMapper.terminationData(
+                            requestedBy: userID
+                        ),
+                        forDocument: connectionReference
+                    )
                 }
                 return nil
             } catch {
@@ -350,8 +337,6 @@ final class FirestoreCalendarConnectionStore {
         try await batch.commit()
     }
 
-    private static let activeStatus = "active"
-    private static let terminatingStatus = "terminating"
     private static let disconnectBatchSize = 400
 }
 

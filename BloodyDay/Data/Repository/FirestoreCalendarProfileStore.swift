@@ -108,13 +108,17 @@ final class FirestoreCalendarProfileStore {
                     return nil
                 }
 
-                transaction.setData([
-                    "displayName": displayName,
-                    "connectionCode": proposedCode,
-                    "createdAt": FieldValue.serverTimestamp()
-                ], forDocument: userReference)
                 transaction.setData(
-                    ["userID": userID],
+                    FirestoreCalendarSharingMapper.profileData(
+                        displayName: displayName,
+                        connectionCode: proposedCode
+                    ),
+                    forDocument: userReference
+                )
+                transaction.setData(
+                    FirestoreCalendarSharingMapper.connectionCodeData(
+                        userID: userID
+                    ),
                     forDocument: codeReference
                 )
                 return proposedCode

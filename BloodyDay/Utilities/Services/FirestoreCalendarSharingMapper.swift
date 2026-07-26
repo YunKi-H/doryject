@@ -19,6 +19,106 @@ enum FirestoreCalendarSharingMapper {
         static let pillCycles = "pillCycles"
     }
 
+    enum ConnectionStatus: String {
+        case active
+        case terminating
+    }
+
+    static func profileData(
+        displayName: String,
+        connectionCode: String
+    ) -> [String: Any] {
+        [
+            "displayName": displayName,
+            "connectionCode": connectionCode,
+            "createdAt": FieldValue.serverTimestamp()
+        ]
+    }
+
+    static func connectionCodeData(
+        userID: String
+    ) -> [String: Any] {
+        ["userID": userID]
+    }
+
+    static func pendingRequestData(
+        sender: CalendarSharingProfile,
+        recipientID: String
+    ) -> [String: Any] {
+        [
+            "senderID": sender.userID,
+            "senderDisplayName": sender.displayName,
+            "recipientID": recipientID,
+            "status": CalendarConnectionRequestStatus.pending.rawValue,
+            "createdAt": FieldValue.serverTimestamp()
+        ]
+    }
+
+    static func requestStatusData(
+        _ status: CalendarConnectionRequestStatus
+    ) -> [String: Any] {
+        ["status": status.rawValue]
+    }
+
+    static func connectionData(
+        _ connection: CalendarConnection
+    ) -> [String: Any] {
+        [
+            "ownerID": connection.ownerID,
+            "ownerDisplayName": connection.ownerDisplayName,
+            "viewerID": connection.viewerID,
+            "viewerDisplayName": connection.viewerDisplayName,
+            "participantIDs": participantIDs(for: connection),
+            "sharedPeriod": connection.sharedEventTypes.period,
+            "sharedPill": connection.sharedEventTypes.pill,
+            "sharedLove": connection.sharedEventTypes.love,
+            "status": ConnectionStatus.active.rawValue,
+            "createdAt": FieldValue.serverTimestamp()
+        ]
+    }
+
+    static func membershipData(
+        userID: String,
+        connection: CalendarConnection
+    ) -> [String: Any] {
+        [
+            "connectionID": connection.id,
+            "participantIDs": participantIDs(for: connection),
+            "userID": userID,
+            "createdAt": FieldValue.serverTimestamp()
+        ]
+    }
+
+    static func sharedEventTypesData(
+        _ selection: SharedEventTypeSelection,
+        ownerID: String
+    ) -> [String: Any] {
+        [
+            "sharedPeriod": selection.period,
+            "sharedPill": selection.pill,
+            "sharedLove": selection.love,
+            "sharingUpdatedAt": FieldValue.serverTimestamp(),
+            "sharingUpdatedBy": ownerID
+        ]
+    }
+
+    static func terminationData(
+        requestedBy userID: String
+    ) -> [String: Any] {
+        [
+            "status": ConnectionStatus.terminating.rawValue,
+            "terminationRequestedBy": userID,
+            "terminationStartedAt": FieldValue.serverTimestamp()
+        ]
+    }
+
+    static func connectionStatus(
+        in data: [String: Any]
+    ) -> ConnectionStatus? {
+        (data["status"] as? String)
+            .flatMap(ConnectionStatus.init(rawValue:))
+    }
+
     static func profile(
         userID: String,
         data: [String: Any]
@@ -244,6 +344,12 @@ enum FirestoreCalendarSharingMapper {
             return value.intValue
         }
         return nil
+    }
+
+    private static func participantIDs(
+        for connection: CalendarConnection
+    ) -> [String] {
+        [connection.ownerID, connection.viewerID]
     }
 
     private static func computationSettings(

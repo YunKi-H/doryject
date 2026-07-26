@@ -90,14 +90,12 @@ final class FirestoreCalendarRequestStore {
 
         try await requestsCollection
             .document(requestID)
-            .setData([
-                "senderID": profile.userID,
-                "senderDisplayName": profile.displayName,
-                "recipientID": recipientID,
-                "status":
-                    CalendarConnectionRequestStatus.pending.rawValue,
-                "createdAt": FieldValue.serverTimestamp()
-            ])
+            .setData(
+                FirestoreCalendarSharingMapper.pendingRequestData(
+                    sender: profile,
+                    recipientID: recipientID
+                )
+            )
     }
 
     func decline(
@@ -110,10 +108,9 @@ final class FirestoreCalendarRequestStore {
         }
         try await requestsCollection
             .document(request.id)
-            .updateData([
-                "status":
-                    CalendarConnectionRequestStatus.declined.rawValue
-            ])
+            .updateData(
+                FirestoreCalendarSharingMapper.requestStatusData(.declined)
+            )
     }
 
     private var requestsCollection: CollectionReference {

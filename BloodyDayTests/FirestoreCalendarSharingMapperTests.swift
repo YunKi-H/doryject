@@ -17,6 +17,87 @@ struct FirestoreCalendarSharingMapperTests {
     }
 
     @Test
+    func connectionAndMembershipUseSameParticipantOrder() {
+        let connection = CalendarConnection(
+            id: "connection",
+            ownerID: "recipient",
+            ownerDisplayName: "Recipient",
+            viewerID: "sender",
+            viewerDisplayName: "Sender",
+            sharedEventTypes: SharedEventTypeSelection(),
+            createdAt: .now
+        )
+
+        let connectionData =
+            FirestoreCalendarSharingMapper.connectionData(connection)
+        let senderMembership =
+            FirestoreCalendarSharingMapper.membershipData(
+                userID: "sender",
+                connection: connection
+            )
+        let recipientMembership =
+            FirestoreCalendarSharingMapper.membershipData(
+                userID: "recipient",
+                connection: connection
+            )
+
+        let participantIDs = ["recipient", "sender"]
+        #expect(
+            connectionData["participantIDs"] as? [String]
+                == participantIDs
+        )
+        #expect(
+            senderMembership["participantIDs"] as? [String]
+                == participantIDs
+        )
+        #expect(
+            recipientMembership["participantIDs"] as? [String]
+                == participantIDs
+        )
+        #expect(senderMembership["userID"] as? String == "sender")
+        #expect(recipientMembership["userID"] as? String == "recipient")
+    }
+
+    @Test
+    func lifecyclePayloadsUseExpectedStatuses() {
+        let profile = CalendarSharingProfile(
+            userID: "sender",
+            displayName: "Sender",
+            connectionCode: "ABCDEFGH"
+        )
+
+        let requestData =
+            FirestoreCalendarSharingMapper.pendingRequestData(
+                sender: profile,
+                recipientID: "recipient"
+            )
+        let acceptedData =
+            FirestoreCalendarSharingMapper.requestStatusData(.accepted)
+        let terminationData =
+            FirestoreCalendarSharingMapper.terminationData(
+                requestedBy: "sender"
+            )
+
+        #expect(
+            requestData["status"] as? String
+                == CalendarConnectionRequestStatus.pending.rawValue
+        )
+        #expect(
+            acceptedData["status"] as? String
+                == CalendarConnectionRequestStatus.accepted.rawValue
+        )
+        #expect(
+            terminationData["status"] as? String
+                == FirestoreCalendarSharingMapper.ConnectionStatus
+                    .terminating.rawValue
+        )
+        #expect(
+            terminationData["terminationRequestedBy"] as? String
+                == "sender"
+        )
+    }
+
+    @Test
     func sharedPillEventPreservesCycleReference() throws {
         let cycleID = UUID()
         let event = UserEvent(
