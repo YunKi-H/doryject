@@ -142,9 +142,15 @@ final class FirestoreCalendarConnectionRepository: CalendarConnectionRepository 
                         onChange(.failure(error))
                         return
                     }
-                    guard let document,
-                          let data = document.data() else {
-                        if document?.metadata.isFromCache == true {
+                    guard let document else {
+                        onChange(.success(nil))
+                        return
+                    }
+                    guard document.metadata.hasPendingWrites == false else {
+                        return
+                    }
+                    guard let data = document.data() else {
+                        if document.metadata.isFromCache {
                             return
                         }
                         onChange(.success(nil))
