@@ -72,12 +72,6 @@ struct CalendarHeaderView: View {
                     } label: {
                         Label("화면 테마", systemImage: "circle.lefthalf.filled")
                     }
-
-                    NavigationLink {
-                        CalendarSharingSettingView(viewModel: calendarSharingViewModel)
-                    } label: {
-                        Label("캘린더 연결", systemImage: "person.2.fill")
-                    }
                     
                     NavigationLink {
                         PeriodSettingView(viewModel: periodSettingViewModel)
@@ -95,6 +89,12 @@ struct CalendarHeaderView: View {
                         AppleCalendarSettingView(viewModel: appleCalendarViewModel)
                     } label: {
                         Label("Apple Calendar", systemImage: "apple.logo")
+                    }
+                    
+                    NavigationLink {
+                        CalendarSharingSettingView(viewModel: calendarSharingViewModel)
+                    } label: {
+                        Label("캘린더 연결", systemImage: "heart.fill")
                     }
                 } label: {
                     Image(systemName: "ellipsis")
