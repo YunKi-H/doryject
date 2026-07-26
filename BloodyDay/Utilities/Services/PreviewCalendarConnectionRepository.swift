@@ -94,4 +94,11 @@ final class PreviewCalendarConnectionRepository: CalendarConnectionRepository {
             computationSettings: connection.computationSettings
         )
     }
+
+    func disconnect(
+        _ connection: CalendarConnection,
+        requestedBy userID: String
+    ) async throws {
+        self.connection = nil
+    }
 }

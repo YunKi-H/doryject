@@ -29,6 +29,12 @@ service cloud.firestore {
     }
 
     match /connectionRequests/{requestID} {
+      function requestConnection() {
+        return get(
+          /databases/$(database)/documents/connections/$(requestID)
+        ).data;
+      }
+
       allow create: if signedIn()
         && request.resource.data.senderID == request.auth.uid
         && request.resource.data.recipientID != request.auth.uid
@@ -75,7 +81,12 @@ service cloud.firestore {
           )
         );
 
-      allow delete: if false;
+      allow delete: if signedIn()
+        && requestConnection().status == "terminating"
+        && request.auth.uid in [
+          resource.data.senderID,
+          resource.data.recipientID
+        ];
     }
 
     match /connections/{connectionID} {
@@ -91,6 +102,71 @@ service cloud.firestore {
         ).data;
       }
 
+      function isActive(data) {
+        return !("status" in data) || data.status == "active";
+      }
+
+      function identityIsUnchanged() {
+        return request.resource.data.ownerID == resource.data.ownerID
+          && request.resource.data.viewerID == resource.data.viewerID
+          && request.resource.data.participantIDs
+            == resource.data.participantIDs;
+      }
+
+      function isOwnerSettingsUpdate() {
+        return request.auth.uid == resource.data.ownerID
+          && isActive(resource.data)
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly([
+              "sharedPeriod",
+              "sharedPill",
+              "sharedLove",
+              "sharingUpdatedAt",
+              "sharingUpdatedBy",
+              "periodAutoCyclePredictionEnabled",
+              "periodAverageCycleDays",
+              "periodAveragePeriodDays",
+              "pillEnabled",
+              "pillAutoRecordEnabled",
+              "pillCount",
+              "pillBreakDuration",
+              "calculationUpdatedAt",
+              "calculationUpdatedBy"
+            ])
+          && (
+            !request.resource.data.diff(resource.data).affectedKeys()
+              .hasAny(["sharedPeriod", "sharedPill", "sharedLove"])
+            || request.resource.data.sharingUpdatedBy == request.auth.uid
+          )
+          && (
+            !request.resource.data.diff(resource.data).affectedKeys()
+              .hasAny([
+                "periodAutoCyclePredictionEnabled",
+                "periodAverageCycleDays",
+                "periodAveragePeriodDays",
+                "pillEnabled",
+                "pillAutoRecordEnabled",
+                "pillCount",
+                "pillBreakDuration"
+              ])
+            || request.resource.data.calculationUpdatedBy == request.auth.uid
+          );
+      }
+
+      function isTerminationRequest() {
+        return request.auth.uid in resource.data.participantIDs
+          && isActive(resource.data)
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly([
+              "status",
+              "terminationRequestedBy",
+              "terminationStartedAt"
+            ])
+          && request.resource.data.status == "terminating"
+          && request.resource.data.terminationRequestedBy
+            == request.auth.uid;
+      }
+
       allow create: if signedIn()
         && acceptedRequest().status == "accepted"
         && acceptedRequest().recipientID == request.auth.uid
@@ -98,6 +174,7 @@ service cloud.firestore {
         && request.resource.data.ownerID in request.resource.data.participantIDs
         && request.resource.data.viewerID in request.resource.data.participantIDs
         && request.resource.data.ownerID != request.resource.data.viewerID
+        && request.resource.data.status == "active"
         && acceptedRequest().senderID in request.resource.data.participantIDs
         && acceptedRequest().recipientID in request.resource.data.participantIDs;
 
@@ -105,45 +182,8 @@ service cloud.firestore {
         && request.auth.uid in resource.data.participantIDs;
 
       allow update: if signedIn()
-        && request.auth.uid == resource.data.ownerID
-        && request.resource.data.ownerID == resource.data.ownerID
-        && request.resource.data.viewerID == resource.data.viewerID
-        && request.resource.data.participantIDs == resource.data.participantIDs
-        && request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly([
-            "sharedPeriod",
-            "sharedPill",
-            "sharedLove",
-            "sharingUpdatedAt",
-            "sharingUpdatedBy",
-            "periodAutoCyclePredictionEnabled",
-            "periodAverageCycleDays",
-            "periodAveragePeriodDays",
-            "pillEnabled",
-            "pillAutoRecordEnabled",
-            "pillCount",
-            "pillBreakDuration",
-            "calculationUpdatedAt",
-            "calculationUpdatedBy"
-          ])
-        && (
-          !request.resource.data.diff(resource.data).affectedKeys()
-            .hasAny(["sharedPeriod", "sharedPill", "sharedLove"])
-          || request.resource.data.sharingUpdatedBy == request.auth.uid
-        )
-        && (
-          !request.resource.data.diff(resource.data).affectedKeys()
-            .hasAny([
-              "periodAutoCyclePredictionEnabled",
-              "periodAverageCycleDays",
-              "periodAveragePeriodDays",
-              "pillEnabled",
-              "pillAutoRecordEnabled",
-              "pillCount",
-              "pillBreakDuration"
-            ])
-          || request.resource.data.calculationUpdatedBy == request.auth.uid
-        )
+        && identityIsUnchanged()
+        && (isOwnerSettingsUpdate() || isTerminationRequest())
         && (
           !("periodAutoCyclePredictionEnabled" in request.resource.data)
           || request.resource.data.periodAutoCyclePredictionEnabled is bool
@@ -174,6 +214,7 @@ service cloud.firestore {
         );
 
       allow delete: if signedIn()
+        && resource.data.status == "terminating"
         && request.auth.uid in resource.data.participantIDs;
 
       match /events/{eventID} {
@@ -181,6 +222,7 @@ service cloud.firestore {
           && request.auth.uid in connection().participantIDs;
 
         allow create, update: if signedIn()
+          && isActive(connection())
           && request.auth.uid == connection().ownerID
           && request.resource.data.ownerID == request.auth.uid
           && request.resource.data.eventID == eventID
@@ -195,7 +237,13 @@ service cloud.firestore {
           ]);
 
         allow delete: if signedIn()
-          && request.auth.uid == connection().ownerID;
+          && (
+            request.auth.uid == connection().ownerID
+            || (
+              connection().status == "terminating"
+              && request.auth.uid in connection().participantIDs
+            )
+          );
       }
     }
 
@@ -214,7 +262,12 @@ service cloud.firestore {
         && userID in request.resource.data.participantIDs
         && request.resource.data.participantIDs.size() == 2
         && connectedCalendar().participantIDs == request.resource.data.participantIDs;
-      allow update, delete: if false;
+      allow update: if false;
+      allow delete: if signedIn()
+        && request.auth.uid in resource.data.participantIDs
+        && get(
+          /databases/$(database)/documents/connections/$(resource.data.connectionID)
+        ).data.status == "terminating";
     }
   }
 }

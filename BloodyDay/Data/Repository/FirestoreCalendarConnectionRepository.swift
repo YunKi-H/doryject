@@ -294,6 +294,7 @@ final class FirestoreCalendarConnectionRepository: CalendarConnectionRepository 
                     "sharedPeriod": true,
                     "sharedPill": true,
                     "sharedLove": true,
+                    "status": "active",
                     "createdAt": FieldValue.serverTimestamp()
                 ], forDocument: connectionReference)
                 let membershipData: [String: Any] = [
@@ -363,6 +364,30 @@ final class FirestoreCalendarConnectionRepository: CalendarConnectionRepository 
             ])
     }
 
+    func disconnect(
+        _ connection: CalendarConnection,
+        requestedBy userID: String
+    ) async throws {
+        guard connection.ownerID == userID
+                || connection.viewerID == userID else {
+            throw CalendarConnectionRepositoryError.notConnectionParticipant
+        }
+
+        let connectionReference = database
+            .collection(FirestoreCalendarSharingMapper.Collection.connections)
+            .document(connection.id)
+        try await markConnectionTerminating(
+            connectionReference,
+            requestedBy: userID
+        )
+        try await deleteSharedEvents(connectionReference: connectionReference)
+        try await deleteConnectionDocuments(
+            connection,
+            connectionReference: connectionReference,
+            requestedBy: userID
+        )
+    }
+
     private func createProfileIfNeeded(
         userID: String,
         displayName: String,
@@ -410,6 +435,107 @@ final class FirestoreCalendarConnectionRepository: CalendarConnectionRepository 
         }
     }
 
+    private func markConnectionTerminating(
+        _ connectionReference: DocumentReference,
+        requestedBy userID: String
+    ) async throws {
+        _ = try await database.runTransaction { transaction, errorPointer -> Any? in
+            do {
+                let snapshot = try transaction.getDocument(connectionReference)
+                guard let data = snapshot.data(),
+                      let participantIDs = data["participantIDs"] as? [String],
+                      participantIDs.contains(userID) else {
+                    throw CalendarConnectionRepositoryError
+                        .notConnectionParticipant
+                }
+
+                if data["status"] as? String != Self.terminatingStatus {
+                    transaction.updateData([
+                        "status": Self.terminatingStatus,
+                        "terminationRequestedBy": userID,
+                        "terminationStartedAt": FieldValue.serverTimestamp()
+                    ], forDocument: connectionReference)
+                }
+                return nil
+            } catch {
+                errorPointer?.pointee = error as NSError
+                return nil
+            }
+        }
+    }
+
+    private func deleteSharedEvents(
+        connectionReference: DocumentReference
+    ) async throws {
+        let eventsReference = connectionReference
+            .collection(FirestoreCalendarSharingMapper.Collection.events)
+
+        while true {
+            let snapshot = try await eventsReference
+                .limit(to: Self.disconnectBatchSize)
+                .getDocuments()
+            guard snapshot.documents.isEmpty == false else { return }
+
+            let batch = database.batch()
+            snapshot.documents.forEach {
+                batch.deleteDocument($0.reference)
+            }
+            try await batch.commit()
+        }
+    }
+
+    private func deleteConnectionDocuments(
+        _ connection: CalendarConnection,
+        connectionReference: DocumentReference,
+        requestedBy userID: String
+    ) async throws {
+        let requestReference = database
+            .collection(FirestoreCalendarSharingMapper.Collection.requests)
+            .document(connection.id)
+        let ownerMembershipReference = database
+            .collection(FirestoreCalendarSharingMapper.Collection.memberships)
+            .document(connection.ownerID)
+        let viewerMembershipReference = database
+            .collection(FirestoreCalendarSharingMapper.Collection.memberships)
+            .document(connection.viewerID)
+
+        _ = try await database.runTransaction { transaction, errorPointer -> Any? in
+            do {
+                let connectionSnapshot = try transaction
+                    .getDocument(connectionReference)
+                let requestSnapshot = try transaction
+                    .getDocument(requestReference)
+                let ownerMembershipSnapshot = try transaction
+                    .getDocument(ownerMembershipReference)
+                let viewerMembershipSnapshot = try transaction
+                    .getDocument(viewerMembershipReference)
+
+                guard let data = connectionSnapshot.data(),
+                      data["status"] as? String == Self.terminatingStatus,
+                      let participantIDs = data["participantIDs"] as? [String],
+                      participantIDs.contains(userID) else {
+                    throw CalendarConnectionRepositoryError
+                        .connectionTerminationUnavailable
+                }
+
+                if requestSnapshot.exists {
+                    transaction.deleteDocument(requestReference)
+                }
+                if ownerMembershipSnapshot.exists {
+                    transaction.deleteDocument(ownerMembershipReference)
+                }
+                if viewerMembershipSnapshot.exists {
+                    transaction.deleteDocument(viewerMembershipReference)
+                }
+                transaction.deleteDocument(connectionReference)
+                return nil
+            } catch {
+                errorPointer?.pointee = error as NSError
+                return nil
+            }
+        }
+    }
+
     private func normalizedDisplayName(for user: AuthenticatedUser) -> String {
         let trimmedName = user.displayName?
             .trimmingCharacters(in: .whitespacesAndNewlines)
@@ -427,6 +553,8 @@ final class FirestoreCalendarConnectionRepository: CalendarConnectionRepository 
 
     private static let transactionErrorDomain = "BloodyDay.CalendarConnectionTransaction"
     private static let connectionCodeCollisionErrorCode = 1
+    private static let terminatingStatus = "terminating"
+    private static let disconnectBatchSize = 400
 }
 
 private final class FirestoreActiveConnectionListeners: @unchecked Sendable {
@@ -495,6 +623,8 @@ enum CalendarConnectionRepositoryError: LocalizedError {
     case invalidOwner
     case alreadyConnected
     case cachedConnectionUnavailable
+    case notConnectionParticipant
+    case connectionTerminationUnavailable
 
     var errorDescription: String? {
         switch self {
@@ -518,6 +648,10 @@ enum CalendarConnectionRepositoryError: LocalizedError {
             return "두 사람 중 한 명이 이미 다른 캘린더와 연결되어 있어요."
         case .cachedConnectionUnavailable:
             return "오프라인 상태라 최신 연결 정보를 확인하지 못했어요."
+        case .notConnectionParticipant:
+            return "이 캘린더 연결을 해제할 권한이 없어요."
+        case .connectionTerminationUnavailable:
+            return "연결 종료 상태를 확인하지 못했어요. 다시 시도해주세요."
         }
     }
 }

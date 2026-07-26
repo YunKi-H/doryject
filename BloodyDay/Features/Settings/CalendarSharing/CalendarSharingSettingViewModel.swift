@@ -30,6 +30,7 @@ final class CalendarSharingSettingViewModel {
     private(set) var isSigningIn = false
     private(set) var isLoadingSharingState = false
     private(set) var isSendingRequest = false
+    private(set) var isDisconnecting = false
     private(set) var statusMessage: String?
     var partnerConnectionCode = ""
     var errorMessage: String?
@@ -204,6 +205,30 @@ final class CalendarSharingSettingViewModel {
                 computationSettings: connection.computationSettings
             )
             sharedCalendarSyncScheduler?.schedule()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func disconnectActiveConnection() async {
+        guard let user,
+              let connection = activeConnection else {
+            return
+        }
+
+        isDisconnecting = true
+        defer { isDisconnecting = false }
+        do {
+            try await connectionRepository.disconnect(
+                connection,
+                requestedBy: user.id
+            )
+            activeConnection = nil
+            stopObservingSharedEvents()
+            calendarDisplayUpdater?.displayLocalCalendar()
+            statusMessage = connection.ownerID == user.id
+                ? "캘린더 공유를 중단했어요."
+                : "공유 캘린더 연결에서 나갔어요."
         } catch {
             errorMessage = error.localizedDescription
         }

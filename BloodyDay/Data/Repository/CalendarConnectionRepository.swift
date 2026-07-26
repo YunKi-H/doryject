@@ -53,4 +53,9 @@ protocol CalendarConnectionRepository {
         ownerID: String,
         selection: SharedEventTypeSelection
     ) async throws
+
+    func disconnect(
+        _ connection: CalendarConnection,
+        requestedBy userID: String
+    ) async throws
 }

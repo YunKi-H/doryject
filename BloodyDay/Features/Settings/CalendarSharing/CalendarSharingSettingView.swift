@@ -13,6 +13,7 @@ struct CalendarSharingSettingView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Bindable var viewModel: CalendarSharingSettingViewModel
     @State private var requestToAccept: CalendarConnectionRequest?
+    @State private var connectionToDisconnect: CalendarConnection?
 
     var body: some View {
         List {
@@ -60,6 +61,29 @@ struct CalendarSharingSettingView: View {
             }
         } message: {
             Text("선택한 캘린더의 소유자만 기록을 편집할 수 있어요.")
+        }
+        .confirmationDialog(
+            disconnectDialogTitle,
+            isPresented: disconnectBinding,
+            titleVisibility: .visible
+        ) {
+            if let connection = connectionToDisconnect,
+               let user = viewModel.user {
+                Button(
+                    disconnectButtonTitle(connection, userID: user.id),
+                    role: .destructive
+                ) {
+                    connectionToDisconnect = nil
+                    Task {
+                        await viewModel.disconnectActiveConnection()
+                    }
+                }
+                Button("취소", role: .cancel) {
+                    connectionToDisconnect = nil
+                }
+            }
+        } message: {
+            Text(disconnectDialogMessage)
         }
         .alert(
             "캘린더 연결을 처리하지 못했어요",
@@ -179,6 +203,23 @@ struct CalendarSharingSettingView: View {
                 Image(systemName: "checkmark.circle.fill")
                     .foregroundStyle(.mainRed)
             }
+
+            Button(role: .destructive) {
+                connectionToDisconnect = connection
+            } label: {
+                HStack {
+                    if viewModel.isDisconnecting {
+                        ProgressView()
+                    }
+                    Text(
+                        connection.ownerID == userID
+                            ? "캘린더 공유 중단"
+                            : "캘린더 연결 나가기"
+                    )
+                }
+            }
+            .disabled(viewModel.isDisconnecting)
+            .foregroundStyle(.mainRed)
         }
         .listRowBackground(Color.bgSecondary)
     }
@@ -393,6 +434,45 @@ struct CalendarSharingSettingView: View {
                 }
             }
         )
+    }
+
+    private var disconnectBinding: Binding<Bool> {
+        Binding(
+            get: { connectionToDisconnect != nil },
+            set: { isPresented in
+                if isPresented == false {
+                    connectionToDisconnect = nil
+                }
+            }
+        )
+    }
+
+    private var disconnectDialogTitle: String {
+        guard let connection = connectionToDisconnect,
+              let user = viewModel.user else {
+            return "캘린더 연결을 해제할까요?"
+        }
+        return connection.ownerID == user.id
+            ? "캘린더 공유를 중단할까요?"
+            : "캘린더 연결에서 나갈까요?"
+    }
+
+    private var disconnectDialogMessage: String {
+        guard let connection = connectionToDisconnect,
+              let user = viewModel.user else {
+            return ""
+        }
+        if connection.ownerID == user.id {
+            return "상대방은 더 이상 이 캘린더를 볼 수 없어요. 내 기록은 기기에 그대로 유지됩니다."
+        }
+        return "공유받은 캘린더가 이 기기에서 제거되고 내 로컬 캘린더로 돌아갑니다."
+    }
+
+    private func disconnectButtonTitle(
+        _ connection: CalendarConnection,
+        userID: String
+    ) -> String {
+        connection.ownerID == userID ? "공유 중단" : "연결 나가기"
     }
 
     private var appleButtonStyle: SignInWithAppleButton.Style {
