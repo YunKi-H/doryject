@@ -168,8 +168,6 @@ struct WidgetCalendarSharingState: Codable, Equatable {
 
 struct WidgetCalendarSharingStateStore {
     private static let key = "calendar.sharing.widget.state.v1"
-    private static let pendingSyncKey =
-        "calendar.sharing.widget.pending-sync.v1"
 
     private let defaults: UserDefaults
 
@@ -196,14 +194,6 @@ struct WidgetCalendarSharingStateStore {
 
     func clear() {
         defaults.removeObject(forKey: Self.key)
-        setPendingSync(false)
-    }
-
-    var hasPendingSync: Bool {
-        defaults.bool(forKey: Self.pendingSyncKey)
-    }
-
-    func setPendingSync(_ isPending: Bool) {
-        defaults.set(isPending, forKey: Self.pendingSyncKey)
+        SharedCalendarSyncRetryStore(defaults: defaults).clear()
     }
 }

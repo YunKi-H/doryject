@@ -17,20 +17,23 @@ struct WidgetCalendarSharingStateStoreTests {
         let defaults = try #require(UserDefaults(suiteName: suiteName))
         defaults.removePersistentDomain(forName: suiteName)
         let store = WidgetCalendarSharingStateStore(defaults: defaults)
+        let retryStore = SharedCalendarSyncRetryStore(
+            defaults: defaults
+        )
         let state = WidgetCalendarSharingState(
             role: .owner,
             connectionID: "connection"
         )
 
         store.save(state)
-        store.setPendingSync(true)
+        retryStore.markPending()
 
         #expect(store.load() == state)
-        #expect(store.hasPendingSync)
+        #expect(retryStore.state?.isPending == true)
 
         store.clear()
 
         #expect(store.load() == nil)
-        #expect(store.hasPendingSync == false)
+        #expect(retryStore.state == nil)
     }
 }

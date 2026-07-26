@@ -64,6 +64,7 @@ struct ToggleTodayEventIntent: AppIntent {
         if sharingState?.role == .owner {
             await WidgetSharedCalendarSyncService.shared
                 .synchronizeOwnedCalendarIfNeeded()
+            WidgetCenter.shared.reloadAllTimelines()
         }
 
         let eventReader = WidgetEventReader(

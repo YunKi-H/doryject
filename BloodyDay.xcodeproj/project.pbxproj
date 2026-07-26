@@ -111,6 +111,7 @@
 				Utilities/Services/FirestoreSharedCalendarEventSyncService.swift,
 				Utilities/Services/NotificationScheduler.swift,
 				Utilities/Services/PillReminderNotificationScheduler.swift,
+				Utilities/Services/SharedCalendarSyncRetryPolicy.swift,
 				Utilities/Services/UserNotificationScheduler.swift,
 			);
 			target = 2BE0DABA2F6DA546008394E3 /* BloodyDayWidgetExtension */;

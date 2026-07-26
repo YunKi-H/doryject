@@ -15,17 +15,31 @@ final class WidgetSharedCalendarSyncService {
     static let shared = WidgetSharedCalendarSyncService()
 
     private let stateStore = WidgetCalendarSharingStateStore()
+    private let retryStore = SharedCalendarSyncRetryStore()
 
     private init() {}
 
     func synchronizeOwnedCalendarIfNeeded() async {
+        retryStore.markPending()
+        await performSynchronization()
+    }
+
+    func retryPendingSyncIfNeeded() async {
+        guard retryStore.shouldRetry() else { return }
+        await performSynchronization()
+    }
+
+    var nextRetryDate: Date? {
+        retryStore.nextRetryDate
+    }
+
+    private func performSynchronization() async {
         guard let state = stateStore.load(),
               state.role == .owner else {
-            stateStore.setPendingSync(false)
+            retryStore.clear()
             return
         }
 
-        stateStore.setPendingSync(true)
         do {
             try configureFirebaseIfNeeded()
             let auth = Auth.auth()
@@ -63,17 +77,13 @@ final class WidgetSharedCalendarSyncService {
                     settings: loadSettings()
                 )
             )
-            stateStore.setPendingSync(false)
+            retryStore.clear()
         } catch {
+            retryStore.recordFailure()
             #if DEBUG
             print("[WidgetSharingSync] failed: \(error)")
             #endif
         }
-    }
-
-    func retryPendingSyncIfNeeded() async {
-        guard stateStore.hasPendingSync else { return }
-        await synchronizeOwnedCalendarIfNeeded()
     }
 
     private func configureFirebaseIfNeeded() throws {

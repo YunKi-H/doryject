@@ -46,7 +46,15 @@ struct Provider: AppIntentTimelineProvider {
             value: 1,
             to: startOfToday
         ) ?? currentDate.addingTimeInterval(60 * 60)
-        return Timeline(entries: [entry], policy: .after(refreshDate))
+        let nextRetryDate = await WidgetSharedCalendarSyncService.shared
+            .nextRetryDate
+        let nextRefreshDate = nextRetryDate.map {
+            min(refreshDate, $0)
+        } ?? refreshDate
+        return Timeline(
+            entries: [entry],
+            policy: .after(nextRefreshDate)
+        )
     }
 
     private func currentSnapshot(
