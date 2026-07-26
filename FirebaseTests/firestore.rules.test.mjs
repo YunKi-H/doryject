@@ -11,12 +11,18 @@ import {
   initializeTestEnvironment
 } from "@firebase/rules-unit-testing";
 import {
+  collection,
   deleteDoc,
   doc,
+  documentId,
   getDoc,
+  getDocs,
+  limit,
+  query,
   serverTimestamp,
   setDoc,
   updateDoc,
+  where,
   writeBatch
 } from "firebase/firestore";
 import { after, afterEach, before, describe, test } from "node:test";
@@ -314,6 +320,35 @@ describe("calendar connection establishment", () => {
     });
 
     await assertSucceeds(batch.commit());
+  });
+
+  test("participants can query one pair request without reading unrelated requests", async () => {
+    await testEnvironment.withSecurityRulesDisabled(async context => {
+      const database = context.firestore();
+      await setDoc(requestReference(database), {
+        senderID: ownerID,
+        senderDisplayName: "Owner",
+        recipientID: viewerID,
+        status: "pending",
+        createdAt: new Date("2026-07-26T00:00:00Z")
+      });
+    });
+
+    const ownerRequestQuery = query(
+      collection(databaseFor(ownerID), "connectionRequests"),
+      where("senderID", "==", ownerID),
+      where(documentId(), "==", connectionID),
+      limit(1)
+    );
+    const viewerRequestQuery = query(
+      collection(databaseFor(viewerID), "connectionRequests"),
+      where("recipientID", "==", viewerID),
+      where(documentId(), "==", connectionID),
+      limit(1)
+    );
+
+    await assertSucceeds(getDocs(ownerRequestQuery));
+    await assertSucceeds(getDocs(viewerRequestQuery));
   });
 });
 

@@ -230,26 +230,26 @@ final class FirestoreCalendarConnectionRepository: CalendarConnectionRepository 
         let requestReference = database
             .collection(FirestoreCalendarSharingMapper.Collection.requests)
             .document(requestID)
-        if let existingRequest = try await existingRequest(
+        let existingRequest = try await existingRequest(
             id: requestID,
             userID: profile.userID
+        )
+        switch CalendarConnectionRequestPolicy.submissionDecision(
+            existingRequest: existingRequest,
+            requesterID: profile.userID
         ) {
-            if existingRequest.senderID != profile.userID {
-                switch existingRequest.status {
-                case .pending:
-                    throw CalendarConnectionRepositoryError
-                        .incomingRequestAlreadyExists
-                case .accepted:
-                    throw CalendarConnectionRepositoryError
-                        .alreadyConnected
-                case .declined:
-                    throw CalendarConnectionRepositoryError
-                        .reverseRequestUnavailable
-                }
-            }
-            if existingRequest.status == .accepted {
-                throw CalendarConnectionRepositoryError.alreadyConnected
-            }
+        case .submit:
+            break
+        case .incomingRequestExists:
+            throw CalendarConnectionRepositoryError
+                .incomingRequestAlreadyExists
+        case .alreadyConnected:
+            throw CalendarConnectionRepositoryError.alreadyConnected
+        case .reverseRequestUnavailable:
+            throw CalendarConnectionRepositoryError
+                .reverseRequestUnavailable
+        case .invalidRequest:
+            throw CalendarConnectionRepositoryError.invalidServerResponse
         }
 
         try await requestReference
@@ -271,9 +271,19 @@ final class FirestoreCalendarConnectionRepository: CalendarConnectionRepository 
         )
         async let sentSnapshot = collection
             .whereField("senderID", isEqualTo: userID)
+            .whereField(
+                FieldPath.documentID(),
+                isEqualTo: requestID
+            )
+            .limit(to: 1)
             .getDocuments()
         async let receivedSnapshot = collection
             .whereField("recipientID", isEqualTo: userID)
+            .whereField(
+                FieldPath.documentID(),
+                isEqualTo: requestID
+            )
+            .limit(to: 1)
             .getDocuments()
         let (sent, received) = try await (
             sentSnapshot,
@@ -281,7 +291,7 @@ final class FirestoreCalendarConnectionRepository: CalendarConnectionRepository 
         )
 
         return (sent.documents + received.documents)
-            .first { $0.documentID == requestID }
+            .first
             .flatMap {
                 FirestoreCalendarSharingMapper.request(
                     id: $0.documentID,
