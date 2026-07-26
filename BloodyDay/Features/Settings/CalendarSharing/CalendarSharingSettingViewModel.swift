@@ -224,6 +224,8 @@ final class CalendarSharingSettingViewModel {
         }
 
         isDisconnecting = true
+        stopObservingSharingState()
+        stopObservingSharedEvents()
         defer { isDisconnecting = false }
         do {
             try await connectionRepository.disconnect(
@@ -237,7 +239,13 @@ final class CalendarSharingSettingViewModel {
             statusMessage = connection.ownerID == user.id
                 ? "캘린더 공유를 중단했어요."
                 : "공유 캘린더 연결에서 나갔어요."
+            startObservingSharingState(for: user.id)
         } catch {
+            startObservingSharingState(for: user.id)
+            updateDisplayedCalendar(
+                for: connection,
+                userID: user.id
+            )
             errorMessage = error.localizedDescription
         }
     }
@@ -303,6 +311,9 @@ final class CalendarSharingSettingViewModel {
                 case .success(let connection):
                     let previousConnectionID = self.activeConnection?.id
                     self.activeConnection = connection
+                    if previousConnectionID != connection?.id {
+                        self.statusMessage = nil
+                    }
                     self.updateDisplayedCalendar(
                         for: connection,
                         userID: userID
@@ -312,7 +323,11 @@ final class CalendarSharingSettingViewModel {
                         self.sharedCalendarSyncScheduler?.schedule()
                     }
                 case .failure(let error):
-                    self.errorMessage = error.localizedDescription
+                    await self.handleObservationFailure(
+                        error,
+                        connectionID: self.activeConnection?.id,
+                        userID: userID
+                    )
                 }
             }
         }
@@ -396,7 +411,11 @@ final class CalendarSharingSettingViewModel {
                     self.calendarDisplayUpdater?
                         .displaySharedCalendar(snapshot: snapshot)
                 case .failure(let error):
-                    self.errorMessage = error.localizedDescription
+                    await self.handleObservationFailure(
+                        error,
+                        connectionID: connection.id,
+                        userID: userID
+                    )
                 }
             }
         }
@@ -406,5 +425,39 @@ final class CalendarSharingSettingViewModel {
         sharedEventObservation?.cancel()
         sharedEventObservation = nil
         observedSharedConnectionID = nil
+    }
+
+    private func handleObservationFailure(
+        _ error: Error,
+        connectionID: String?,
+        userID: String
+    ) async {
+        guard FirestoreSharingErrorClassifier
+            .isPermissionDenied(error) else {
+            errorMessage = error.localizedDescription
+            return
+        }
+        guard let connectionID,
+              activeConnection?.id == connectionID else {
+            return
+        }
+
+        do {
+            let latestConnection = try await connectionRepository
+                .activeConnection(for: userID)
+            guard latestConnection?.id != connectionID else {
+                errorMessage = error.localizedDescription
+                return
+            }
+
+            activeConnection = latestConnection
+            statusMessage = nil
+            updateDisplayedCalendar(
+                for: latestConnection,
+                userID: userID
+            )
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 }

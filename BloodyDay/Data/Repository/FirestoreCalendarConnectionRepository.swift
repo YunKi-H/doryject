@@ -175,3 +175,12 @@ enum CalendarConnectionRepositoryError: LocalizedError {
         }
     }
 }
+
+enum FirestoreSharingErrorClassifier {
+    static func isPermissionDenied(_ error: Error) -> Bool {
+        let error = error as NSError
+        return error.domain == FirestoreErrorDomain
+            && error.code
+                == FirestoreErrorCode.Code.permissionDenied.rawValue
+    }
+}
