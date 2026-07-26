@@ -300,12 +300,16 @@ final class CalendarSharingSettingViewModel {
                 guard let self else { return }
                 switch result {
                 case .success(let connection):
+                    let previousConnectionID = self.activeConnection?.id
                     self.activeConnection = connection
                     self.updateDisplayedCalendar(
                         for: connection,
                         userID: userID
                     )
-                    self.sharedCalendarSyncScheduler?.schedule()
+                    if connection?.ownerID == userID,
+                       connection?.id != previousConnectionID {
+                        self.sharedCalendarSyncScheduler?.schedule()
+                    }
                 case .failure(let error):
                     self.errorMessage = error.localizedDescription
                 }
