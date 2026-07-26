@@ -155,3 +155,55 @@ struct CalendarSharingRuntimeStore {
         defaults.removeObject(forKey: Self.key)
     }
 }
+
+enum WidgetCalendarSharingRole: String, Codable {
+    case owner
+    case viewer
+}
+
+struct WidgetCalendarSharingState: Codable, Equatable {
+    let role: WidgetCalendarSharingRole
+    let connectionID: String
+}
+
+struct WidgetCalendarSharingStateStore {
+    private static let key = "calendar.sharing.widget.state.v1"
+    private static let pendingSyncKey =
+        "calendar.sharing.widget.pending-sync.v1"
+
+    private let defaults: UserDefaults
+
+    init(
+        defaults: UserDefaults = UserDefaults(
+            suiteName: CalendarSharingRuntimeStore.appGroupIdentifier
+        ) ?? .standard
+    ) {
+        self.defaults = defaults
+    }
+
+    func load() -> WidgetCalendarSharingState? {
+        guard let data = defaults.data(forKey: Self.key) else { return nil }
+        return try? JSONDecoder().decode(
+            WidgetCalendarSharingState.self,
+            from: data
+        )
+    }
+
+    func save(_ state: WidgetCalendarSharingState) {
+        guard let data = try? JSONEncoder().encode(state) else { return }
+        defaults.set(data, forKey: Self.key)
+    }
+
+    func clear() {
+        defaults.removeObject(forKey: Self.key)
+        setPendingSync(false)
+    }
+
+    var hasPendingSync: Bool {
+        defaults.bool(forKey: Self.pendingSyncKey)
+    }
+
+    func setPendingSync(_ isPending: Bool) {
+        defaults.set(isPending, forKey: Self.pendingSyncKey)
+    }
+}

@@ -17,6 +17,7 @@ final class CalendarSharingSettingViewModel {
     private let sharedCalendarSyncScheduler: SharedCalendarSyncScheduling?
     private let sharedEventRepository: SharedCalendarEventRepository?
     private let calendarDisplayUpdater: CalendarDisplayEventUpdating?
+    private let widgetSharingStateStore: WidgetCalendarSharingStateStore
     private var currentNonce: String?
     private var connectionObservation: CalendarConnectionObservation?
     private var requestObservation: CalendarConnectionObservation?
@@ -40,13 +41,15 @@ final class CalendarSharingSettingViewModel {
         connectionRepository: CalendarConnectionRepository,
         sharedCalendarSyncScheduler: SharedCalendarSyncScheduling? = nil,
         sharedEventRepository: SharedCalendarEventRepository? = nil,
-        calendarDisplayUpdater: CalendarDisplayEventUpdating? = nil
+        calendarDisplayUpdater: CalendarDisplayEventUpdating? = nil,
+        widgetSharingStateStore: WidgetCalendarSharingStateStore = .init()
     ) {
         self.authenticationService = authenticationService
         self.connectionRepository = connectionRepository
         self.sharedCalendarSyncScheduler = sharedCalendarSyncScheduler
         self.sharedEventRepository = sharedEventRepository
         self.calendarDisplayUpdater = calendarDisplayUpdater
+        self.widgetSharingStateStore = widgetSharingStateStore
         self.user = authenticationService.currentUser
     }
 
@@ -95,6 +98,9 @@ final class CalendarSharingSettingViewModel {
     }
 
     func refreshSharingState() async {
+        if user == nil {
+            user = authenticationService.currentUser
+        }
         guard let user else {
             clearSharingState(clearDisplayedCalendar: false)
             return
@@ -225,6 +231,7 @@ final class CalendarSharingSettingViewModel {
             )
             activeConnection = nil
             stopObservingSharedEvents()
+            widgetSharingStateStore.clear()
             calendarDisplayUpdater?.displayLocalCalendar()
             statusMessage = connection.ownerID == user.id
                 ? "캘린더 공유를 중단했어요."
@@ -280,6 +287,7 @@ final class CalendarSharingSettingViewModel {
         incomingRequests = []
         partnerConnectionCode = ""
         statusMessage = nil
+        widgetSharingStateStore.clear()
     }
 
     private func startObservingSharingState(for userID: String) {
@@ -330,8 +338,32 @@ final class CalendarSharingSettingViewModel {
         for connection: CalendarConnection?,
         userID: String
     ) {
-        guard let connection,
-              connection.viewerID == userID,
+        guard let connection else {
+            widgetSharingStateStore.clear()
+            stopObservingSharedEvents()
+            calendarDisplayUpdater?.displayLocalCalendar()
+            return
+        }
+
+        if connection.ownerID == userID {
+            widgetSharingStateStore.save(
+                WidgetCalendarSharingState(
+                    role: .owner,
+                    connectionID: connection.id
+                )
+            )
+            stopObservingSharedEvents()
+            calendarDisplayUpdater?.displayLocalCalendar()
+            return
+        }
+
+        widgetSharingStateStore.save(
+            WidgetCalendarSharingState(
+                role: .viewer,
+                connectionID: connection.id
+            )
+        )
+        guard connection.viewerID == userID,
               let sharedEventRepository else {
             stopObservingSharedEvents()
             calendarDisplayUpdater?.displayLocalCalendar()

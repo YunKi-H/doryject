@@ -20,9 +20,9 @@ enum WidgetSnapshotBuilder {
         let events = runtimeState.map {
             makeUserEvents(from: $0.events, calendar: calendar)
         } ?? WidgetSharedEventStore.allEvents()
-        let pillCycles = runtimeState == nil
-            ? WidgetSharedEventStore.pillCycles()
-            : []
+        let pillCycles = runtimeState.map {
+            makePillCycles(from: $0, calendar: calendar)
+        } ?? WidgetSharedEventStore.pillCycles()
         let todayEvents = events.filter { calendar.isDate($0.date, inSameDayAs: normalizedToday) }
         let todayEventTypes = Set(todayEvents.map(\.type))
         let eventsByType = Dictionary(grouping: events, by: \.type)
@@ -134,7 +134,37 @@ enum WidgetSnapshotBuilder {
                 id: cachedEvent.id,
                 date: date,
                 type: cachedEvent.type,
+                pillCycleID: cachedEvent.pillCycleID,
                 calendar: calendar
+            )
+        }
+    }
+
+    private static func makePillCycles(
+        from state: CalendarSharingRuntimeState,
+        calendar: Calendar
+    ) -> [PillCycleInfo] {
+        var intakeDatesByCycleID: [UUID: [Date]] = [:]
+        for event in state.events where event.type == .pill {
+            guard let cycleID = event.pillCycleID,
+                  let date = event.day.date(in: calendar) else {
+                continue
+            }
+            intakeDatesByCycleID[cycleID, default: []].append(date)
+        }
+
+        return state.pillCycles.compactMap { cached in
+            guard let intakeDates = intakeDatesByCycleID[cached.id],
+                  intakeDates.isEmpty == false else {
+                return nil
+            }
+            return PillCycleInfo(
+                id: cached.id,
+                intakeDates: intakeDates.sorted(),
+                plannedPillCount: cached.plannedPillCount,
+                breakDays: cached.breakDays,
+                autoRecordEnabled: cached.autoRecordEnabled,
+                status: cached.status
             )
         }
     }

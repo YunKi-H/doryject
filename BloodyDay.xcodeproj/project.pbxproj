@@ -13,6 +13,9 @@
 		2BE0DABE2F6DA547008394E3 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2BE0DABD2F6DA546008394E3 /* WidgetKit.framework */; };
 		2BE0DAC02F6DA547008394E3 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2BE0DABF2F6DA547008394E3 /* SwiftUI.framework */; };
 		2BE0DACF2F6DA547008394E3 /* BloodyDayWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 2BE0DABB2F6DA546008394E3 /* BloodyDayWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		C0D000013026072600000001 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = C0D000013026072600000011 /* FirebaseAuth */; };
+		C0D000013026072600000002 /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = C0D000013026072600000012 /* FirebaseCore */; };
+		C0D000013026072600000003 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = C0D000013026072600000013 /* FirebaseFirestore */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -67,6 +70,7 @@
 				Data/Repository/EventRepository.swift,
 				Data/Repository/PillCyclePersistence.swift,
 				Data/Repository/SettingsRepository.swift,
+				Data/Repository/SharedCalendarEventSyncing.swift,
 				Data/Repository/UserDefaultsAppleCalendarSyncStore.swift,
 				Domain/Entities/CalendarDay.swift,
 				Domain/Entities/DayEvent.swift,
@@ -78,6 +82,7 @@
 				Domain/Entities/Settings/PeriodSettings.swift,
 				Domain/Entities/Settings/PillSettings.swift,
 				Domain/Entities/Settings/UserSettings.swift,
+				Domain/Entities/Sharing/CalendarSharingModels.swift,
 				Domain/Entities/Sharing/CalendarSharingRuntimeState.swift,
 				Domain/Entities/Sharing/SharedCalendarEvent.swift,
 				Domain/Models/CalendarEventTogglePolicy.swift,
@@ -101,6 +106,9 @@
 				Utilities/Services/AppleCalendarClient.swift,
 				Utilities/Services/AppleCalendarSyncService.swift,
 				Utilities/Services/EventKitAppleCalendarClient.swift,
+				Utilities/Services/FirebaseAuthSharedAccess.swift,
+				Utilities/Services/FirestoreCalendarSharingMapper.swift,
+				Utilities/Services/FirestoreSharedCalendarEventSyncService.swift,
 				Utilities/Services/NotificationScheduler.swift,
 				Utilities/Services/PillReminderNotificationScheduler.swift,
 				Utilities/Services/UserNotificationScheduler.swift,
@@ -158,6 +166,9 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C0D000013026072600000001 /* FirebaseAuth in Frameworks */,
+				C0D000013026072600000002 /* FirebaseCore in Frameworks */,
+				C0D000013026072600000003 /* FirebaseFirestore in Frameworks */,
 				2BE0DAC02F6DA547008394E3 /* SwiftUI.framework in Frameworks */,
 				2BE0DABE2F6DA547008394E3 /* WidgetKit.framework in Frameworks */,
 			);
@@ -236,6 +247,9 @@
 			);
 			name = BloodyDayWidgetExtension;
 			packageProductDependencies = (
+				C0D000013026072600000011 /* FirebaseAuth */,
+				C0D000013026072600000012 /* FirebaseCore */,
+				C0D000013026072600000013 /* FirebaseFirestore */,
 			);
 			productName = BloodyDayWidgetExtension;
 			productReference = 2BE0DABB2F6DA546008394E3 /* BloodyDayWidgetExtension.appex */;
@@ -773,6 +787,21 @@
 			productName = FirebaseCore;
 		};
 		2B39144A3014B7DD00910BBF /* FirebaseFirestore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 2B3914453014B7DD00910BBF /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseFirestore;
+		};
+		C0D000013026072600000011 /* FirebaseAuth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 2B3914453014B7DD00910BBF /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAuth;
+		};
+		C0D000013026072600000012 /* FirebaseCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 2B3914453014B7DD00910BBF /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCore;
+		};
+		C0D000013026072600000013 /* FirebaseFirestore */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 2B3914453014B7DD00910BBF /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseFirestore;

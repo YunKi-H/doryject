@@ -28,6 +28,8 @@ struct Provider: AppIntentTimelineProvider {
     }
     
     func timeline(for configuration: ConfigurationAppIntent, in context: Context) async -> Timeline<SimpleEntry> {
+        await WidgetSharedCalendarSyncService.shared
+            .retryPendingSyncIfNeeded()
         let currentDate = Date()
         let calendar = Calendar.autoupdatingCurrent
         let entry = SimpleEntry(
@@ -144,7 +146,10 @@ struct BloodyDayWidgetEntryView: View {
             .frame(width: 36, height: 36)
         }
         .buttonStyle(.plain)
-        .disabled(CalendarSharingRuntimeStore().load() != nil)
+        .disabled(
+            CalendarSharingRuntimeStore().load() != nil
+            || WidgetCalendarSharingStateStore().load()?.role == .viewer
+        )
     }
     
     @ViewBuilder

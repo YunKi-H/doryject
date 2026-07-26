@@ -5,6 +5,7 @@
 //  Created by Yunki on 7/25/26.
 //
 
+import FirebaseAuth
 import FirebaseCore
 import UIKit
 
@@ -16,6 +17,7 @@ final class BloodyDayAppDelegate: NSObject, UIApplicationDelegate {
         if FirebaseApp.app() == nil {
             FirebaseApp.configure()
         }
+        FirebaseAuthSharedAccess.configureAndMigrateCurrentUser()
         return true
     }
 }
