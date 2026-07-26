@@ -35,16 +35,21 @@ service cloud.firestore {
         ).data;
       }
 
+      function isRequestParticipant() {
+        return resource.data.senderID == request.auth.uid
+          || resource.data.recipientID == request.auth.uid;
+      }
+
       allow create: if signedIn()
         && request.resource.data.senderID == request.auth.uid
         && request.resource.data.recipientID != request.auth.uid
         && request.resource.data.status == "pending";
 
-      allow read: if signedIn()
-        && (
-          resource.data.senderID == request.auth.uid
-          || resource.data.recipientID == request.auth.uid
-        );
+      allow get: if signedIn() && isRequestParticipant();
+      allow list: if signedIn()
+        && resource.data.senderID == request.auth.uid;
+      allow list: if signedIn()
+        && resource.data.recipientID == request.auth.uid;
 
       allow update: if signedIn()
         && request.resource.data.senderID == resource.data.senderID

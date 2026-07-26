@@ -14,10 +14,8 @@ import {
   collection,
   deleteDoc,
   doc,
-  documentId,
   getDoc,
   getDocs,
-  limit,
   query,
   serverTimestamp,
   setDoc,
@@ -322,7 +320,7 @@ describe("calendar connection establishment", () => {
     await assertSucceeds(batch.commit());
   });
 
-  test("participants can query one pair request without reading unrelated requests", async () => {
+  test("participants can query only requests they participate in", async () => {
     await testEnvironment.withSecurityRulesDisabled(async context => {
       const database = context.firestore();
       await setDoc(requestReference(database), {
@@ -334,21 +332,33 @@ describe("calendar connection establishment", () => {
       });
     });
 
-    const ownerRequestQuery = query(
+    const ownerSentRequestQuery = query(
       collection(databaseFor(ownerID), "connectionRequests"),
-      where("senderID", "==", ownerID),
-      where(documentId(), "==", connectionID),
-      limit(1)
+      where("senderID", "==", ownerID)
     );
-    const viewerRequestQuery = query(
+    const ownerReceivedRequestQuery = query(
+      collection(databaseFor(ownerID), "connectionRequests"),
+      where("recipientID", "==", ownerID)
+    );
+    const viewerSentRequestQuery = query(
       collection(databaseFor(viewerID), "connectionRequests"),
-      where("recipientID", "==", viewerID),
-      where(documentId(), "==", connectionID),
-      limit(1)
+      where("senderID", "==", viewerID)
+    );
+    const viewerReceivedRequestQuery = query(
+      collection(databaseFor(viewerID), "connectionRequests"),
+      where("recipientID", "==", viewerID)
     );
 
-    await assertSucceeds(getDocs(ownerRequestQuery));
-    await assertSucceeds(getDocs(viewerRequestQuery));
+    await assertSucceeds(getDocs(ownerSentRequestQuery));
+    await assertSucceeds(getDocs(ownerReceivedRequestQuery));
+    await assertSucceeds(getDocs(viewerSentRequestQuery));
+    await assertSucceeds(getDocs(viewerReceivedRequestQuery));
+
+    const outsiderRequestQuery = query(
+      collection(databaseFor(outsiderID), "connectionRequests"),
+      where("senderID", "==", ownerID)
+    );
+    await assertFails(getDocs(outsiderRequestQuery));
   });
 });
 

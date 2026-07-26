@@ -5,14 +5,22 @@
 //  Created by Yunki on 7/26/26.
 //
 
+import FirebaseAuth
 import FirebaseFirestore
 import Foundation
 
 final class FirestoreCalendarRequestStore {
     private let database: Firestore
+    private let authenticatedUserID: () -> String?
 
-    init(database: Firestore) {
+    init(
+        database: Firestore,
+        authenticatedUserID: @escaping () -> String? = {
+            Auth.auth().currentUser?.uid
+        }
+    ) {
         self.database = database
+        self.authenticatedUserID = authenticatedUserID
     }
 
     func incomingRequests(
@@ -52,6 +60,18 @@ final class FirestoreCalendarRequestStore {
         from profile: CalendarSharingProfile,
         to connectionCode: String
     ) async throws {
+        let currentUserID = authenticatedUserID()
+        #if DEBUG
+        print(
+            "[CalendarConnectionAuth] profileUID=\(profile.userID) "
+                + "authUID=\(currentUserID ?? "nil")"
+        )
+        #endif
+        guard currentUserID == profile.userID else {
+            throw CalendarConnectionRepositoryError
+                .authenticationStateMismatch
+        }
+
         let normalizedCode = CalendarConnectionCodeGenerator.normalize(
             connectionCode
         )
@@ -132,15 +152,13 @@ final class FirestoreCalendarRequestStore {
         id requestID: String,
         userID: String
     ) async throws -> CalendarConnectionRequest? {
-        async let sentSnapshot = pairRequestQuery(
+        async let sentSnapshot = participantRequestQuery(
             participantField: "senderID",
-            userID: userID,
-            requestID: requestID
+            userID: userID
         ).getDocuments()
-        async let receivedSnapshot = pairRequestQuery(
+        async let receivedSnapshot = participantRequestQuery(
             participantField: "recipientID",
-            userID: userID,
-            requestID: requestID
+            userID: userID
         ).getDocuments()
         let (sent, received) = try await (
             sentSnapshot,
@@ -148,22 +166,16 @@ final class FirestoreCalendarRequestStore {
         )
 
         return (sent.documents + received.documents)
-            .first
+            .first { $0.documentID == requestID }
             .flatMap(Self.request)
     }
 
-    private func pairRequestQuery(
+    private func participantRequestQuery(
         participantField: String,
-        userID: String,
-        requestID: String
+        userID: String
     ) -> Query {
         requestsCollection
             .whereField(participantField, isEqualTo: userID)
-            .whereField(
-                FieldPath.documentID(),
-                isEqualTo: requestID
-            )
-            .limit(to: 1)
     }
 
     private func validateSubmission(

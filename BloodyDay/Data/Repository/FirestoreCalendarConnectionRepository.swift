@@ -142,6 +142,7 @@ enum CalendarConnectionRepositoryError: LocalizedError {
     case alreadyConnected
     case cachedConnectionUnavailable
     case notConnectionParticipant
+    case authenticationStateMismatch
 
     var errorDescription: String? {
         switch self {
@@ -169,6 +170,8 @@ enum CalendarConnectionRepositoryError: LocalizedError {
             return "오프라인 상태라 최신 연결 정보를 확인하지 못했어요."
         case .notConnectionParticipant:
             return "이 캘린더 연결을 해제할 권한이 없어요."
+        case .authenticationStateMismatch:
+            return "로그인 정보가 변경되었어요. 캘린더 공유 화면을 다시 열어주세요."
         }
     }
 }

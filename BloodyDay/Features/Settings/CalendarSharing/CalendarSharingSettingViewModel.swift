@@ -98,9 +98,7 @@ final class CalendarSharingSettingViewModel {
     }
 
     func refreshSharingState() async {
-        if user == nil {
-            user = authenticationService.currentUser
-        }
+        user = authenticationService.currentUser
         guard let user else {
             clearSharingState(clearDisplayedCalendar: false)
             return
@@ -124,6 +122,9 @@ final class CalendarSharingSettingViewModel {
     }
 
     func sendConnectionRequest() async {
+        if profile?.userID != authenticationService.currentUser?.id {
+            await refreshSharingState()
+        }
         guard let profile else { return }
         isSendingRequest = true
         defer { isSendingRequest = false }
