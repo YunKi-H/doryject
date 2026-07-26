@@ -241,6 +241,82 @@ describe("calendar connection access", () => {
   });
 });
 
+describe("calendar connection establishment", () => {
+  test("signed-in user can send a request using another user's connection code", async () => {
+    await testEnvironment.withSecurityRulesDisabled(async context => {
+      const database = context.firestore();
+      await setDoc(doc(database, "connectionCodes", "VIEWER01"), {
+        userID: viewerID
+      });
+    });
+
+    await assertSucceeds(
+      getDoc(
+        doc(
+          databaseFor(ownerID),
+          "connectionCodes",
+          "VIEWER01"
+        )
+      )
+    );
+    await assertSucceeds(
+      setDoc(requestReference(databaseFor(ownerID)), {
+        senderID: ownerID,
+        senderDisplayName: "Owner",
+        recipientID: viewerID,
+        status: "pending",
+        createdAt: serverTimestamp()
+      })
+    );
+  });
+
+  test("recipient can atomically accept a request and create both memberships", async () => {
+    await testEnvironment.withSecurityRulesDisabled(async context => {
+      const database = context.firestore();
+      await setDoc(requestReference(database), {
+        senderID: ownerID,
+        senderDisplayName: "Owner",
+        recipientID: viewerID,
+        status: "pending",
+        createdAt: new Date("2026-07-26T00:00:00Z")
+      });
+    });
+
+    const viewerDatabase = databaseFor(viewerID);
+    const batch = writeBatch(viewerDatabase);
+    batch.update(requestReference(viewerDatabase), {
+      status: "accepted"
+    });
+    batch.set(connectionReference(viewerDatabase), {
+      ownerID,
+      ownerDisplayName: "Owner",
+      viewerID,
+      viewerDisplayName: "Viewer",
+      participantIDs: [ownerID, viewerID],
+      sharedPeriod: true,
+      sharedPill: true,
+      sharedLove: true,
+      status: "active",
+      createdAt: serverTimestamp()
+    });
+    const membership = {
+      connectionID,
+      participantIDs: [ownerID, viewerID],
+      createdAt: serverTimestamp()
+    };
+    batch.set(membershipReference(viewerDatabase, ownerID), {
+      ...membership,
+      userID: ownerID
+    });
+    batch.set(membershipReference(viewerDatabase, viewerID), {
+      ...membership,
+      userID: viewerID
+    });
+
+    await assertSucceeds(batch.commit());
+  });
+});
+
 describe("calendar connection termination", () => {
   test("either participant can request termination but an outsider cannot", async () => {
     await seedActiveConnection();

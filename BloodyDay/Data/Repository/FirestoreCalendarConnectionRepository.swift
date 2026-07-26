@@ -221,9 +221,32 @@ final class FirestoreCalendarConnectionRepository: CalendarConnectionRepository 
         }
 
         let requestID = Self.pairIdentifier(profile.userID, recipientID)
-        try await database
+        let requestReference = database
             .collection(FirestoreCalendarSharingMapper.Collection.requests)
             .document(requestID)
+        if let existingRequest = try await existingRequest(
+            id: requestID,
+            userID: profile.userID
+        ) {
+            if existingRequest.senderID != profile.userID {
+                switch existingRequest.status {
+                case .pending:
+                    throw CalendarConnectionRepositoryError
+                        .incomingRequestAlreadyExists
+                case .accepted:
+                    throw CalendarConnectionRepositoryError
+                        .alreadyConnected
+                case .declined:
+                    throw CalendarConnectionRepositoryError
+                        .reverseRequestUnavailable
+                }
+            }
+            if existingRequest.status == .accepted {
+                throw CalendarConnectionRepositoryError.alreadyConnected
+            }
+        }
+
+        try await requestReference
             .setData([
                 "senderID": profile.userID,
                 "senderDisplayName": profile.displayName,
@@ -231,6 +254,34 @@ final class FirestoreCalendarConnectionRepository: CalendarConnectionRepository 
                 "status": CalendarConnectionRequestStatus.pending.rawValue,
                 "createdAt": FieldValue.serverTimestamp()
             ])
+    }
+
+    private func existingRequest(
+        id requestID: String,
+        userID: String
+    ) async throws -> CalendarConnectionRequest? {
+        let collection = database.collection(
+            FirestoreCalendarSharingMapper.Collection.requests
+        )
+        async let sentSnapshot = collection
+            .whereField("senderID", isEqualTo: userID)
+            .getDocuments()
+        async let receivedSnapshot = collection
+            .whereField("recipientID", isEqualTo: userID)
+            .getDocuments()
+        let (sent, received) = try await (
+            sentSnapshot,
+            receivedSnapshot
+        )
+
+        return (sent.documents + received.documents)
+            .first { $0.documentID == requestID }
+            .flatMap {
+                FirestoreCalendarSharingMapper.request(
+                    id: $0.documentID,
+                    data: $0.data()
+                )
+            }
     }
 
     func accept(
@@ -266,60 +317,41 @@ final class FirestoreCalendarConnectionRepository: CalendarConnectionRepository 
             .collection(FirestoreCalendarSharingMapper.Collection.memberships)
             .document(recipient.userID)
 
-        _ = try await database.runTransaction { transaction, errorPointer -> Any? in
-            do {
-                let snapshot = try transaction.getDocument(requestReference)
-                let senderMembership = try transaction.getDocument(senderMembershipReference)
-                let recipientMembership = try transaction.getDocument(recipientMembershipReference)
-                guard let data = snapshot.data(),
-                      data["recipientID"] as? String == recipient.userID,
-                      data["status"] as? String == CalendarConnectionRequestStatus.pending.rawValue else {
-                    throw CalendarConnectionRepositoryError.requestUnavailable
-                }
-                guard senderMembership.exists == false,
-                      recipientMembership.exists == false else {
-                    throw CalendarConnectionRepositoryError.alreadyConnected
-                }
-
-                transaction.updateData(
-                    ["status": CalendarConnectionRequestStatus.accepted.rawValue],
-                    forDocument: requestReference
-                )
-                transaction.setData([
-                    "ownerID": ownerID,
-                    "ownerDisplayName": ownerDisplayName,
-                    "viewerID": viewerID,
-                    "viewerDisplayName": viewerDisplayName,
-                    "participantIDs": [ownerID, viewerID],
-                    "sharedPeriod": true,
-                    "sharedPill": true,
-                    "sharedLove": true,
-                    "status": "active",
-                    "createdAt": FieldValue.serverTimestamp()
-                ], forDocument: connectionReference)
-                let membershipData: [String: Any] = [
-                    "connectionID": request.id,
-                    "participantIDs": [request.senderID, recipient.userID],
-                    "createdAt": FieldValue.serverTimestamp()
-                ]
-                var senderMembershipData = membershipData
-                senderMembershipData["userID"] = request.senderID
-                var recipientMembershipData = membershipData
-                recipientMembershipData["userID"] = recipient.userID
-                transaction.setData(
-                    senderMembershipData,
-                    forDocument: senderMembershipReference
-                )
-                transaction.setData(
-                    recipientMembershipData,
-                    forDocument: recipientMembershipReference
-                )
-                return nil
-            } catch {
-                errorPointer?.pointee = error as NSError
-                return nil
-            }
-        }
+        let batch = database.batch()
+        batch.updateData(
+            ["status": CalendarConnectionRequestStatus.accepted.rawValue],
+            forDocument: requestReference
+        )
+        batch.setData([
+            "ownerID": ownerID,
+            "ownerDisplayName": ownerDisplayName,
+            "viewerID": viewerID,
+            "viewerDisplayName": viewerDisplayName,
+            "participantIDs": [ownerID, viewerID],
+            "sharedPeriod": true,
+            "sharedPill": true,
+            "sharedLove": true,
+            "status": "active",
+            "createdAt": FieldValue.serverTimestamp()
+        ], forDocument: connectionReference)
+        let membershipData: [String: Any] = [
+            "connectionID": request.id,
+            "participantIDs": [request.senderID, recipient.userID],
+            "createdAt": FieldValue.serverTimestamp()
+        ]
+        var senderMembershipData = membershipData
+        senderMembershipData["userID"] = request.senderID
+        var recipientMembershipData = membershipData
+        recipientMembershipData["userID"] = recipient.userID
+        batch.setData(
+            senderMembershipData,
+            forDocument: senderMembershipReference
+        )
+        batch.setData(
+            recipientMembershipData,
+            forDocument: recipientMembershipReference
+        )
+        try await batch.commit()
 
         return CalendarConnection(
             id: request.id,
@@ -632,6 +664,8 @@ enum CalendarConnectionRepositoryError: LocalizedError {
     case cannotConnectToSelf
     case requestRecipientMismatch
     case requestUnavailable
+    case incomingRequestAlreadyExists
+    case reverseRequestUnavailable
     case invalidOwner
     case alreadyConnected
     case cachedConnectionUnavailable
@@ -654,6 +688,10 @@ enum CalendarConnectionRepositoryError: LocalizedError {
             return "이 연결 요청을 처리할 권한이 없어요."
         case .requestUnavailable:
             return "이미 처리됐거나 취소된 연결 요청이에요."
+        case .incomingRequestAlreadyExists:
+            return "상대방이 이미 연결 요청을 보냈어요. 받은 요청에서 수락해주세요."
+        case .reverseRequestUnavailable:
+            return "상대방이 보낸 이전 요청이 거절된 상태예요. 상대방에게 다시 요청해달라고 알려주세요."
         case .invalidOwner:
             return "사용할 캘린더를 확인하지 못했어요."
         case .alreadyConnected:
