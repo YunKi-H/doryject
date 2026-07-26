@@ -95,6 +95,11 @@ struct FirestoreCalendarSharingMapperTests {
             terminationData["terminationRequestedBy"] as? String
                 == "sender"
         )
+        #expect(
+            FirestoreCalendarSharingMapper.connectionStatus(
+                in: terminationData
+            ) == .terminating
+        )
     }
 
     @Test

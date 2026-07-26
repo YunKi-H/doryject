@@ -40,6 +40,11 @@ final class FirestoreCalendarConnectionStore {
             }
             return nil
         }
+        guard FirestoreCalendarSharingMapper.connectionStatus(
+            in: data
+        ) != .terminating else {
+            return nil
+        }
         guard let connection =
                 FirestoreCalendarSharingMapper.connection(
                     id: document.documentID,
@@ -97,6 +102,13 @@ final class FirestoreCalendarConnectionStore {
                             if document.metadata.isFromCache {
                                 return
                             }
+                            onChange(.success(nil))
+                            return
+                        }
+                        guard FirestoreCalendarSharingMapper.connectionStatus(
+                            in: data
+                        ) != .terminating else {
+                            listeners.replaceConnectionListener(nil)
                             onChange(.success(nil))
                             return
                         }
