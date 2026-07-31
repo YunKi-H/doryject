@@ -94,7 +94,7 @@ struct CalendarHeaderView: View {
                     NavigationLink {
                         CalendarSharingSettingView(viewModel: calendarSharingViewModel)
                     } label: {
-                        Label("캘린더 연결", systemImage: "heart.fill")
+                        Label("캘린더 연결", systemImage: "person.2.fill")
                     }
                 } label: {
                     Image(systemName: "ellipsis")

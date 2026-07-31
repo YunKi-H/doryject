@@ -403,6 +403,27 @@ describe("calendar connection termination", () => {
     await assertSucceeds(batch.commit());
   });
 
+  test("another participant can resume an interrupted termination cleanup", async () => {
+    await seedActiveConnection();
+    const ownerDatabase = databaseFor(ownerID);
+    const viewerDatabase = databaseFor(viewerID);
+    await assertSucceeds(
+      markTerminating(ownerDatabase, ownerID)
+    );
+
+    // 첫 번째 기기에서 이벤트만 삭제한 뒤 작업이 중단된 상황을 재현한다.
+    await assertSucceeds(deleteDoc(eventReference(ownerDatabase)));
+
+    // 상대 기기 또는 다음 앱 실행에서 남은 정리를 이어갈 수 있어야 한다.
+    await assertSucceeds(deleteDoc(pillCycleReference(viewerDatabase)));
+    const resumedBatch = writeBatch(viewerDatabase);
+    resumedBatch.delete(requestReference(viewerDatabase));
+    resumedBatch.delete(membershipReference(viewerDatabase, ownerID));
+    resumedBatch.delete(membershipReference(viewerDatabase, viewerID));
+    resumedBatch.delete(connectionReference(viewerDatabase));
+    await assertSucceeds(resumedBatch.commit());
+  });
+
   test("terminating connection rejects new event writes and outsider cleanup", async () => {
     await seedActiveConnection();
     const ownerDatabase = databaseFor(ownerID);

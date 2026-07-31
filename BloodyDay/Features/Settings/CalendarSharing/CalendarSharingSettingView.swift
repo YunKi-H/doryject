@@ -148,6 +148,8 @@ struct CalendarSharingSettingView: View {
                 .padding(.vertical, 12)
             }
             .listRowBackground(Color.bgSecondary)
+        } else if viewModel.isDisconnectRecoveryPending {
+            pendingDisconnectSection
         } else if let connection = viewModel.activeConnection {
             connectedSection(connection, userID: user.id)
             sharedEventTypesSection(connection, userID: user.id)
@@ -182,6 +184,37 @@ struct CalendarSharingSettingView: View {
             .foregroundStyle(.mainRed)
         }
         .listRowBackground(Color.bgSecondary)
+    }
+
+    private var pendingDisconnectSection: some View {
+        Section {
+            Text("서버에 남은 연결 데이터를 정리해야 해요. 정리가 끝날 때까지 새로운 캘린더를 연결할 수 없어요.")
+                .font(.regular_16)
+                .foregroundStyle(.textPrimary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Button {
+                Task { await viewModel.refreshSharingState() }
+            } label: {
+                HStack {
+                    Spacer()
+                    if viewModel.isLoadingSharingState {
+                        ProgressView()
+                    } else {
+                        Text("연결 해제 다시 시도")
+                    }
+                    Spacer()
+                }
+            }
+            .disabled(viewModel.isLoadingSharingState)
+        } header: {
+            Text("연결 해제")
+        } footer: {
+            Text(viewModel.statusMessage ?? "")
+                .font(.regular_14)
+        }
+        .listRowBackground(Color.bgSecondary)
+        .tint(.mainRed)
     }
 
     private func connectedSection(

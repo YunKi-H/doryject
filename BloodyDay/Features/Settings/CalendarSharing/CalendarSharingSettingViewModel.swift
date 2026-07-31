@@ -32,6 +32,7 @@ final class CalendarSharingSettingViewModel {
     private(set) var isLoadingSharingState = false
     private(set) var isSendingRequest = false
     private(set) var isDisconnecting = false
+    private(set) var isDisconnectRecoveryPending = false
     private(set) var statusMessage: String?
     var partnerConnectionCode = ""
     var errorMessage: String?
@@ -109,6 +110,12 @@ final class CalendarSharingSettingViewModel {
         do {
             let profile = try await connectionRepository.ensureProfile(for: user)
             self.profile = profile
+            let resumedDisconnect = try await connectionRepository
+                .resumePendingDisconnect(for: user.id)
+            isDisconnectRecoveryPending = false
+            if resumedDisconnect {
+                statusMessage = "중단됐던 연결 해제를 완료했어요."
+            }
             async let connection = connectionRepository.activeConnection(for: user.id)
             async let requests = connectionRepository.incomingRequests(for: user.id)
             activeConnection = try await connection
@@ -117,7 +124,11 @@ final class CalendarSharingSettingViewModel {
             startObservingSharingState(for: user.id)
             sharedCalendarSyncScheduler?.schedule()
         } catch {
-            errorMessage = error.localizedDescription
+            if isDisconnectCleanupPending(error) {
+                enterPendingDisconnectState(userID: user.id)
+            } else {
+                errorMessage = error.localizedDescription
+            }
         }
     }
 
@@ -239,8 +250,13 @@ final class CalendarSharingSettingViewModel {
             statusMessage = connection.ownerID == user.id
                 ? "캘린더 공유를 중단했어요."
                 : "공유 캘린더 연결에서 나갔어요."
+            isDisconnectRecoveryPending = false
             startObservingSharingState(for: user.id)
         } catch {
+            if isDisconnectCleanupPending(error) {
+                enterPendingDisconnectState(userID: user.id)
+                return
+            }
             startObservingSharingState(for: user.id)
             updateDisplayedCalendar(
                 for: connection,
@@ -248,6 +264,27 @@ final class CalendarSharingSettingViewModel {
             )
             errorMessage = error.localizedDescription
         }
+    }
+
+    private func enterPendingDisconnectState(userID: String) {
+        activeConnection = nil
+        isDisconnectRecoveryPending = true
+        stopObservingSharedEvents()
+        widgetSharingStateStore.clear()
+        calendarDisplayUpdater?.displayLocalCalendar()
+        statusMessage = "연결 해제를 마무리하지 못했어요. 다시 시도하면 남은 정리를 이어서 진행해요."
+        startObservingSharingState(for: userID)
+    }
+
+    private func isDisconnectCleanupPending(_ error: Error) -> Bool {
+        guard let repositoryError = error
+                as? CalendarConnectionRepositoryError else {
+            return false
+        }
+        if case .disconnectCleanupPending = repositoryError {
+            return true
+        }
+        return false
     }
 
     private func signIn(with authorization: ASAuthorization) async {
@@ -296,6 +333,7 @@ final class CalendarSharingSettingViewModel {
         incomingRequests = []
         partnerConnectionCode = ""
         statusMessage = nil
+        isDisconnectRecoveryPending = false
         widgetSharingStateStore.clear()
     }
 

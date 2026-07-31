@@ -118,6 +118,12 @@ final class FirestoreCalendarConnectionRepository:
         )
     }
 
+    func resumePendingDisconnect(
+        for userID: String
+    ) async throws -> Bool {
+        try await connectionStore.resumePendingDisconnect(for: userID)
+    }
+
     func disconnect(
         _ connection: CalendarConnection,
         requestedBy userID: String
@@ -143,6 +149,7 @@ enum CalendarConnectionRepositoryError: LocalizedError {
     case cachedConnectionUnavailable
     case notConnectionParticipant
     case authenticationStateMismatch
+    case disconnectCleanupPending
 
     var errorDescription: String? {
         switch self {
@@ -172,6 +179,8 @@ enum CalendarConnectionRepositoryError: LocalizedError {
             return "이 캘린더 연결을 해제할 권한이 없어요."
         case .authenticationStateMismatch:
             return "로그인 정보가 변경되었어요. 캘린더 공유 화면을 다시 열어주세요."
+        case .disconnectCleanupPending:
+            return "연결 해제는 시작됐지만 서버 정리가 아직 끝나지 않았어요. 다시 시도해주세요."
         }
     }
 }

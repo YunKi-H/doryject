@@ -95,6 +95,10 @@ final class PreviewCalendarConnectionRepository: CalendarConnectionRepository {
         )
     }
 
+    func resumePendingDisconnect(for userID: String) async throws -> Bool {
+        false
+    }
+
     func disconnect(
         _ connection: CalendarConnection,
         requestedBy userID: String

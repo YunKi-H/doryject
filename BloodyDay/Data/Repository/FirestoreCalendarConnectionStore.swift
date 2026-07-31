@@ -237,13 +237,63 @@ final class FirestoreCalendarConnectionStore {
             connectionReference,
             requestedBy: userID
         )
-        try await deleteSharedData(
-            connectionReference: connectionReference
-        )
-        try await deleteConnectionDocuments(
-            connection,
-            connectionReference: connectionReference
-        )
+        do {
+            try await finishDisconnect(
+                connection,
+                connectionReference: connectionReference
+            )
+        } catch {
+            throw CalendarConnectionRepositoryError
+                .disconnectCleanupPending
+        }
+    }
+
+    func resumePendingDisconnect(
+        for userID: String
+    ) async throws -> Bool {
+        let membership = try await membershipsCollection
+            .document(userID)
+            .getDocument()
+        guard let connectionID =
+                membership.data()?["connectionID"] as? String else {
+            if membership.metadata.isFromCache {
+                throw CalendarConnectionRepositoryError
+                    .cachedConnectionUnavailable
+            }
+            return false
+        }
+
+        let connectionReference = connectionsCollection
+            .document(connectionID)
+        let snapshot = try await connectionReference.getDocument()
+        guard let data = snapshot.data() else {
+            if snapshot.metadata.isFromCache {
+                throw CalendarConnectionRepositoryError
+                    .cachedConnectionUnavailable
+            }
+            throw CalendarConnectionRepositoryError.invalidServerResponse
+        }
+        guard FirestoreCalendarSharingMapper.connectionStatus(in: data)
+                == .terminating else {
+            return false
+        }
+        guard let connection = FirestoreCalendarSharingMapper.connection(
+            id: snapshot.documentID,
+            data: data
+        ), connection.role(for: userID) != nil else {
+            throw CalendarConnectionRepositoryError.invalidServerResponse
+        }
+
+        do {
+            try await finishDisconnect(
+                connection,
+                connectionReference: connectionReference
+            )
+            return true
+        } catch {
+            throw CalendarConnectionRepositoryError
+                .disconnectCleanupPending
+        }
     }
 
     private var connectionsCollection: CollectionReference {
@@ -307,6 +357,19 @@ final class FirestoreCalendarConnectionStore {
             in: connectionReference.collection(
                 FirestoreCalendarSharingMapper.Collection.pillCycles
             )
+        )
+    }
+
+    private func finishDisconnect(
+        _ connection: CalendarConnection,
+        connectionReference: DocumentReference
+    ) async throws {
+        try await deleteSharedData(
+            connectionReference: connectionReference
+        )
+        try await deleteConnectionDocuments(
+            connection,
+            connectionReference: connectionReference
         )
     }
 
