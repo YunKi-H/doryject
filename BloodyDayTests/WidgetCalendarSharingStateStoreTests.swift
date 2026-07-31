@@ -36,4 +36,43 @@ struct WidgetCalendarSharingStateStoreTests {
         #expect(store.load() == nil)
         #expect(retryStore.state == nil)
     }
+
+    @Test
+    func runtimeStorePersistsCommittedPublicationVersion() throws {
+        let suiteName =
+            "CalendarSharingRuntimeStoreTests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defaults.removePersistentDomain(forName: suiteName)
+        let store = CalendarSharingRuntimeStore(defaults: defaults)
+        let state = CalendarSharingRuntimeState(
+            viewerConnectionID: "connection",
+            events: [],
+            computationSettings: nil,
+            publicationVersion: "version-2"
+        )
+
+        store.save(state)
+
+        #expect(store.load()?.publicationVersion == "version-2")
+    }
+
+    @Test
+    func legacyRuntimeStateDefaultsPublicationVersionToNil() throws {
+        let data = Data(
+            """
+            {
+              "viewerConnectionID": "connection",
+              "events": [],
+              "pillCycles": []
+            }
+            """.utf8
+        )
+
+        let state = try JSONDecoder().decode(
+            CalendarSharingRuntimeState.self,
+            from: data
+        )
+
+        #expect(state.publicationVersion == nil)
+    }
 }

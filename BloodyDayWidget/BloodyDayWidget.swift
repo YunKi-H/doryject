@@ -28,8 +28,7 @@ struct Provider: AppIntentTimelineProvider {
     }
     
     func timeline(for configuration: ConfigurationAppIntent, in context: Context) async -> Timeline<SimpleEntry> {
-        await WidgetSharedCalendarSyncService.shared
-            .retryPendingSyncIfNeeded()
+        await WidgetSharedCalendarSyncService.shared.refreshForTimeline()
         let currentDate = Date()
         let calendar = Calendar.autoupdatingCurrent
         let entry = SimpleEntry(
@@ -48,7 +47,17 @@ struct Provider: AppIntentTimelineProvider {
         ) ?? currentDate.addingTimeInterval(60 * 60)
         let nextRetryDate = await WidgetSharedCalendarSyncService.shared
             .nextRetryDate
-        let nextRefreshDate = nextRetryDate.map {
+        let viewerRefreshDate = WidgetCalendarSharingStateStore().load()
+            .flatMap { state in
+                state.role == .viewer
+                    ? currentDate.addingTimeInterval(30 * 60)
+                    : nil
+            }
+        let scheduledRefreshDates = [
+            nextRetryDate,
+            viewerRefreshDate
+        ].compactMap { $0 }
+        let nextRefreshDate = scheduledRefreshDates.min().map {
             min(refreshDate, $0)
         } ?? refreshDate
         return Timeline(

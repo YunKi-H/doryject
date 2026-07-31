@@ -75,7 +75,11 @@ final class CalendarDisplayEventRepository:
             pillCycles: runtimeState?.viewerConnectionID == connectionID
                 ? runtimeState?.pillCycles ?? []
                 : [],
-            computationSettings: resolvedSettings
+            computationSettings: resolvedSettings,
+            publicationVersion: runtimeState?.viewerConnectionID
+                == connectionID
+                ? runtimeState?.publicationVersion
+                : nil
         )
         runtimeState = state
         runtimeStore.save(state)
@@ -95,6 +99,7 @@ final class CalendarDisplayEventRepository:
         if let computationSettings = snapshot.computationSettings {
             state.computationSettings = computationSettings
         }
+        state.publicationVersion = snapshot.publicationVersion
         runtimeState = state
         runtimeStore.save(state)
         sharedEvents = Self.makeUserEvents(
