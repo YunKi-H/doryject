@@ -10,7 +10,7 @@ import Foundation
 extension DateFormatter {
     static let periodList: DateFormatter = {
         let formatter = DateFormatter()
-        formatter.calendar = Calendar.current
+        formatter.calendar = .autoupdatingCurrent
         formatter.locale = Locale.current
         formatter.dateFormat = "yyyy년 M월 d일"
         return formatter

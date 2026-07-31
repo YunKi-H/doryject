@@ -243,6 +243,100 @@ describe("calendar connection access", () => {
       })
     );
   });
+
+  test("only the owner can publish versioned content metadata and documents", async () => {
+    await seedActiveConnection();
+    const ownerDatabase = databaseFor(ownerID);
+    const viewerDatabase = databaseFor(viewerID);
+    const version = "publication-v2";
+    const versionedEventID = `${version}_${eventID}`;
+    const ownerVersionedEvent = doc(
+      ownerDatabase,
+      "connections",
+      connectionID,
+      "events",
+      versionedEventID
+    );
+    const viewerVersionedEvent = doc(
+      viewerDatabase,
+      "connections",
+      connectionID,
+      "events",
+      versionedEventID
+    );
+    const versionedEventData = {
+      ownerID,
+      eventID,
+      dayKey: 20260726,
+      typeRaw: "period",
+      publicationVersion: version,
+      updatedAt: serverTimestamp()
+    };
+
+    await assertSucceeds(
+      setDoc(ownerVersionedEvent, versionedEventData)
+    );
+    await assertFails(
+      setDoc(viewerVersionedEvent, versionedEventData)
+    );
+
+    const publicationData = {
+      sharedPeriod: true,
+      sharedPill: false,
+      sharedLove: true,
+      sharingUpdatedAt: serverTimestamp(),
+      sharingUpdatedBy: ownerID,
+      periodAutoCyclePredictionEnabled: true,
+      periodAverageCycleDays: 28,
+      periodAveragePeriodDays: 5,
+      pillEnabled: true,
+      pillAutoRecordEnabled: false,
+      pillCount: 21,
+      pillBreakDuration: 7,
+      calculationUpdatedAt: serverTimestamp(),
+      calculationUpdatedBy: ownerID,
+      contentVersion: version,
+      contentEventCount: 1,
+      contentPillCycleCount: 0,
+      contentUpdatedAt: serverTimestamp(),
+      contentUpdatedBy: ownerID
+    };
+
+    await assertSucceeds(
+      updateDoc(connectionReference(ownerDatabase), publicationData)
+    );
+    await assertFails(
+      updateDoc(connectionReference(viewerDatabase), {
+        ...publicationData,
+        sharingUpdatedBy: viewerID,
+        calculationUpdatedBy: viewerID,
+        contentUpdatedBy: viewerID
+      })
+    );
+    await assertFails(
+      updateDoc(connectionReference(ownerDatabase), {
+        pillCount: 24,
+        calculationUpdatedAt: serverTimestamp(),
+        calculationUpdatedBy: ownerID
+      })
+    );
+    await assertFails(deleteDoc(ownerVersionedEvent));
+
+    const staleEventReference = doc(
+      ownerDatabase,
+      "connections",
+      connectionID,
+      "events",
+      `stale_${eventID}`
+    );
+    await assertSucceeds(
+      setDoc(staleEventReference, {
+        ...versionedEventData,
+        publicationVersion: "publication-v1"
+      })
+    );
+    await assertSucceeds(deleteDoc(staleEventReference));
+  });
 });
 
 describe("calendar connection establishment", () => {
@@ -401,6 +495,27 @@ describe("calendar connection termination", () => {
     batch.delete(membershipReference(viewerDatabase, viewerID));
     batch.delete(connectionReference(viewerDatabase));
     await assertSucceeds(batch.commit());
+  });
+
+  test("another participant can resume an interrupted termination cleanup", async () => {
+    await seedActiveConnection();
+    const ownerDatabase = databaseFor(ownerID);
+    const viewerDatabase = databaseFor(viewerID);
+    await assertSucceeds(
+      markTerminating(ownerDatabase, ownerID)
+    );
+
+    // 첫 번째 기기에서 이벤트만 삭제한 뒤 작업이 중단된 상황을 재현한다.
+    await assertSucceeds(deleteDoc(eventReference(ownerDatabase)));
+
+    // 상대 기기 또는 다음 앱 실행에서 남은 정리를 이어갈 수 있어야 한다.
+    await assertSucceeds(deleteDoc(pillCycleReference(viewerDatabase)));
+    const resumedBatch = writeBatch(viewerDatabase);
+    resumedBatch.delete(requestReference(viewerDatabase));
+    resumedBatch.delete(membershipReference(viewerDatabase, ownerID));
+    resumedBatch.delete(membershipReference(viewerDatabase, viewerID));
+    resumedBatch.delete(connectionReference(viewerDatabase));
+    await assertSucceeds(resumedBatch.commit());
   });
 
   test("terminating connection rejects new event writes and outsider cleanup", async () => {

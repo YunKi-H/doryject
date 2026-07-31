@@ -206,9 +206,55 @@ enum FirestoreCalendarSharingMapper {
         ]
     }
 
+    static func publicationData(
+        version: String,
+        eventCount: Int,
+        pillCycleCount: Int,
+        connection: CalendarConnection,
+        computationSettings: SharedCalendarComputationSettings
+    ) -> [String: Any] {
+        var data = sharedEventTypesData(
+            connection.sharedEventTypes,
+            ownerID: connection.ownerID
+        )
+        data.merge(
+            computationSettingsData(
+                computationSettings,
+                ownerID: connection.ownerID
+            ),
+            uniquingKeysWith: { _, newValue in newValue }
+        )
+        data["contentVersion"] = version
+        data["contentEventCount"] = eventCount
+        data["contentPillCycleCount"] = pillCycleCount
+        data["contentUpdatedAt"] = FieldValue.serverTimestamp()
+        data["contentUpdatedBy"] = connection.ownerID
+        return data
+    }
+
+    static func publicationMetadata(
+        _ data: [String: Any]
+    ) -> FirestoreSharedCalendarPublicationMetadata? {
+        guard let version = data["contentVersion"] as? String,
+              let eventCount = numericInt(data["contentEventCount"]),
+              let pillCycleCount = numericInt(
+                data["contentPillCycleCount"]
+              ),
+              let computationSettings = computationSettings(data) else {
+            return nil
+        }
+        return FirestoreSharedCalendarPublicationMetadata(
+            version: version,
+            eventCount: eventCount,
+            pillCycleCount: pillCycleCount,
+            computationSettings: computationSettings
+        )
+    }
+
     static func sharedEventData(
         _ event: UserEvent,
         ownerID: String,
+        publicationVersion: String? = nil,
         calendar: Calendar
     ) -> [String: Any] {
         var data: [String: Any] = [
@@ -225,7 +271,14 @@ enum FirestoreCalendarSharingMapper {
            let pillCycleID = event.pillCycleID {
             data["pillCycleID"] = pillCycleID.uuidString
         }
+        if let publicationVersion {
+            data["publicationVersion"] = publicationVersion
+        }
         return data
+    }
+
+    static func publicationVersion(in data: [String: Any]) -> String? {
+        data["publicationVersion"] as? String
     }
 
     static func sharedEvent(
@@ -249,22 +302,10 @@ enum FirestoreCalendarSharingMapper {
         )
     }
 
-    static func sharedEventDataMatches(
-        _ existing: [String: Any]?,
-        expected: [String: Any]
-    ) -> Bool {
-        guard let existing else { return false }
-        return existing["ownerID"] as? String == expected["ownerID"] as? String
-            && existing["eventID"] as? String == expected["eventID"] as? String
-            && numericInt(existing["dayKey"]) == numericInt(expected["dayKey"])
-            && existing["typeRaw"] as? String == expected["typeRaw"] as? String
-            && existing["pillCycleID"] as? String
-                == expected["pillCycleID"] as? String
-    }
-
     static func sharedPillCycleData(
         _ cycle: PillCycleInfo,
         ownerID: String,
+        publicationVersion: String? = nil,
         calendar: Calendar
     ) -> [String: Any]? {
         guard let startDate = cycle.startDate(calendar: calendar) else {
@@ -288,6 +329,9 @@ enum FirestoreCalendarSharingMapper {
         }
         if let autoRecordEnabled = cycle.autoRecordEnabled {
             data["autoRecordEnabled"] = autoRecordEnabled
+        }
+        if let publicationVersion {
+            data["publicationVersion"] = publicationVersion
         }
         return data
     }
@@ -313,26 +357,6 @@ enum FirestoreCalendarSharingMapper {
         )
     }
 
-    static func sharedPillCycleDataMatches(
-        _ existing: [String: Any]?,
-        expected: [String: Any]
-    ) -> Bool {
-        guard let existing else { return false }
-        return existing["ownerID"] as? String == expected["ownerID"] as? String
-            && existing["cycleID"] as? String
-                == expected["cycleID"] as? String
-            && numericInt(existing["startDayKey"])
-                == numericInt(expected["startDayKey"])
-            && numericInt(existing["plannedPillCount"])
-                == numericInt(expected["plannedPillCount"])
-            && numericInt(existing["breakDays"])
-                == numericInt(expected["breakDays"])
-            && existing["autoRecordEnabled"] as? Bool
-                == expected["autoRecordEnabled"] as? Bool
-            && existing["statusRaw"] as? String
-                == expected["statusRaw"] as? String
-    }
-
     private static func numericInt(_ value: Any?) -> Int? {
         if let value = value as? Int {
             return value
@@ -352,7 +376,7 @@ enum FirestoreCalendarSharingMapper {
         [connection.ownerID, connection.viewerID]
     }
 
-    private static func computationSettings(
+    static func computationSettings(
         _ data: [String: Any]
     ) -> SharedCalendarComputationSettings? {
         guard let autoPrediction =
@@ -376,4 +400,11 @@ enum FirestoreCalendarSharingMapper {
         pill.pillBreakDuration = pillBreakDuration
         return SharedCalendarComputationSettings(period: period, pill: pill)
     }
+}
+
+struct FirestoreSharedCalendarPublicationMetadata: Equatable, Sendable {
+    let version: String
+    let eventCount: Int
+    let pillCycleCount: Int
+    let computationSettings: SharedCalendarComputationSettings
 }

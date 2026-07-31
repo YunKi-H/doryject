@@ -12,7 +12,7 @@ enum BuildCalendarMonthInfoUseCase {
         month: Date,
         userEvents: [UserEvent],
         context: MonthComputationContext,
-        calendar: Calendar = .current
+        calendar: Calendar = .autoupdatingCurrent
     ) -> MonthInfo {
         let monthStart = month.startOfMonth(in: calendar)
         let actualPeriodDates = Set(

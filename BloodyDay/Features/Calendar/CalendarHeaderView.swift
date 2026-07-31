@@ -9,6 +9,7 @@ import SwiftUI
 
 struct CalendarHeaderView: View {
     let month: Date
+    let referenceToday: Date
     let onSelectDate: (Date) -> Void
     let notificationViewModel: NotificationSettingsViewModel
     let periodSettingViewModel: PeriodSettingViewModel
@@ -18,7 +19,30 @@ struct CalendarHeaderView: View {
     let calendarSharingViewModel: CalendarSharingSettingViewModel
     
     @State private var datePickerPresented: Bool = false
-    @State private var newDate: Date = .now
+    @State private var newDate: Date
+
+    init(
+        month: Date,
+        referenceToday: Date,
+        onSelectDate: @escaping (Date) -> Void,
+        notificationViewModel: NotificationSettingsViewModel,
+        periodSettingViewModel: PeriodSettingViewModel,
+        pillViewModel: PillSettingsViewModel,
+        appleCalendarViewModel: AppleCalendarSettingViewModel,
+        appearanceViewModel: AppearanceSettingViewModel,
+        calendarSharingViewModel: CalendarSharingSettingViewModel
+    ) {
+        self.month = month
+        self.referenceToday = referenceToday
+        self.onSelectDate = onSelectDate
+        self.notificationViewModel = notificationViewModel
+        self.periodSettingViewModel = periodSettingViewModel
+        self.pillViewModel = pillViewModel
+        self.appleCalendarViewModel = appleCalendarViewModel
+        self.appearanceViewModel = appearanceViewModel
+        self.calendarSharingViewModel = calendarSharingViewModel
+        self._newDate = State(initialValue: month)
+    }
     
     var body: some View {
         VStack(spacing: 0) {
@@ -50,7 +74,7 @@ struct CalendarHeaderView: View {
                 Spacer()
                 
                 Button {
-                    onSelectDate(.now)
+                    onSelectDate(referenceToday)
                 } label: {
                     Text("오늘")
                         .font(.medium_16)
@@ -94,7 +118,7 @@ struct CalendarHeaderView: View {
                     NavigationLink {
                         CalendarSharingSettingView(viewModel: calendarSharingViewModel)
                     } label: {
-                        Label("캘린더 연결", systemImage: "heart.fill")
+                        Label("캘린더 연결", systemImage: "person.2.fill")
                     }
                 } label: {
                     Image(systemName: "ellipsis")
@@ -168,7 +192,8 @@ struct CalendarHeaderView: View {
 
 #Preview {
     CalendarHeaderView(
-        month: .now,
+        month: Date(),
+        referenceToday: Date(),
         onSelectDate: { _ in },
         notificationViewModel: .init(
             repo: UserDefaultsSettingsRepository(),

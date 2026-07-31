@@ -22,14 +22,27 @@ struct PillSettings: Codable, Equatable, Sendable {
         case pillBreakDuration
     }
 
-    init() {}
+    init(
+        pillEnabled: Bool = false,
+        pillTime: DateComponents = .init(hour: 9, minute: 0),
+        pillAutoRecordEnabled: Bool = false,
+        pillCount: Int = 21,
+        pillBreakDuration: Int = 7
+    ) {
+        self.pillEnabled = pillEnabled
+        self.pillTime = pillTime
+        self.pillAutoRecordEnabled = pillAutoRecordEnabled
+        self.pillCount = pillCount
+        self.pillBreakDuration = pillBreakDuration
+    }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        pillEnabled = try container.decodeIfPresent(Bool.self, forKey: .pillEnabled) ?? false
-        pillTime = try container.decodeIfPresent(DateComponents.self, forKey: .pillTime) ?? .init(hour: 9, minute: 0)
-        pillAutoRecordEnabled = try container.decodeIfPresent(Bool.self, forKey: .pillAutoRecordEnabled) ?? false
-        pillCount = try container.decodeIfPresent(Int.self, forKey: .pillCount) ?? 21
-        pillBreakDuration = try container.decodeIfPresent(Int.self, forKey: .pillBreakDuration) ?? 7
+        let defaults = Self()
+        pillEnabled = try container.decode(Bool.self, forKey: .pillEnabled, default: defaults.pillEnabled)
+        pillTime = try container.decode(DateComponents.self, forKey: .pillTime, default: defaults.pillTime)
+        pillAutoRecordEnabled = try container.decode(Bool.self, forKey: .pillAutoRecordEnabled, default: defaults.pillAutoRecordEnabled)
+        pillCount = try container.decode(Int.self, forKey: .pillCount, default: defaults.pillCount)
+        pillBreakDuration = try container.decode(Int.self, forKey: .pillBreakDuration, default: defaults.pillBreakDuration)
     }
 }

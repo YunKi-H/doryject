@@ -16,7 +16,10 @@ struct PeriodSummary: Identifiable {
 }
 
 enum PeriodSummaryBuilder {
-    static func build(from dates: [Date], calendar: Calendar = .current) -> [PeriodSummary] {
+    static func build(
+        from dates: [Date],
+        calendar: Calendar = .autoupdatingCurrent
+    ) -> [PeriodSummary] {
         let normalized = Array(Set(dates.map { calendar.startOfDay(for: $0) })).sorted()
         guard !normalized.isEmpty else { return [] }
         

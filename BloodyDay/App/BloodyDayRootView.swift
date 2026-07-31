@@ -243,7 +243,7 @@ struct BloodyDayRootView: View {
     }
     
     private func refreshAppStateForSystemCalendarChange(
-        now: Date = .now,
+        now: Date = Date(),
         calendar: Calendar = .autoupdatingCurrent
     ) {
         calendarViewModel?.refreshForSystemCalendarChange(

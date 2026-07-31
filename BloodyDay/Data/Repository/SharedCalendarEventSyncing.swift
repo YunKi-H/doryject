@@ -16,4 +16,17 @@ protocol SharedCalendarEventSyncing {
 
 protocol SharedCalendarSyncScheduling: AnyObject {
     func schedule()
+    func schedule(
+        connectionID: String,
+        sharedEventTypes: SharedEventTypeSelection
+    )
+}
+
+extension SharedCalendarSyncScheduling {
+    func schedule(
+        connectionID: String,
+        sharedEventTypes: SharedEventTypeSelection
+    ) {
+        schedule()
+    }
 }

@@ -27,7 +27,7 @@ final class CalendarViewModel {
     init(
         eventRepository: EventRepository,
         settingsRepository: SettingsRepository? = nil,
-        now: Date = .now,
+        now: Date = Date(),
         calendar: Calendar = .autoupdatingCurrent
     ) {
         let normalizedToday = calendar.startOfDay(for: now)
@@ -54,7 +54,7 @@ final class CalendarViewModel {
         bootstrapMonths(anchor: selectedDate)
     }
     
-    func refresh(now: Date = .now) {
+    func refresh(now: Date = Date()) {
         referenceToday = calendar.startOfDay(for: now)
         reloadComputationSnapshot()
         if months.isEmpty {
@@ -67,19 +67,19 @@ final class CalendarViewModel {
         recomputeLoadedMonths(keepingMonth: keepingMonth)
     }
 
-    func refreshIfReferenceDayChanged(now: Date = .now) {
+    func refreshIfReferenceDayChanged(now: Date = Date()) {
         let normalizedToday = calendar.startOfDay(for: now)
         guard normalizedToday != referenceToday else { return }
         refresh(now: normalizedToday)
     }
 
-    func refreshDisplayMode(canEditEvents: Bool, now: Date = .now) {
+    func refreshDisplayMode(canEditEvents: Bool, now: Date = Date()) {
         self.canEditEvents = canEditEvents
         refresh(now: now)
     }
 
     func refreshForSystemCalendarChange(
-        now: Date = .now,
+        now: Date = Date(),
         calendar: Calendar = .autoupdatingCurrent
     ) {
         let preservedVisibleMonthComponents = visibleMonthComponents

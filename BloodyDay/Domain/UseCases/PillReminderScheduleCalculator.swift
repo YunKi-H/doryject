@@ -12,7 +12,7 @@ enum PillReminderScheduleCalculator {
         projection: PillCycleProjection,
         from date: Date,
         count: Int,
-        calendar: Calendar = .current
+        calendar: Calendar = .autoupdatingCurrent
     ) -> [Date] {
         guard count > 0, projection.pillCount > 0 else { return [] }
 

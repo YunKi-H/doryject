@@ -32,9 +32,10 @@ final class SyncingEventRepository: EventRepository {
         self.sharedCalendarSyncScheduler = sharedCalendarSyncScheduler
     }
     
-    func save(_ event: UserEvent) {
+    func save(_ event: UserEvent) -> EventMutationResult {
+        let result = base.save(event)
+        guard result.succeeded else { return result }
         enablePillIfNeeded(for: event)
-        base.save(event)
         if AppleCalendarEventSyncPolicy.requiresFullSync(for: event.type) {
             Task { await syncService.syncAll() }
         } else {
@@ -43,11 +44,13 @@ final class SyncingEventRepository: EventRepository {
         refreshNotifications()
         refreshWidgets()
         refreshSharedCalendar()
+        return result
     }
     
-    func delete(id: UUID) {
+    func delete(id: UUID) -> EventMutationResult {
         let event = base.allEvents().first(where: { $0.id == id })
-        base.delete(id: id)
+        let result = base.delete(id: id)
+        guard result.succeeded else { return result }
         if let type = event?.type,
            AppleCalendarEventSyncPolicy.requiresFullSync(for: type) {
             Task { await syncService.syncAll() }
@@ -57,14 +60,16 @@ final class SyncingEventRepository: EventRepository {
         refreshNotifications()
         refreshWidgets()
         refreshSharedCalendar()
+        return result
     }
     
-    func delete(type: EventType, on: Date) {
+    func delete(type: EventType, on: Date) -> EventMutationResult {
         let target = calendar.startOfDay(for: on)
         let events = base.events(of: type).filter {
             calendar.startOfDay(for: $0.date) == target
         }
-        base.delete(type: type, on: on)
+        let result = base.delete(type: type, on: on)
+        guard result.succeeded else { return result }
         if AppleCalendarEventSyncPolicy.requiresFullSync(for: type) {
             Task { await syncService.syncAll() }
         } else {
@@ -73,17 +78,20 @@ final class SyncingEventRepository: EventRepository {
         refreshNotifications()
         refreshWidgets()
         refreshSharedCalendar()
+        return result
     }
     
-    func replace(type: EventType, on dates: Set<Date>) {
+    func replace(type: EventType, on dates: Set<Date>) -> EventMutationResult {
+        let result = base.replace(type: type, on: dates)
+        guard result.succeeded else { return result }
         if type == .pill, !dates.isEmpty {
             enablePillIfNeeded()
         }
-        base.replace(type: type, on: dates)
         Task { await syncService.syncAll() }
         refreshNotifications()
         refreshWidgets()
         refreshSharedCalendar()
+        return result
     }
     
     func allEvents() -> [UserEvent] {

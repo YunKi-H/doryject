@@ -38,4 +38,18 @@ struct SharedPillCycleMetadata: Identifiable, Equatable, Sendable {
 struct SharedCalendarSnapshot: Equatable, Sendable {
     let events: [SharedCalendarEvent]
     let pillCycles: [SharedPillCycleMetadata]
+    let computationSettings: SharedCalendarComputationSettings?
+    let publicationVersion: String?
+
+    init(
+        events: [SharedCalendarEvent],
+        pillCycles: [SharedPillCycleMetadata],
+        computationSettings: SharedCalendarComputationSettings? = nil,
+        publicationVersion: String? = nil
+    ) {
+        self.events = events
+        self.pillCycles = pillCycles
+        self.computationSettings = computationSettings
+        self.publicationVersion = publicationVersion
+    }
 }

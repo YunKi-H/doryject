@@ -9,49 +9,71 @@ import Foundation
 import UserNotifications
 
 final class UserNotificationScheduler: NotificationScheduler {
-    private let center = UNUserNotificationCenter.current()
+    private static let rescheduleCoordinator = NotificationRescheduleCoordinator()
+    private static let submissionCounter = NotificationScheduleSubmissionCounter()
+
+    private let center: UNUserNotificationCenter
     private let configuredCalendar: Calendar?
+    private let nowProvider: () -> Date
     private var calendar: Calendar {
         configuredCalendar ?? .autoupdatingCurrent
     }
     private static let maxScheduledOccurrences = 3
     private let maxScheduledOccurrences = UserNotificationScheduler.maxScheduledOccurrences
 
-    init(calendar: Calendar? = nil) {
+    init(
+        calendar: Calendar? = nil,
+        center: UNUserNotificationCenter = .current(),
+        nowProvider: @escaping () -> Date = Date.init
+    ) {
         self.configuredCalendar = calendar
+        self.center = center
+        self.nowProvider = nowProvider
     }
     
     func apply(settings: UserSettings, eventRepository: EventRepository) {
-        apply(
+        let sequence = Self.submissionCounter.next()
+        let submission = makeSubmission(
+            sequence: sequence,
             settings: settings,
             eventReader: eventRepository,
             requestsAuthorization: true
         )
+        Task {
+            await Self.rescheduleCoordinator.apply(
+                submission,
+                center: center
+            )
+        }
     }
 
     func applyAndWait(
         settings: UserSettings,
         eventReader: EventReading
     ) async {
-        apply(
+        let sequence = Self.submissionCounter.next()
+        let submission = makeSubmission(
+            sequence: sequence,
             settings: settings,
             eventReader: eventReader,
             requestsAuthorization: false
         )
+        await Self.rescheduleCoordinator.apply(submission, center: center)
         _ = await center.pendingNotificationRequests()
     }
 
-    private func apply(
+    private func makeSubmission(
+        sequence: Int,
         settings: UserSettings,
         eventReader: EventReading,
         requestsAuthorization: Bool
-    ) {
+    ) -> NotificationScheduleSubmission {
         if requestsAuthorization {
             center.requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in }
         }
-        center.removePendingNotificationRequests(withIdentifiers: Self.identifiers)
-        let now = Date()
+        let now = nowProvider()
         let today = calendar.startOfDay(for: now)
+        var requests: [UNNotificationRequest] = []
         
         let notificationSettings = settings.notifications
         if notificationSettings.periodReminderEnabled {
@@ -72,12 +94,12 @@ final class UserNotificationScheduler: NotificationScheduler {
                         continue
                     }
                     let body = periodReminderBody(daysBefore: offset)
-                    scheduleOnce(
+                    requests.append(notificationRequest(
                         identifier: Self.periodReminderIds[idIndex],
                         title: "B-Day",
                         body: body,
                         date: reminderDate
-                    )
+                    ))
                     idIndex += 1
                 }
             }
@@ -104,25 +126,26 @@ final class UserNotificationScheduler: NotificationScheduler {
                         ).day ?? 0,
                         0
                     )
-                    scheduleOnce(
+                    requests.append(notificationRequest(
                         identifier: Self.periodDelayedIds[index],
                         title: "B-Day",
                         body: periodDelayedBody(daysDelayed: daysDelayed),
                         date: date
-                    )
+                    ))
                 }
             }
         }
         let pillDates = Set(eventReader.events(of: .pill).map {
             calendar.startOfDay(for: $0.date)
         })
-        PillReminderNotificationScheduler.apply(
-            settings: settings,
-            pillDates: pillDates,
-            pillCycles: eventReader.pillCycles(),
-            now: now,
-            calendar: calendar,
-            center: center
+        requests.append(contentsOf:
+            PillReminderNotificationScheduler.notificationRequests(
+                settings: settings,
+                pillDates: pillDates,
+                pillCycles: eventReader.pillCycles(),
+                now: now,
+                calendar: calendar
+            )
         )
         if notificationSettings.pillPurchaseReminderEnabled,
            pillScheduleInfo(
@@ -144,22 +167,27 @@ final class UserNotificationScheduler: NotificationScheduler {
             )
             for (index, reminder) in reminders.enumerated() {
                 guard index < Self.pillPurchaseReminderIds.count else { break }
-                scheduleOnce(
+                requests.append(notificationRequest(
                     identifier: Self.pillPurchaseReminderIds[index],
                     title: "B-Day",
                     body: pillPurchaseReminderBody(daysBefore: max(notificationSettings.pillPurchaseReminderDaysBefore, 0)),
                     date: reminder
-                )
+                ))
             }
         }
+        return NotificationScheduleSubmission(
+            sequence: sequence,
+            requests: requests,
+            managedIdentifiers: Self.identifiers
+        )
     }
     
-    private func scheduleOnce(
+    private func notificationRequest(
         identifier: String,
         title: String,
         body: String,
         date: Date
-    ) {
+    ) -> UNNotificationRequest {
         var components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: date)
         components.second = 0
         
@@ -169,8 +197,11 @@ final class UserNotificationScheduler: NotificationScheduler {
         content.sound = .default
         
         let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
-        let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
-        center.add(request)
+        return UNNotificationRequest(
+            identifier: identifier,
+            content: content,
+            trigger: trigger
+        )
     }
     
     private func combineDate(_ date: Date, time: DateComponents) -> Date? {
@@ -473,4 +504,49 @@ final class UserNotificationScheduler: NotificationScheduler {
         periodDelayedId,
         pillPurchaseReminderId
     ] + periodReminderIds + PillReminderNotificationScheduler.identifiers + periodDelayedIds + pillPurchaseReminderIds
+}
+
+struct NotificationScheduleSequencePolicy {
+    private(set) var latestAppliedSequence = 0
+
+    mutating func shouldApply(_ sequence: Int) -> Bool {
+        guard sequence > latestAppliedSequence else { return false }
+        latestAppliedSequence = sequence
+        return true
+    }
+}
+
+struct NotificationScheduleSubmission: @unchecked Sendable {
+    let sequence: Int
+    let requests: [UNNotificationRequest]
+    let managedIdentifiers: [String]
+}
+
+actor NotificationRescheduleCoordinator {
+    private var sequencePolicy = NotificationScheduleSequencePolicy()
+
+    func apply(
+        _ submission: NotificationScheduleSubmission,
+        center: UNUserNotificationCenter
+    ) {
+        guard sequencePolicy.shouldApply(submission.sequence) else { return }
+        center.removePendingNotificationRequests(
+            withIdentifiers: submission.managedIdentifiers
+        )
+        submission.requests.forEach { center.add($0) }
+    }
+}
+
+private final class NotificationScheduleSubmissionCounter:
+    @unchecked Sendable
+{
+    private let lock = NSLock()
+    private var sequence = 0
+
+    func next() -> Int {
+        lock.withLock {
+            sequence += 1
+            return sequence
+        }
+    }
 }

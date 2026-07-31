@@ -103,7 +103,7 @@ struct PeriodReminderSheet: View {
         let now = Date()
         let hour = components.hour ?? fallbackHour
         let minute = components.minute ?? 0
-        return Calendar.current.date(
+        return Calendar.autoupdatingCurrent.date(
             bySettingHour: hour,
             minute: minute,
             second: 0,
@@ -112,7 +112,10 @@ struct PeriodReminderSheet: View {
     }
     
     private func applyChanges() {
-        let timeComponents = Calendar.current.dateComponents([.hour, .minute], from: reminderTime)
+        let timeComponents = Calendar.autoupdatingCurrent.dateComponents(
+            [.hour, .minute],
+            from: reminderTime
+        )
         viewModel.updateNotifications {
             $0.periodReminderDaysBefore = selectedDaysBefore
             $0.periodReminderTime = timeComponents

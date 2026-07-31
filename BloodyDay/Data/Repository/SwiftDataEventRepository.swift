@@ -33,7 +33,7 @@ final class SwiftDataEventRepository: EventRepository {
     }
     
     // MARK: - CRUD
-    func save(_ event: UserEvent) {
+    func save(_ event: UserEvent) -> EventMutationResult {
         do {
             event.normalizeDate(calendar: calendar)
             let eventKey = event.uniqueKey
@@ -53,13 +53,17 @@ final class SwiftDataEventRepository: EventRepository {
                 )
                 context.insert(event)
                 try context.save()
+                return .changed
             }
+            return .unchanged
         } catch {
-            assertionFailure("SwiftData save failed: \(error)")
+            context.rollback()
+            reportMutationFailure("save", error: error)
+            return .failed(error)
         }
     }
     
-    func delete(id: UUID) {
+    func delete(id: UUID) -> EventMutationResult {
         let descriptor = FetchDescriptor<UserEvent>(
             predicate: #Predicate { $0.id == id }
         )
@@ -74,13 +78,17 @@ final class SwiftDataEventRepository: EventRepository {
                     calendar: calendar
                 )
                 try context.save()
+                return .changed
             }
+            return .unchanged
         } catch {
-            assertionFailure("SwiftData delete failed: \(error)")
+            context.rollback()
+            reportMutationFailure("delete", error: error)
+            return .failed(error)
         }
     }
     
-    func delete(type: EventType, on: Date) {
+    func delete(type: EventType, on: Date) -> EventMutationResult {
         let eventKey = UserEvent.makeUniqueKey(date: on, type: type, calendar: calendar)
         let descriptor = FetchDescriptor<UserEvent>(
             predicate: #Predicate { $0.uniqueKey == eventKey }
@@ -96,13 +104,17 @@ final class SwiftDataEventRepository: EventRepository {
                     calendar: calendar
                 )
                 try context.save()
+                return .changed
             }
+            return .unchanged
         } catch {
-            assertionFailure("SwiftData delete failed: \(error)")
+            context.rollback()
+            reportMutationFailure("delete", error: error)
+            return .failed(error)
         }
     }
     
-    func replace(type: EventType, on dates: Set<Date>) {
+    func replace(type: EventType, on dates: Set<Date>) -> EventMutationResult {
         let rawValue = type.rawValue
         let normalizedDates = Set(dates.map { calendar.startOfDay(for: $0) })
         do {
@@ -147,9 +159,13 @@ final class SwiftDataEventRepository: EventRepository {
                     calendar: calendar
                 )
                 try context.save()
+                return .changed
             }
+            return .unchanged
         } catch {
-            assertionFailure("SwiftData replace failed: \(error)")
+            context.rollback()
+            reportMutationFailure("replace", error: error)
+            return .failed(error)
         }
     }
     
@@ -201,5 +217,11 @@ final class SwiftDataEventRepository: EventRepository {
         events
             .map { $0.resolvedCopy(calendar: calendar) }
             .sorted { $0.date < $1.date }
+    }
+
+    private func reportMutationFailure(_ operation: String, error: Error) {
+        #if DEBUG
+        print("[SwiftDataEventRepository] \(operation) failed: \(error)")
+        #endif
     }
 }

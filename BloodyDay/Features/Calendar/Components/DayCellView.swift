@@ -14,9 +14,14 @@ struct DayCellView: View {
     let isSelected: Bool
     let isPredictedPeriodDay: Bool
     let monthDate: Date
+    let referenceToday: Date
     var onTap: (Date) -> Void
+
+    private let calendar = Calendar.autoupdatingCurrent
     
-    private var isToday: Bool { day.date.isSameDay(as: .now) }
+    private var isToday: Bool {
+        day.date.isSameDay(as: referenceToday, calendar: calendar)
+    }
     private var pill: DayEvent? { day.events.first(where: { $0.type == .pill }) }
     private var love: DayEvent? { day.events.first(where: { $0.type == .love }) }
     private var isInCurrentMonth: Bool { day.date.isInSameMonth(as: monthDate) }
@@ -34,7 +39,7 @@ struct DayCellView: View {
     
     var body: some View {
         VStack {
-            Text("\(Calendar.current.component(.day, from: day.date))")
+            Text("\(calendar.component(.day, from: day.date))")
                 .font(.medium_16)
                 .foregroundStyle(dateFontColor)
                 .background {
@@ -106,7 +111,7 @@ struct DayCellView: View {
 #Preview {
     DayCellView(
         day: .init(
-            date: .now,
+            date: Date(),
             events: [
                 .init(type: .fertile),
                 .init(type: .love),
@@ -115,6 +120,7 @@ struct DayCellView: View {
         ),
         isSelected: true,
         isPredictedPeriodDay: false,
-        monthDate: .now
+        monthDate: Date(),
+        referenceToday: Date()
     ) { _ in }
 }

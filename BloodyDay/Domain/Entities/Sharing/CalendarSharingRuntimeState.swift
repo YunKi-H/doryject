@@ -83,17 +83,20 @@ struct CalendarSharingRuntimeState: Codable {
     var events: [CachedSharedCalendarEvent]
     var pillCycles: [CachedSharedPillCycleMetadata]
     var computationSettings: SharedCalendarComputationSettings?
+    var publicationVersion: String?
 
     init(
         viewerConnectionID: String,
         events: [CachedSharedCalendarEvent],
         pillCycles: [CachedSharedPillCycleMetadata] = [],
-        computationSettings: SharedCalendarComputationSettings?
+        computationSettings: SharedCalendarComputationSettings?,
+        publicationVersion: String? = nil
     ) {
         self.viewerConnectionID = viewerConnectionID
         self.events = events
         self.pillCycles = pillCycles
         self.computationSettings = computationSettings
+        self.publicationVersion = publicationVersion
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -101,6 +104,7 @@ struct CalendarSharingRuntimeState: Codable {
         case events
         case pillCycles
         case computationSettings
+        case publicationVersion
     }
 
     init(from decoder: Decoder) throws {
@@ -120,6 +124,10 @@ struct CalendarSharingRuntimeState: Codable {
         computationSettings = try container.decodeIfPresent(
             SharedCalendarComputationSettings.self,
             forKey: .computationSettings
+        )
+        publicationVersion = try container.decodeIfPresent(
+            String.self,
+            forKey: .publicationVersion
         )
     }
 }

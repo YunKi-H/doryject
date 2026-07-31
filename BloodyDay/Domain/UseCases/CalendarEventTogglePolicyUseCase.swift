@@ -15,7 +15,7 @@ enum CalendarEventTogglePolicyUseCase {
         existingDatesByType: [EventType: Set<Date>],
         settings: UserSettings,
         pillCycles: [PillCycleInfo] = [],
-        calendar: Calendar = .current
+        calendar: Calendar = .autoupdatingCurrent
     ) -> CalendarEventMutationPlan {
         let target = calendar.startOfDay(for: selectedDate)
         let existingForType = Set(
@@ -49,7 +49,7 @@ enum CalendarEventTogglePolicyUseCase {
         pillDates: Set<Date>,
         settings: UserSettings,
         pillCycles: [PillCycleInfo] = [],
-        calendar: Calendar = .current
+        calendar: Calendar = .autoupdatingCurrent
     ) -> PillDisableConfirmationPlan? {
         let pillSettings = settings.pill
         guard pillSettings.pillEnabled else {

@@ -18,6 +18,7 @@ final class SharedCalendarSyncScheduler: SharedCalendarSyncScheduling {
     private var syncTask: Task<Void, Never>?
     private var retryTask: Task<Void, Never>?
     private var needsAnotherSync = false
+    private var pendingSharedEventTypes: PendingSharedEventTypes?
 
     init(
         authenticationService: AuthenticationService,
@@ -40,6 +41,17 @@ final class SharedCalendarSyncScheduler: SharedCalendarSyncScheduling {
         retryTask?.cancel()
         retryTask = nil
         startSyncIfNeeded()
+    }
+
+    func schedule(
+        connectionID: String,
+        sharedEventTypes: SharedEventTypeSelection
+    ) {
+        pendingSharedEventTypes = PendingSharedEventTypes(
+            connectionID: connectionID,
+            selection: sharedEventTypes
+        )
+        schedule()
     }
 
     private func startSyncIfNeeded() {
@@ -68,16 +80,40 @@ final class SharedCalendarSyncScheduler: SharedCalendarSyncScheduling {
             guard let connection = try await connectionRepository.activeConnection(for: user.id),
                   connection.ownerID == user.id else {
                 retryStore.clear()
+                pendingSharedEventTypes = nil
                 return
             }
+            if pendingSharedEventTypes?.connectionID != connection.id {
+                pendingSharedEventTypes = nil
+            }
+            let pendingSelection = pendingSharedEventTypes
+                .flatMap {
+                    $0.connectionID == connection.id ? $0.selection : nil
+                }
+            let sharedEventTypes = pendingSelection
+                ?? connection.sharedEventTypes
+            let publicationConnection = CalendarConnection(
+                id: connection.id,
+                ownerID: connection.ownerID,
+                ownerDisplayName: connection.ownerDisplayName,
+                viewerID: connection.viewerID,
+                viewerDisplayName: connection.viewerDisplayName,
+                sharedEventTypes: sharedEventTypes,
+                createdAt: connection.createdAt,
+                computationSettings: connection.computationSettings
+            )
             try await eventSyncService.syncOwnedEvents(
                 eventRepository.allEvents(),
                 pillCycles: eventRepository.pillCycles(),
-                connection: connection,
+                connection: publicationConnection,
                 computationSettings: SharedCalendarComputationSettings(
                     settings: settingsRepository.load()
                 )
             )
+            if pendingSharedEventTypes?.connectionID == connection.id,
+               pendingSharedEventTypes?.selection == sharedEventTypes {
+                pendingSharedEventTypes = nil
+            }
             retryStore.clear()
         } catch {
             retryStore.recordFailure()
@@ -88,7 +124,7 @@ final class SharedCalendarSyncScheduler: SharedCalendarSyncScheduling {
     }
 
     private func scheduleAutomaticRetryIfNeeded(
-        now: Date = .now
+        now: Date = Date()
     ) {
         guard let nextRetryDate = retryStore.nextRetryDate else {
             return
@@ -107,4 +143,9 @@ final class SharedCalendarSyncScheduler: SharedCalendarSyncScheduling {
             self.startSyncIfNeeded()
         }
     }
+}
+
+private struct PendingSharedEventTypes {
+    let connectionID: String
+    let selection: SharedEventTypeSelection
 }

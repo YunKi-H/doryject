@@ -154,7 +154,7 @@ struct DayInfoCardView: View {
 
 #Preview {
     DayInfoCardView(
-        date: .now,
+        date: Date(),
         primaryStatus: .countdown(days: 14),
         secondaryStatus: .pill(day: 18, total: 21),
         hasLoveEvent: true

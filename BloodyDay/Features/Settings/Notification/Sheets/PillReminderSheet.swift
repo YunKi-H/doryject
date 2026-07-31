@@ -87,7 +87,7 @@ struct PillReminderSheet: View {
         let components = viewModel.settings.notifications.pillReminderTime
         let hour = components.hour ?? 9
         let minute = components.minute ?? 0
-        return Calendar.current.date(
+        return Calendar.autoupdatingCurrent.date(
             bySettingHour: hour,
             minute: minute,
             second: 0,
@@ -96,7 +96,10 @@ struct PillReminderSheet: View {
     }
     
     private func applyChanges() {
-        let components = Calendar.current.dateComponents([.hour, .minute], from: reminderTime)
+        let components = Calendar.autoupdatingCurrent.dateComponents(
+            [.hour, .minute],
+            from: reminderTime
+        )
         viewModel.updateNotifications {
             $0.pillReminderTime = components
         }

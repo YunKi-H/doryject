@@ -26,6 +26,22 @@ final class FirestoreSharedCalendarEventRepository: SharedCalendarEventRepositor
             .collection(FirestoreCalendarSharingMapper.Collection.connections)
             .document(connectionID)
 
+        let connectionListener = connectionReference
+            .addSnapshotListener { [observation] snapshot, error in
+                if let error {
+                    observation.fail(error)
+                    return
+                }
+                guard let data = snapshot?.data() else { return }
+                observation.update(
+                    publication: FirestoreCalendarSharingMapper
+                        .publicationMetadata(data),
+                    legacyComputationSettings:
+                        FirestoreCalendarSharingMapper
+                            .computationSettings(data)
+                )
+            }
+
         let eventListener = connectionReference
             .collection(FirestoreCalendarSharingMapper.Collection.events)
             .addSnapshotListener { [observation] snapshot, error in
@@ -39,20 +55,13 @@ final class FirestoreSharedCalendarEventRepository: SharedCalendarEventRepositor
                     return
                 }
 
-                let events = snapshot.documents
-                    .compactMap {
-                        FirestoreCalendarSharingMapper.sharedEvent(
-                            id: $0.documentID,
-                            data: $0.data()
-                        )
-                    }
-                    .sorted {
-                        if $0.day == $1.day {
-                            return $0.type.rawValue < $1.type.rawValue
+                observation.update(
+                    eventDocuments: Dictionary(
+                        uniqueKeysWithValues: snapshot.documents.map {
+                            ($0.documentID, $0.data())
                         }
-                        return $0.day < $1.day
-                    }
-                observation.update(events: events)
+                    )
+                )
             }
 
         let pillCycleListener = connectionReference
@@ -70,18 +79,17 @@ final class FirestoreSharedCalendarEventRepository: SharedCalendarEventRepositor
                     return
                 }
 
-                let pillCycles = snapshot.documents
-                    .compactMap {
-                        FirestoreCalendarSharingMapper.sharedPillCycle(
-                            id: $0.documentID,
-                            data: $0.data()
-                        )
-                    }
-                    .sorted { $0.startDay < $1.startDay }
-                observation.update(pillCycles: pillCycles)
+                observation.update(
+                    pillCycleDocuments: Dictionary(
+                        uniqueKeysWithValues: snapshot.documents.map {
+                            ($0.documentID, $0.data())
+                        }
+                    )
+                )
             }
 
         observation.setListeners(
+            connectionListener: connectionListener,
             eventListener: eventListener,
             pillCycleListener: pillCycleListener
         )
@@ -91,15 +99,19 @@ final class FirestoreSharedCalendarEventRepository: SharedCalendarEventRepositor
     }
 }
 
-private final class FirestoreSharedCalendarSnapshotObservation:
+final class FirestoreSharedCalendarSnapshotObservation:
     @unchecked Sendable
 {
     private let lock = NSLock()
     private let onChange: (Result<SharedCalendarSnapshot, Error>) -> Void
+    private var connectionListener: ListenerRegistration?
     private var eventListener: ListenerRegistration?
     private var pillCycleListener: ListenerRegistration?
-    private var events: [SharedCalendarEvent]?
-    private var pillCycles: [SharedPillCycleMetadata]?
+    private var publication: FirestoreSharedCalendarPublicationMetadata?
+    private var legacyComputationSettings: SharedCalendarComputationSettings?
+    private var eventDocuments: [String: [String: Any]]?
+    private var pillCycleDocuments: [String: [String: Any]]?
+    private var lastEmittedSnapshot: SharedCalendarSnapshot?
     private var isCancelled = false
 
     init(
@@ -109,37 +121,42 @@ private final class FirestoreSharedCalendarSnapshotObservation:
     }
 
     func setListeners(
+        connectionListener: ListenerRegistration,
         eventListener: ListenerRegistration,
         pillCycleListener: ListenerRegistration
     ) {
         lock.withLock {
             guard isCancelled == false else {
+                connectionListener.remove()
                 eventListener.remove()
                 pillCycleListener.remove()
                 return
             }
+            self.connectionListener = connectionListener
             self.eventListener = eventListener
             self.pillCycleListener = pillCycleListener
         }
     }
 
-    func update(events: [SharedCalendarEvent]) {
-        let snapshot = lock.withLock {
-            self.events = events
-            return resolvedSnapshot()
-        }
-        if let snapshot {
-            onChange(.success(snapshot))
+    func update(
+        publication: FirestoreSharedCalendarPublicationMetadata?,
+        legacyComputationSettings: SharedCalendarComputationSettings?
+    ) {
+        emitIfResolved {
+            self.publication = publication
+            self.legacyComputationSettings = legacyComputationSettings
         }
     }
 
-    func update(pillCycles: [SharedPillCycleMetadata]) {
-        let snapshot = lock.withLock {
-            self.pillCycles = pillCycles
-            return resolvedSnapshot()
+    func update(eventDocuments: [String: [String: Any]]) {
+        emitIfResolved {
+            self.eventDocuments = eventDocuments
         }
-        if let snapshot {
-            onChange(.success(snapshot))
+    }
+
+    func update(pillCycleDocuments: [String: [String: Any]]) {
+        emitIfResolved {
+            self.pillCycleDocuments = pillCycleDocuments
         }
     }
 
@@ -153,22 +170,124 @@ private final class FirestoreSharedCalendarSnapshotObservation:
     func cancel() {
         lock.withLock {
             isCancelled = true
+            connectionListener?.remove()
             eventListener?.remove()
             pillCycleListener?.remove()
+            connectionListener = nil
             eventListener = nil
             pillCycleListener = nil
         }
     }
 
+    private func emitIfResolved(_ update: () -> Void) {
+        let snapshot = lock.withLock { () -> SharedCalendarSnapshot? in
+            update()
+            guard let resolved = resolvedSnapshot(),
+                  resolved != lastEmittedSnapshot else {
+                return nil
+            }
+            lastEmittedSnapshot = resolved
+            return resolved
+        }
+        if let snapshot {
+            onChange(.success(snapshot))
+        }
+    }
+
     private func resolvedSnapshot() -> SharedCalendarSnapshot? {
         guard isCancelled == false,
-              let events,
-              let pillCycles else {
+              let eventDocuments,
+              let pillCycleDocuments else {
+            return nil
+        }
+
+        if let publication {
+            return resolvedVersionedSnapshot(
+                publication: publication,
+                eventDocuments: eventDocuments,
+                pillCycleDocuments: pillCycleDocuments
+            )
+        }
+
+        let legacyEvents = mappedEvents(
+            from: eventDocuments.filter {
+                FirestoreCalendarSharingMapper.publicationVersion(
+                    in: $0.value
+                ) == nil
+            }
+        )
+        let legacyPillCycles = mappedPillCycles(
+            from: pillCycleDocuments.filter {
+                FirestoreCalendarSharingMapper.publicationVersion(
+                    in: $0.value
+                ) == nil
+            }
+        )
+        return SharedCalendarSnapshot(
+            events: legacyEvents,
+            pillCycles: legacyPillCycles,
+            computationSettings: legacyComputationSettings
+        )
+    }
+
+    private func resolvedVersionedSnapshot(
+        publication: FirestoreSharedCalendarPublicationMetadata,
+        eventDocuments: [String: [String: Any]],
+        pillCycleDocuments: [String: [String: Any]]
+    ) -> SharedCalendarSnapshot? {
+        let versionedEventDocuments = eventDocuments.filter {
+            FirestoreCalendarSharingMapper.publicationVersion(in: $0.value)
+                == publication.version
+        }
+        let versionedPillCycleDocuments = pillCycleDocuments.filter {
+            FirestoreCalendarSharingMapper.publicationVersion(in: $0.value)
+                == publication.version
+        }
+        guard versionedEventDocuments.count == publication.eventCount,
+              versionedPillCycleDocuments.count
+                == publication.pillCycleCount else {
+            return nil
+        }
+
+        let events = mappedEvents(from: versionedEventDocuments)
+        let pillCycles = mappedPillCycles(
+            from: versionedPillCycleDocuments
+        )
+        guard events.count == publication.eventCount,
+              pillCycles.count == publication.pillCycleCount else {
             return nil
         }
         return SharedCalendarSnapshot(
             events: events,
-            pillCycles: pillCycles
+            pillCycles: pillCycles,
+            computationSettings: publication.computationSettings,
+            publicationVersion: publication.version
         )
+    }
+
+    private func mappedEvents(
+        from documents: [String: [String: Any]]
+    ) -> [SharedCalendarEvent] {
+        documents.compactMap { id, data in
+            FirestoreCalendarSharingMapper.sharedEvent(id: id, data: data)
+        }
+        .sorted {
+            if $0.day == $1.day {
+                return $0.type.rawValue < $1.type.rawValue
+            }
+            return $0.day < $1.day
+        }
+    }
+
+    private func mappedPillCycles(
+        from documents: [String: [String: Any]]
+    ) -> [SharedPillCycleMetadata] {
+        documents.compactMap { id, data in
+            FirestoreCalendarSharingMapper.sharedPillCycle(
+                id: id,
+                data: data
+            )
+        }
+        .sorted { $0.startDay < $1.startDay }
     }
 }

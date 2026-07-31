@@ -9,10 +9,7 @@ import Foundation
 
 protocol CalendarDisplayEventUpdating: AnyObject {
     func displayLocalCalendar()
-    func prepareSharedCalendar(
-        connectionID: String,
-        computationSettings: SharedCalendarComputationSettings?
-    )
+    func prepareSharedCalendar(connectionID: String)
     func displaySharedCalendar(snapshot: SharedCalendarSnapshot)
 }
 
@@ -62,19 +59,15 @@ final class CalendarDisplayEventRepository:
         onDisplayEventsChanged?()
     }
 
-    func prepareSharedCalendar(
-        connectionID: String,
-        computationSettings: SharedCalendarComputationSettings?
-    ) {
+    func prepareSharedCalendar(connectionID: String) {
         let cachedEvents: [CachedSharedCalendarEvent]
         let resolvedSettings: SharedCalendarComputationSettings?
         if runtimeState?.viewerConnectionID == connectionID {
             cachedEvents = runtimeState?.events ?? []
-            resolvedSettings = computationSettings
-                ?? runtimeState?.computationSettings
+            resolvedSettings = runtimeState?.computationSettings
         } else {
             cachedEvents = []
-            resolvedSettings = computationSettings
+            resolvedSettings = nil
         }
         let state = CalendarSharingRuntimeState(
             viewerConnectionID: connectionID,
@@ -82,7 +75,11 @@ final class CalendarDisplayEventRepository:
             pillCycles: runtimeState?.viewerConnectionID == connectionID
                 ? runtimeState?.pillCycles ?? []
                 : [],
-            computationSettings: resolvedSettings
+            computationSettings: resolvedSettings,
+            publicationVersion: runtimeState?.viewerConnectionID
+                == connectionID
+                ? runtimeState?.publicationVersion
+                : nil
         )
         runtimeState = state
         runtimeStore.save(state)
@@ -99,6 +96,10 @@ final class CalendarDisplayEventRepository:
         state.pillCycles = snapshot.pillCycles.map(
             CachedSharedPillCycleMetadata.init
         )
+        if let computationSettings = snapshot.computationSettings {
+            state.computationSettings = computationSettings
+        }
+        state.publicationVersion = snapshot.publicationVersion
         runtimeState = state
         runtimeStore.save(state)
         sharedEvents = Self.makeUserEvents(
@@ -108,24 +109,32 @@ final class CalendarDisplayEventRepository:
         onDisplayEventsChanged?()
     }
 
-    func save(_ event: UserEvent) {
-        guard isDisplayingSharedCalendar == false else { return }
-        localRepository.save(event)
+    func save(_ event: UserEvent) -> EventMutationResult {
+        guard isDisplayingSharedCalendar == false else {
+            return .failed(EventRepositoryMutationError.readOnlyCalendar)
+        }
+        return localRepository.save(event)
     }
 
-    func delete(id: UUID) {
-        guard isDisplayingSharedCalendar == false else { return }
-        localRepository.delete(id: id)
+    func delete(id: UUID) -> EventMutationResult {
+        guard isDisplayingSharedCalendar == false else {
+            return .failed(EventRepositoryMutationError.readOnlyCalendar)
+        }
+        return localRepository.delete(id: id)
     }
 
-    func delete(type: EventType, on: Date) {
-        guard isDisplayingSharedCalendar == false else { return }
-        localRepository.delete(type: type, on: on)
+    func delete(type: EventType, on: Date) -> EventMutationResult {
+        guard isDisplayingSharedCalendar == false else {
+            return .failed(EventRepositoryMutationError.readOnlyCalendar)
+        }
+        return localRepository.delete(type: type, on: on)
     }
 
-    func replace(type: EventType, on dates: Set<Date>) {
-        guard isDisplayingSharedCalendar == false else { return }
-        localRepository.replace(type: type, on: dates)
+    func replace(type: EventType, on dates: Set<Date>) -> EventMutationResult {
+        guard isDisplayingSharedCalendar == false else {
+            return .failed(EventRepositoryMutationError.readOnlyCalendar)
+        }
+        return localRepository.replace(type: type, on: dates)
     }
 
     func allEvents() -> [UserEvent] {

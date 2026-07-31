@@ -17,6 +17,8 @@ struct AppleAuthenticationCredential {
 protocol AuthenticationService: AnyObject {
     var currentUser: AuthenticatedUser? { get }
 
+    func resolvedCurrentUser() async -> AuthenticatedUser?
+
     func signIn(with credential: AppleAuthenticationCredential) async throws -> AuthenticatedUser
     func signOut() throws
 }

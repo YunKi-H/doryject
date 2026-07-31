@@ -9,6 +9,10 @@ import Foundation
 import SwiftData
 
 enum WidgetSharedEventStore {
+    private enum MutationError: Error {
+        case readOnlyCalendar
+    }
+
     static let appGroupIdentifier = "group.dorypawn.BDay.shared"
     private static let storeFileName = "BloodyDay.sqlite"
     private static let settingsKey = "user.settings.v1"
@@ -24,9 +28,13 @@ enum WidgetSharedEventStore {
         }
     }()
     
-    static func toggle(_ type: EventType, on date: Date, calendar: Calendar = .current) -> Bool {
+    static func toggle(
+        _ type: EventType,
+        on date: Date,
+        calendar: Calendar = .autoupdatingCurrent
+    ) -> Result<Bool, Error> {
         guard CalendarSharingRuntimeStore().load() == nil else {
-            return false
+            return .failure(MutationError.readOnlyCalendar)
         }
         let context = ModelContext(sharedContainer)
         let target = calendar.startOfDay(for: date)
@@ -68,16 +76,19 @@ enum WidgetSharedEventStore {
                 settings: settings,
                 calendar: calendar
             )
-            return toggledOn
+            return .success(toggledOn)
         } catch {
-            assertionFailure("Widget event toggle failed: \(error)")
-            return false
+            context.rollback()
+            #if DEBUG
+            print("[WidgetSharedEventStore] toggle failed: \(error)")
+            #endif
+            return .failure(error)
         }
     }
     
     static func allEvents() -> [UserEvent] {
         let context = ModelContext(sharedContainer)
-        let calendar = Calendar.current
+        let calendar = Calendar.autoupdatingCurrent
         PillCyclePersistence.migrateIfNeeded(
             in: context,
             settings: loadSettings(),
@@ -97,7 +108,7 @@ enum WidgetSharedEventStore {
 
     static func pillCycles() -> [PillCycleInfo] {
         let context = ModelContext(sharedContainer)
-        let calendar = Calendar.current
+        let calendar = Calendar.autoupdatingCurrent
         PillCyclePersistence.migrateIfNeeded(
             in: context,
             settings: loadSettings(),
