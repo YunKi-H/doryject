@@ -108,24 +108,32 @@ final class CalendarDisplayEventRepository:
         onDisplayEventsChanged?()
     }
 
-    func save(_ event: UserEvent) {
-        guard isDisplayingSharedCalendar == false else { return }
-        localRepository.save(event)
+    func save(_ event: UserEvent) -> EventMutationResult {
+        guard isDisplayingSharedCalendar == false else {
+            return .failed(EventRepositoryMutationError.readOnlyCalendar)
+        }
+        return localRepository.save(event)
     }
 
-    func delete(id: UUID) {
-        guard isDisplayingSharedCalendar == false else { return }
-        localRepository.delete(id: id)
+    func delete(id: UUID) -> EventMutationResult {
+        guard isDisplayingSharedCalendar == false else {
+            return .failed(EventRepositoryMutationError.readOnlyCalendar)
+        }
+        return localRepository.delete(id: id)
     }
 
-    func delete(type: EventType, on: Date) {
-        guard isDisplayingSharedCalendar == false else { return }
-        localRepository.delete(type: type, on: on)
+    func delete(type: EventType, on: Date) -> EventMutationResult {
+        guard isDisplayingSharedCalendar == false else {
+            return .failed(EventRepositoryMutationError.readOnlyCalendar)
+        }
+        return localRepository.delete(type: type, on: on)
     }
 
-    func replace(type: EventType, on dates: Set<Date>) {
-        guard isDisplayingSharedCalendar == false else { return }
-        localRepository.replace(type: type, on: dates)
+    func replace(type: EventType, on dates: Set<Date>) -> EventMutationResult {
+        guard isDisplayingSharedCalendar == false else {
+            return .failed(EventRepositoryMutationError.readOnlyCalendar)
+        }
+        return localRepository.replace(type: type, on: dates)
     }
 
     func allEvents() -> [UserEvent] {

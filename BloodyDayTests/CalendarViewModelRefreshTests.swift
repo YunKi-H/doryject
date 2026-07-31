@@ -147,10 +147,12 @@ private final class CountingEventRepository: EventRepository {
         self.storedEvents = events
     }
 
-    func save(_ event: UserEvent) {}
-    func delete(id: UUID) {}
-    func delete(type: EventType, on: Date) {}
-    func replace(type: EventType, on dates: Set<Date>) {}
+    func save(_ event: UserEvent) -> EventMutationResult { .unchanged }
+    func delete(id: UUID) -> EventMutationResult { .unchanged }
+    func delete(type: EventType, on: Date) -> EventMutationResult { .unchanged }
+    func replace(type: EventType, on dates: Set<Date>) -> EventMutationResult {
+        .unchanged
+    }
 
     func allEvents() -> [UserEvent] {
         allEventsCallCount += 1

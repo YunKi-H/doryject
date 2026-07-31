@@ -54,7 +54,14 @@ struct ToggleTodayEventIntent: AppIntent {
             return .result()
         }
         let settingsRepository = WidgetSettingsRepository()
-        let toggledOn = WidgetSharedEventStore.toggle(eventType.widgetType, on: .now)
+        let mutationResult = WidgetSharedEventStore.toggle(
+            eventType.widgetType,
+            on: .now
+        )
+        guard case .success(let toggledOn) = mutationResult else {
+            WidgetCenter.shared.reloadAllTimelines()
+            return .result()
+        }
         if eventType == .pill, toggledOn {
             enablePillIfNeeded(settingsRepository: settingsRepository)
         }

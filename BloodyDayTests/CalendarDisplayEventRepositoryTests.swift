@@ -43,10 +43,13 @@ struct CalendarDisplayEventRepositoryTests {
                 pillCycles: []
             )
         )
-        repository.save(
+        let saveResult = repository.save(
             UserEvent(date: sharedDate, type: .pill, calendar: calendar)
         )
-        repository.delete(type: .period, on: sharedDate)
+        let deleteResult = repository.delete(
+            type: .period,
+            on: sharedDate
+        )
 
         let displayedEvent = try #require(repository.allEvents().first)
         #expect(repository.isDisplayingSharedCalendar)
@@ -56,6 +59,8 @@ struct CalendarDisplayEventRepositoryTests {
         #expect(displayedEvent.calendarDay == sharedDay)
         #expect(localRepository.saveCallCount == 0)
         #expect(localRepository.deleteCallCount == 0)
+        #expect(saveResult.succeeded == false)
+        #expect(deleteResult.succeeded == false)
     }
 
     @Test
@@ -78,13 +83,14 @@ struct CalendarDisplayEventRepositoryTests {
         )
 
         repository.displayLocalCalendar()
-        repository.save(
+        let saveResult = repository.save(
             UserEvent(date: localDate, type: .pill, calendar: calendar)
         )
 
         #expect(repository.isDisplayingSharedCalendar == false)
         #expect(repository.allEvents().map(\.type) == [.love])
         #expect(localRepository.saveCallCount == 1)
+        #expect(saveResult.succeeded)
     }
 
     @Test
@@ -213,19 +219,24 @@ private final class RecordingDisplayEventRepository: EventRepository {
         self.events = events
     }
 
-    func save(_ event: UserEvent) {
+    func save(_ event: UserEvent) -> EventMutationResult {
         saveCallCount += 1
+        return .changed
     }
 
-    func delete(id: UUID) {
+    func delete(id: UUID) -> EventMutationResult {
         deleteCallCount += 1
+        return .changed
     }
 
-    func delete(type: EventType, on: Date) {
+    func delete(type: EventType, on: Date) -> EventMutationResult {
         deleteCallCount += 1
+        return .changed
     }
 
-    func replace(type: EventType, on dates: Set<Date>) {}
+    func replace(type: EventType, on dates: Set<Date>) -> EventMutationResult {
+        .unchanged
+    }
 
     func allEvents() -> [UserEvent] {
         events
