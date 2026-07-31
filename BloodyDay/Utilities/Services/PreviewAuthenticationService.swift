@@ -13,6 +13,10 @@ final class PreviewAuthenticationService: AuthenticationService {
         self.currentUser = currentUser
     }
 
+    func resolvedCurrentUser() async -> AuthenticatedUser? {
+        currentUser
+    }
+
     func signIn(
         with credential: AppleAuthenticationCredential
     ) async throws -> AuthenticatedUser {

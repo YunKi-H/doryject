@@ -20,6 +20,11 @@ final class FirebaseAuthenticationService: AuthenticationService {
         auth.currentUser.map(Self.makeAuthenticatedUser)
     }
 
+    func resolvedCurrentUser() async -> AuthenticatedUser? {
+        await FirebaseAuthSharedAccess.waitForMigration()
+        return currentUser
+    }
+
     func signIn(
         with credential: AppleAuthenticationCredential
     ) async throws -> AuthenticatedUser {

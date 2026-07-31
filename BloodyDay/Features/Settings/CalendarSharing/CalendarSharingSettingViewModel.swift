@@ -99,9 +99,9 @@ final class CalendarSharingSettingViewModel {
     }
 
     func refreshSharingState() async {
-        user = authenticationService.currentUser
+        user = await authenticationService.resolvedCurrentUser()
         guard let user else {
-            clearSharingState(clearDisplayedCalendar: false)
+            clearSharingState(clearDisplayedCalendar: true)
             return
         }
 
