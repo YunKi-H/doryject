@@ -9,10 +9,7 @@ import Foundation
 
 protocol CalendarDisplayEventUpdating: AnyObject {
     func displayLocalCalendar()
-    func prepareSharedCalendar(
-        connectionID: String,
-        computationSettings: SharedCalendarComputationSettings?
-    )
+    func prepareSharedCalendar(connectionID: String)
     func displaySharedCalendar(snapshot: SharedCalendarSnapshot)
 }
 
@@ -62,19 +59,15 @@ final class CalendarDisplayEventRepository:
         onDisplayEventsChanged?()
     }
 
-    func prepareSharedCalendar(
-        connectionID: String,
-        computationSettings: SharedCalendarComputationSettings?
-    ) {
+    func prepareSharedCalendar(connectionID: String) {
         let cachedEvents: [CachedSharedCalendarEvent]
         let resolvedSettings: SharedCalendarComputationSettings?
         if runtimeState?.viewerConnectionID == connectionID {
             cachedEvents = runtimeState?.events ?? []
-            resolvedSettings = computationSettings
-                ?? runtimeState?.computationSettings
+            resolvedSettings = runtimeState?.computationSettings
         } else {
             cachedEvents = []
-            resolvedSettings = computationSettings
+            resolvedSettings = nil
         }
         let state = CalendarSharingRuntimeState(
             viewerConnectionID: connectionID,
@@ -99,6 +92,9 @@ final class CalendarDisplayEventRepository:
         state.pillCycles = snapshot.pillCycles.map(
             CachedSharedPillCycleMetadata.init
         )
+        if let computationSettings = snapshot.computationSettings {
+            state.computationSettings = computationSettings
+        }
         runtimeState = state
         runtimeStore.save(state)
         sharedEvents = Self.makeUserEvents(

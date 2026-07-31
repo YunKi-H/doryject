@@ -174,6 +174,96 @@ struct FirestoreCalendarSharingMapperTests {
         #expect(mapped.status == .completed)
     }
 
+    @Test
+    func publicationPayloadKeepsSettingsAndContentVersionTogether() throws {
+        var pill = PillSettings()
+        pill.pillEnabled = true
+        pill.pillCount = 24
+        pill.pillBreakDuration = 4
+        let settings = SharedCalendarComputationSettings(
+            period: PeriodSettings(
+                autoCyclePredictionEnabled: true,
+                averageCycleDays: 31,
+                averagePeriodDays: 6
+            ),
+            pill: pill
+        )
+        let connection = CalendarConnection(
+            id: "connection",
+            ownerID: "owner",
+            ownerDisplayName: "Owner",
+            viewerID: "viewer",
+            viewerDisplayName: "Viewer",
+            sharedEventTypes: SharedEventTypeSelection(
+                period: true,
+                pill: false,
+                love: true
+            ),
+            createdAt: Date()
+        )
+
+        let data = FirestoreCalendarSharingMapper.publicationData(
+            version: "version-2",
+            eventCount: 12,
+            pillCycleCount: 2,
+            connection: connection,
+            computationSettings: settings
+        )
+        let metadata = try #require(
+            FirestoreCalendarSharingMapper.publicationMetadata(data)
+        )
+
+        #expect(data["sharedPeriod"] as? Bool == true)
+        #expect(data["sharedPill"] as? Bool == false)
+        #expect(data["sharedLove"] as? Bool == true)
+        #expect(metadata.version == "version-2")
+        #expect(metadata.eventCount == 12)
+        #expect(metadata.pillCycleCount == 2)
+        #expect(metadata.computationSettings == settings)
+    }
+
+    @Test
+    func sharedDocumentsIncludeTheirPublicationVersion() throws {
+        let version = "version-2"
+        let event = UserEvent(
+            date: makeDate(2026, 7, 8),
+            type: .period,
+            calendar: calendar
+        )
+        let cycle = PillCycleInfo(
+            id: UUID(),
+            intakeDates: [makeDate(2026, 7, 8)],
+            plannedPillCount: nil,
+            breakDays: nil,
+            autoRecordEnabled: nil,
+            status: .active
+        )
+
+        let eventData = FirestoreCalendarSharingMapper.sharedEventData(
+            event,
+            ownerID: "owner",
+            publicationVersion: version,
+            calendar: calendar
+        )
+        let cycleData = try #require(
+            FirestoreCalendarSharingMapper.sharedPillCycleData(
+                cycle,
+                ownerID: "owner",
+                publicationVersion: version,
+                calendar: calendar
+            )
+        )
+
+        #expect(
+            FirestoreCalendarSharingMapper.publicationVersion(in: eventData)
+                == version
+        )
+        #expect(
+            FirestoreCalendarSharingMapper.publicationVersion(in: cycleData)
+                == version
+        )
+    }
+
     private func makeDate(
         _ year: Int,
         _ month: Int,

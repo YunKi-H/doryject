@@ -206,26 +206,20 @@ final class CalendarSharingSettingViewModel {
             return
         }
 
-        do {
-            try await connectionRepository.updateSharedEventTypes(
-                connectionID: connection.id,
-                ownerID: user.id,
-                selection: selection
-            )
-            activeConnection = CalendarConnection(
-                id: connection.id,
-                ownerID: connection.ownerID,
-                ownerDisplayName: connection.ownerDisplayName,
-                viewerID: connection.viewerID,
-                viewerDisplayName: connection.viewerDisplayName,
-                sharedEventTypes: selection,
-                createdAt: connection.createdAt,
-                computationSettings: connection.computationSettings
-            )
-            sharedCalendarSyncScheduler?.schedule()
-        } catch {
-            errorMessage = error.localizedDescription
-        }
+        activeConnection = CalendarConnection(
+            id: connection.id,
+            ownerID: connection.ownerID,
+            ownerDisplayName: connection.ownerDisplayName,
+            viewerID: connection.viewerID,
+            viewerDisplayName: connection.viewerDisplayName,
+            sharedEventTypes: selection,
+            createdAt: connection.createdAt,
+            computationSettings: connection.computationSettings
+        )
+        sharedCalendarSyncScheduler?.schedule(
+            connectionID: connection.id,
+            sharedEventTypes: selection
+        )
     }
 
     func disconnectActiveConnection() async {
@@ -429,8 +423,7 @@ final class CalendarSharingSettingViewModel {
         }
 
         calendarDisplayUpdater?.prepareSharedCalendar(
-            connectionID: connection.id,
-            computationSettings: connection.computationSettings
+            connectionID: connection.id
         )
         guard observedSharedConnectionID != connection.id else { return }
         stopObservingSharedEvents()

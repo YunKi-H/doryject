@@ -207,21 +207,6 @@ final class FirestoreCalendarConnectionStore {
         return connection
     }
 
-    func updateSharedEventTypes(
-        connectionID: String,
-        ownerID: String,
-        selection: SharedEventTypeSelection
-    ) async throws {
-        try await connectionsCollection
-            .document(connectionID)
-            .updateData(
-                FirestoreCalendarSharingMapper.sharedEventTypesData(
-                    selection,
-                    ownerID: ownerID
-                )
-            )
-    }
-
     func disconnect(
         _ connection: CalendarConnection,
         requestedBy userID: String

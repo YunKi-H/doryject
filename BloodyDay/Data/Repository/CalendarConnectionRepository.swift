@@ -48,12 +48,6 @@ protocol CalendarConnectionRepository {
 
     func decline(_ request: CalendarConnectionRequest, recipientID: String) async throws
 
-    func updateSharedEventTypes(
-        connectionID: String,
-        ownerID: String,
-        selection: SharedEventTypeSelection
-    ) async throws
-
     /// 이전 연결 해제가 중간에 멈춘 경우 남은 서버 문서를 정리한다.
     /// 정리할 작업이 있었으면 `true`를 반환한다.
     func resumePendingDisconnect(for userID: String) async throws -> Bool

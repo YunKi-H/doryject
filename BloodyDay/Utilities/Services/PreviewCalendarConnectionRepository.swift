@@ -77,24 +77,6 @@ final class PreviewCalendarConnectionRepository: CalendarConnectionRepository {
         recipientID: String
     ) async throws {}
 
-    func updateSharedEventTypes(
-        connectionID: String,
-        ownerID: String,
-        selection: SharedEventTypeSelection
-    ) async throws {
-        guard let connection else { return }
-        self.connection = CalendarConnection(
-            id: connection.id,
-            ownerID: connection.ownerID,
-            ownerDisplayName: connection.ownerDisplayName,
-            viewerID: connection.viewerID,
-            viewerDisplayName: connection.viewerDisplayName,
-            sharedEventTypes: selection,
-            createdAt: connection.createdAt,
-            computationSettings: connection.computationSettings
-        )
-    }
-
     func resumePendingDisconnect(for userID: String) async throws -> Bool {
         false
     }

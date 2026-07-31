@@ -26,58 +26,41 @@ final class FirestoreSharedCalendarEventSyncService: SharedCalendarEventSyncing 
         connection: CalendarConnection,
         computationSettings: SharedCalendarComputationSettings
     ) async throws {
+        let publicationVersion = UUID().uuidString
         let connectionReference = database
             .collection(FirestoreCalendarSharingMapper.Collection.connections)
             .document(connection.id)
-        try await connectionReference.updateData(
-            FirestoreCalendarSharingMapper.computationSettingsData(
-                computationSettings,
-                ownerID: connection.ownerID
-            )
-        )
         let collection = connectionReference
             .collection(FirestoreCalendarSharingMapper.Collection.events)
         let pillCycleCollection = connectionReference.collection(
             FirestoreCalendarSharingMapper.Collection.pillCycles
         )
+        let connectionSnapshot = try await connectionReference.getDocument()
+        let previousPublicationVersion = connectionSnapshot.data()
+            .flatMap(
+                FirestoreCalendarSharingMapper.publicationMetadata
+            )?
+            .version
         let existingSnapshot = try await collection.getDocuments()
         let existingPillCycleSnapshot = try await pillCycleCollection
             .getDocuments()
         let desiredEvents = events.filter {
             connection.sharedEventTypes.includes($0.type)
         }
-        let desiredIDs = Set(desiredEvents.map { $0.id.uuidString })
-        let existingByID = Dictionary(
-            uniqueKeysWithValues: existingSnapshot.documents.map {
-                ($0.documentID, $0.data())
-            }
-        )
-
         var eventSetMutations: [FirestoreSharedCalendarMutation] = []
-        var eventDeleteMutations: [FirestoreSharedCalendarMutation] = []
         for event in desiredEvents {
-            let documentID = event.id.uuidString
+            let documentID = "\(publicationVersion)_\(event.id.uuidString)"
             let data = FirestoreCalendarSharingMapper.sharedEventData(
                 event,
                 ownerID: connection.ownerID,
+                publicationVersion: publicationVersion,
                 calendar: calendar
             )
-            if FirestoreCalendarSharingMapper.sharedEventDataMatches(
-                existingByID[documentID],
-                expected: data
-            ) == false {
-                eventSetMutations.append(
-                    .set(
-                        reference: collection.document(documentID),
-                        data: data
-                    )
+            eventSetMutations.append(
+                .set(
+                    reference: collection.document(documentID),
+                    data: data
                 )
-            }
-        }
-
-        for existingID in existingByID.keys where desiredIDs.contains(existingID) == false {
-            eventDeleteMutations.append(
-                .delete(reference: collection.document(existingID))
             )
         }
 
@@ -93,25 +76,16 @@ final class FirestoreSharedCalendarEventSyncService: SharedCalendarEventSyncing 
                 .sharedPillCycleData(
                     cycle,
                     ownerID: connection.ownerID,
+                    publicationVersion: publicationVersion,
                     calendar: calendar
                 ) else {
                 continue
             }
             desiredPillCycleData[cycle.id.uuidString] = data
         }
-        let existingPillCyclesByID = Dictionary(
-            uniqueKeysWithValues: existingPillCycleSnapshot.documents.map {
-                ($0.documentID, $0.data())
-            }
-        )
-
         var pillCycleSetMutations: [FirestoreSharedCalendarMutation] = []
-        var pillCycleDeleteMutations: [FirestoreSharedCalendarMutation] = []
-        for (documentID, data) in desiredPillCycleData
-        where FirestoreCalendarSharingMapper.sharedPillCycleDataMatches(
-            existingPillCyclesByID[documentID],
-            expected: data
-        ) == false {
+        for (cycleID, data) in desiredPillCycleData {
+            let documentID = "\(publicationVersion)_\(cycleID)"
             pillCycleSetMutations.append(
                 .set(
                     reference: pillCycleCollection.document(documentID),
@@ -119,17 +93,44 @@ final class FirestoreSharedCalendarEventSyncService: SharedCalendarEventSyncing 
                 )
             )
         }
-        for existingID in existingPillCyclesByID.keys
-        where desiredPillCycleData[existingID] == nil {
-            pillCycleDeleteMutations.append(
-                .delete(reference: pillCycleCollection.document(existingID))
+
+        try await commit(
+            pillCycleSetMutations + eventSetMutations
+        )
+
+        try await connectionReference.updateData(
+            FirestoreCalendarSharingMapper.publicationData(
+                version: publicationVersion,
+                eventCount: desiredEvents.count,
+                pillCycleCount: desiredPillCycleData.count,
+                connection: connection,
+                computationSettings: computationSettings
+            )
+        )
+
+        let staleMutations = existingSnapshot.documents.compactMap {
+            staleMutation(
+                document: $0,
+                previousPublicationVersion: previousPublicationVersion
+            )
+        } + existingPillCycleSnapshot.documents.compactMap {
+            staleMutation(
+                document: $0,
+                previousPublicationVersion: previousPublicationVersion
             )
         }
+        do {
+            try await commit(staleMutations)
+        } catch {
+            #if DEBUG
+            print("[SharedCalendarSync] stale publication cleanup failed: \(error)")
+            #endif
+        }
+    }
 
-        let mutations = pillCycleSetMutations
-            + eventSetMutations
-            + eventDeleteMutations
-            + pillCycleDeleteMutations
+    private func commit(
+        _ mutations: [FirestoreSharedCalendarMutation]
+    ) async throws {
         for chunk in mutations.chunked(maxCount: 450) {
             let batch = database.batch()
             for mutation in chunk {
@@ -142,6 +143,19 @@ final class FirestoreSharedCalendarEventSyncService: SharedCalendarEventSyncing 
             }
             try await batch.commit()
         }
+    }
+
+    private func staleMutation(
+        document: QueryDocumentSnapshot,
+        previousPublicationVersion: String?
+    ) -> FirestoreSharedCalendarMutation? {
+        let documentVersion = FirestoreCalendarSharingMapper
+            .publicationVersion(in: document.data())
+        let belongsToPreviousPublication = previousPublicationVersion.map {
+            documentVersion == $0
+        } ?? (documentVersion == nil)
+        guard belongsToPreviousPublication else { return nil }
+        return .delete(reference: document.reference)
     }
 }
 

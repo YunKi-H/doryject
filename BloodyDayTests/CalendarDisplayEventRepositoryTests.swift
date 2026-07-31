@@ -28,8 +28,7 @@ struct CalendarDisplayEventRepositoryTests {
         let sharedEventID = UUID()
 
         repository.prepareSharedCalendar(
-            connectionID: "shared-calendar",
-            computationSettings: nil
+            connectionID: "shared-calendar"
         )
         repository.displaySharedCalendar(
             snapshot: SharedCalendarSnapshot(
@@ -75,8 +74,7 @@ struct CalendarDisplayEventRepositoryTests {
             calendar: calendar
         )
         repository.prepareSharedCalendar(
-            connectionID: "shared-calendar",
-            computationSettings: nil
+            connectionID: "shared-calendar"
         )
         repository.displaySharedCalendar(
             snapshot: SharedCalendarSnapshot(events: [], pillCycles: [])
@@ -115,8 +113,7 @@ struct CalendarDisplayEventRepositoryTests {
             calendar: calendar
         )
         initialRepository.prepareSharedCalendar(
-            connectionID: "shared-calendar",
-            computationSettings: computationSettings
+            connectionID: "shared-calendar"
         )
         initialRepository.displaySharedCalendar(
             snapshot: SharedCalendarSnapshot(
@@ -127,7 +124,8 @@ struct CalendarDisplayEventRepositoryTests {
                     type: .period
                 )
                 ],
-                pillCycles: []
+                pillCycles: [],
+                computationSettings: computationSettings
             )
         )
 
@@ -161,8 +159,7 @@ struct CalendarDisplayEventRepositoryTests {
         let intakeDay = CalendarDay(date: intakeDate, calendar: calendar)
 
         repository.prepareSharedCalendar(
-            connectionID: "shared-calendar",
-            computationSettings: nil
+            connectionID: "shared-calendar"
         )
         repository.displaySharedCalendar(
             snapshot: SharedCalendarSnapshot(
@@ -194,6 +191,47 @@ struct CalendarDisplayEventRepositoryTests {
         #expect(cycle.breakDays == 4)
         #expect(cycle.autoRecordEnabled == true)
         #expect(cycle.status == .completed)
+    }
+
+    @Test
+    func committedSnapshotReplacesEventsAndSettingsTogether() {
+        let runtimeStore = makeRuntimeStore()
+        let repository = CalendarDisplayEventRepository(
+            localRepository: RecordingDisplayEventRepository(events: []),
+            runtimeStore: runtimeStore,
+            calendar: calendar
+        )
+        let committedSettings = SharedCalendarComputationSettings(
+            period: PeriodSettings(averageCycleDays: 31),
+            pill: PillSettings(pillEnabled: true, pillCount: 24)
+        )
+        let sharedDate = makeDate(2026, 7, 8)
+
+        repository.prepareSharedCalendar(
+            connectionID: "shared-calendar"
+        )
+        repository.displaySharedCalendar(
+            snapshot: SharedCalendarSnapshot(
+                events: [
+                    SharedCalendarEvent(
+                        id: UUID(),
+                        day: CalendarDay(
+                            date: sharedDate,
+                            calendar: calendar
+                        ),
+                        type: .period
+                    )
+                ],
+                pillCycles: [],
+                computationSettings: committedSettings,
+                publicationVersion: "version-2"
+            )
+        )
+
+        #expect(repository.allEvents().map(\.type) == [.period])
+        #expect(repository.load().period.averageCycleDays == 31)
+        #expect(repository.load().pill.pillEnabled)
+        #expect(repository.load().pill.pillCount == 24)
     }
 
     private func makeDate(_ year: Int, _ month: Int, _ day: Int) -> Date {

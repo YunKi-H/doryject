@@ -106,18 +106,6 @@ final class FirestoreCalendarConnectionRepository:
         )
     }
 
-    func updateSharedEventTypes(
-        connectionID: String,
-        ownerID: String,
-        selection: SharedEventTypeSelection
-    ) async throws {
-        try await connectionStore.updateSharedEventTypes(
-            connectionID: connectionID,
-            ownerID: ownerID,
-            selection: selection
-        )
-    }
-
     func resumePendingDisconnect(
         for userID: String
     ) async throws -> Bool {

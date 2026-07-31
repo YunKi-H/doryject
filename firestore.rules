@@ -136,7 +136,12 @@ service cloud.firestore {
               "pillCount",
               "pillBreakDuration",
               "calculationUpdatedAt",
-              "calculationUpdatedBy"
+              "calculationUpdatedBy",
+              "contentVersion",
+              "contentEventCount",
+              "contentPillCycleCount",
+              "contentUpdatedAt",
+              "contentUpdatedBy"
             ])
           && (
             !request.resource.data.diff(resource.data).affectedKeys()
@@ -155,6 +160,33 @@ service cloud.firestore {
                 "pillBreakDuration"
               ])
             || request.resource.data.calculationUpdatedBy == request.auth.uid
+          )
+          && (
+            !request.resource.data.diff(resource.data).affectedKeys()
+              .hasAny([
+                "contentVersion",
+                "contentEventCount",
+                "contentPillCycleCount"
+              ])
+            || request.resource.data.contentUpdatedBy == request.auth.uid
+          )
+          && (
+            !("contentVersion" in resource.data)
+            || !request.resource.data.diff(resource.data).affectedKeys()
+              .hasAny([
+                "sharedPeriod",
+                "sharedPill",
+                "sharedLove",
+                "periodAutoCyclePredictionEnabled",
+                "periodAverageCycleDays",
+                "periodAveragePeriodDays",
+                "pillEnabled",
+                "pillAutoRecordEnabled",
+                "pillCount",
+                "pillBreakDuration"
+              ])
+            || request.resource.data.diff(resource.data).affectedKeys()
+              .hasAny(["contentVersion"])
           );
       }
 
@@ -216,6 +248,24 @@ service cloud.firestore {
         && (
           !("pillBreakDuration" in request.resource.data)
           || request.resource.data.pillBreakDuration is int
+        )
+        && (
+          !("contentVersion" in request.resource.data)
+          || request.resource.data.contentVersion is string
+        )
+        && (
+          !("contentEventCount" in request.resource.data)
+          || (
+            request.resource.data.contentEventCount is int
+            && request.resource.data.contentEventCount >= 0
+          )
+        )
+        && (
+          !("contentPillCycleCount" in request.resource.data)
+          || (
+            request.resource.data.contentPillCycleCount is int
+            && request.resource.data.contentPillCycleCount >= 0
+          )
         );
 
       allow delete: if signedIn()
@@ -230,7 +280,17 @@ service cloud.firestore {
           && isActive(connection())
           && request.auth.uid == connection().ownerID
           && request.resource.data.ownerID == request.auth.uid
-          && request.resource.data.eventID == eventID
+          && request.resource.data.eventID is string
+          && (
+            (
+              "publicationVersion" in request.resource.data
+              && request.resource.data.publicationVersion is string
+            )
+            || (
+              !("publicationVersion" in request.resource.data)
+              && request.resource.data.eventID == eventID
+            )
+          )
           && request.resource.data.dayKey is int
           && request.resource.data.typeRaw in ["period", "pill", "love"]
           && (
@@ -246,15 +306,24 @@ service cloud.firestore {
             "dayKey",
             "typeRaw",
             "pillCycleID",
+            "publicationVersion",
             "updatedAt"
           ]);
 
         allow delete: if signedIn()
           && (
-            request.auth.uid == connection().ownerID
-            || (
+            (
               connection().status == "terminating"
               && request.auth.uid in connection().participantIDs
+            )
+            || (
+              request.auth.uid == connection().ownerID
+              && (
+                !("publicationVersion" in resource.data)
+                || !("contentVersion" in connection())
+                || resource.data.publicationVersion
+                  != connection().contentVersion
+              )
             )
           );
       }
@@ -267,7 +336,17 @@ service cloud.firestore {
           && isActive(connection())
           && request.auth.uid == connection().ownerID
           && request.resource.data.ownerID == request.auth.uid
-          && request.resource.data.cycleID == cycleID
+          && request.resource.data.cycleID is string
+          && (
+            (
+              "publicationVersion" in request.resource.data
+              && request.resource.data.publicationVersion is string
+            )
+            || (
+              !("publicationVersion" in request.resource.data)
+              && request.resource.data.cycleID == cycleID
+            )
+          )
           && request.resource.data.startDayKey is int
           && request.resource.data.statusRaw in ["active", "completed"]
           && (
@@ -296,15 +375,24 @@ service cloud.firestore {
             "breakDays",
             "autoRecordEnabled",
             "statusRaw",
+            "publicationVersion",
             "updatedAt"
           ]);
 
         allow delete: if signedIn()
           && (
-            request.auth.uid == connection().ownerID
-            || (
+            (
               connection().status == "terminating"
               && request.auth.uid in connection().participantIDs
+            )
+            || (
+              request.auth.uid == connection().ownerID
+              && (
+                !("publicationVersion" in resource.data)
+                || !("contentVersion" in connection())
+                || resource.data.publicationVersion
+                  != connection().contentVersion
+              )
             )
           );
       }
