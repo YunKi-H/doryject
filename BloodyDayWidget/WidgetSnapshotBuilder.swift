@@ -9,7 +9,7 @@ import Foundation
 
 enum WidgetSnapshotBuilder {
     static func build(
-        today: Date = .now,
+        today: Date = Date(),
         calendar: Calendar = .autoupdatingCurrent
     ) -> WidgetSnapshot {
         let normalizedToday = calendar.startOfDay(for: today)

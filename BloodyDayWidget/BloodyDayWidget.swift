@@ -500,7 +500,7 @@ private func lockScreenChipIcon(_ chip: WidgetChipSnapshot) -> some View {
 
 private extension WidgetSnapshot {
     static let placeholder = WidgetSnapshot(
-        generatedAt: .now,
+        generatedAt: Date(),
         primaryText: "B-3",
         primarySubText: nil,
         chips: [
@@ -515,5 +515,5 @@ private extension WidgetSnapshot {
 #Preview(as: .systemSmall) {
     BloodyDayWidget()
 } timeline: {
-    SimpleEntry(date: .now, configuration: .init(), snapshot: .placeholder)
+    SimpleEntry(date: Date(), configuration: .init(), snapshot: .placeholder)
 }

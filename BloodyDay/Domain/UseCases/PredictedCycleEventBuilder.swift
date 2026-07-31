@@ -15,7 +15,7 @@ enum PredictedCycleEventBuilder {
         predictedLengthDays: Int,
         today: Date,
         lutealDays: Int = 14,
-        calendar: Calendar = .current
+        calendar: Calendar = .autoupdatingCurrent
     ) -> [Date: [EventType]] {
         let normalizedStart = calendar.startOfDay(for: rangeStart)
         let normalizedEnd = calendar.startOfDay(for: rangeEndExclusive)

@@ -18,7 +18,7 @@ enum BuildCalendarMonthsUseCase {
         keepingMonth: Date,
         previousCurrentIndex: Int,
         allEvents: [UserEvent],
-        calendar: Calendar = .current,
+        calendar: Calendar = .autoupdatingCurrent,
         buildContext: (_ bounds: (start: Date, endExclusive: Date), _ userEvents: [UserEvent]) -> Context,
         makeMonthInfo: (_ month: Date, _ userEvents: [UserEvent], _ context: Context) -> MonthInfo
     ) -> Result {

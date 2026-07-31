@@ -18,12 +18,22 @@ struct PeriodEditSheetView: View {
     @State private var selectedPeriodDates: Set<Date> = []
     @State private var originalPeriodDates: Set<Date> = []
     @State private var datePickerPresented: Bool = false
-    @State private var newDate: Date = .now
+    @State private var newDate: Date
     @State private var discardPopoverPresented: Bool = false
+
+    private let referenceToday: Date
     
-    init(viewModel: PeriodListViewModel, initialDate: Date = .now) {
+    init(
+        viewModel: PeriodListViewModel,
+        initialDate: Date = Date(),
+        now: Date = Date(),
+        calendar: Calendar = .autoupdatingCurrent
+    ) {
         self.viewModel = viewModel
-        self._selectedDate = State(initialValue: initialDate.startOfDay)
+        let referenceToday = calendar.startOfDay(for: now)
+        self.referenceToday = referenceToday
+        self._selectedDate = State(initialValue: calendar.startOfDay(for: initialDate))
+        self._newDate = State(initialValue: referenceToday)
     }
     
     var body: some View {
@@ -37,6 +47,7 @@ struct PeriodEditSheetView: View {
                             CalendarView(
                                 month: month,
                                 selectedDate: selectedDate,
+                                referenceToday: referenceToday,
                                 onSelectDate: { date in
                                     togglePeriod(on: date)
                                 }
@@ -205,7 +216,7 @@ struct PeriodEditSheetView: View {
                 Spacer()
                 
                 Button {
-                    selectDate(.now)
+                    selectDate(referenceToday)
                 } label: {
                     Text("오늘")
                         .font(.medium_16)

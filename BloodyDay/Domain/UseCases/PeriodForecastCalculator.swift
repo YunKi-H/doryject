@@ -40,7 +40,9 @@ struct PillCycleProjection {
     
     var cycleLength: Int { pillCount + breakDays }
 
-    func activeDateRange(calendar: Calendar = .current) -> DateInterval? {
+    func activeDateRange(
+        calendar: Calendar = .autoupdatingCurrent
+    ) -> DateInterval? {
         let normalizedStart = calendar.startOfDay(for: cycleStart)
         let normalizedLastIntake = calendar.startOfDay(for: projectedLastIntakeDate)
         guard let rawEndExclusive = calendar.date(
@@ -66,7 +68,7 @@ enum PeriodForecastCalculator {
         periodSummaries: [PeriodSummary],
         pillDates: Set<Date>,
         pillCycles: [PillCycleInfo] = [],
-        calendar: Calendar = .current
+        calendar: Calendar = .autoupdatingCurrent
     ) -> PeriodPredictionContext? {
         let normalizedTarget = calendar.startOfDay(for: target)
         let predictedLength = predictedPeriodLengthDays(settings: settings, periodSummaries: periodSummaries)
@@ -137,7 +139,7 @@ enum PeriodForecastCalculator {
         target: Date,
         today: Date = Date(),
         context: PeriodPredictionContext,
-        calendar: Calendar = .current
+        calendar: Calendar = .autoupdatingCurrent
     ) -> Date? {
         let normalizedTarget = calendar.startOfDay(for: target)
         let normalizedToday = calendar.startOfDay(for: today)
@@ -184,7 +186,7 @@ enum PeriodForecastCalculator {
         for date: Date,
         predictedStarts: [Date],
         predictedLength: Int,
-        calendar: Calendar = .current
+        calendar: Calendar = .autoupdatingCurrent
     ) -> Date? {
         let target = calendar.startOfDay(for: date)
         let length = max(predictedLength, 1)
@@ -206,7 +208,7 @@ enum PeriodForecastCalculator {
     
     static func mostRecentPillStart(
         from pillDates: Set<Date>,
-        calendar: Calendar = .current
+        calendar: Calendar = .autoupdatingCurrent
     ) -> Date? {
         guard pillDates.isEmpty == false else { return nil }
         let normalizedPillDates = Set(
@@ -234,7 +236,7 @@ enum PeriodForecastCalculator {
         pillCount: Int,
         breakDays: Int,
         pillCycles: [PillCycleInfo] = [],
-        calendar: Calendar = .current
+        calendar: Calendar = .autoupdatingCurrent
     ) -> [Date: Int] {
         PillCycleCalculator.sequenceMap(
             pillDates: pillDates,
@@ -249,7 +251,7 @@ enum PeriodForecastCalculator {
         settings: UserSettings,
         pillDates: Set<Date>,
         pillCycles: [PillCycleInfo] = [],
-        calendar: Calendar = .current
+        calendar: Calendar = .autoupdatingCurrent
     ) -> PillCycleProjection? {
         let pill = settings.pill
         guard pill.pillEnabled else { return nil }
@@ -357,7 +359,7 @@ enum PeriodForecastCalculator {
         pillDates: Set<Date>,
         pillCycles: [PillCycleInfo] = [],
         on date: Date,
-        calendar: Calendar = .current
+        calendar: Calendar = .autoupdatingCurrent
     ) -> PillCycleProjection? {
         guard let projection = latestPillCycleProjection(
             settings: settings,
@@ -397,7 +399,7 @@ enum PeriodForecastCalculator {
         predictedEventsByDay: inout [Date: [EventType]],
         actualPeriodSummaries: [PeriodSummary],
         estimatedCycleLength: Int?,
-        calendar: Calendar = .current
+        calendar: Calendar = .autoupdatingCurrent
     ) {
         let actualPeriodDates = actualPeriodDateSet(
             from: actualPeriodSummaries,
@@ -464,7 +466,7 @@ enum PeriodForecastCalculator {
         predictedLength: Int,
         actualPeriodSummaries: [PeriodSummary],
         estimatedCycleLength: Int?,
-        calendar: Calendar = .current
+        calendar: Calendar = .autoupdatingCurrent
     ) -> [Date] {
         guard rawStarts.isEmpty == false else { return [] }
 
@@ -525,7 +527,7 @@ enum PeriodForecastCalculator {
         periodSummaries: [PeriodSummary],
         pillDates: Set<Date>,
         pillCycles: [PillCycleInfo] = [],
-        calendar: Calendar = .current
+        calendar: Calendar = .autoupdatingCurrent
     ) -> [Date] {
         let normalizedToday = calendar.startOfDay(for: today)
         guard let context = predictionContext(

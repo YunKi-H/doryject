@@ -47,6 +47,7 @@ struct ToggleTodayEventIntent: AppIntent {
     }
     
     func perform() async throws -> some IntentResult {
+        let now = Date()
         let sharingState = WidgetCalendarSharingStateStore().load()
         guard CalendarSharingRuntimeStore().load() == nil,
               sharingState?.role != .viewer else {
@@ -56,7 +57,7 @@ struct ToggleTodayEventIntent: AppIntent {
         let settingsRepository = WidgetSettingsRepository()
         let mutationResult = WidgetSharedEventStore.toggle(
             eventType.widgetType,
-            on: .now
+            on: now
         )
         guard case .success(let toggledOn) = mutationResult else {
             WidgetCenter.shared.reloadAllTimelines()
@@ -65,7 +66,7 @@ struct ToggleTodayEventIntent: AppIntent {
         if eventType == .pill, toggledOn {
             enablePillIfNeeded(settingsRepository: settingsRepository)
         }
-        rebuildSnapshot()
+        rebuildSnapshot(today: now)
         WidgetCenter.shared.reloadAllTimelines()
 
         if sharingState?.role == .owner {
@@ -81,7 +82,8 @@ struct ToggleTodayEventIntent: AppIntent {
         if eventType != .love {
             await rescheduleNotifications(
                 settings: settingsRepository.load(),
-                eventReader: eventReader
+                eventReader: eventReader,
+                now: now
             )
         }
         await resyncAppleCalendar(
@@ -91,9 +93,9 @@ struct ToggleTodayEventIntent: AppIntent {
         return .result()
     }
     
-    private func rebuildSnapshot() {
+    private func rebuildSnapshot(today: Date) {
         let store = WidgetSnapshotStore()
-        store.save(WidgetSnapshotBuilder.build())
+        store.save(WidgetSnapshotBuilder.build(today: today))
     }
     
     private func enablePillIfNeeded(settingsRepository: WidgetSettingsRepository) {
@@ -104,9 +106,10 @@ struct ToggleTodayEventIntent: AppIntent {
 
     private func rescheduleNotifications(
         settings: UserSettings,
-        eventReader: WidgetEventReader
+        eventReader: WidgetEventReader,
+        now: Date
     ) async {
-        await UserNotificationScheduler().applyAndWait(
+        await UserNotificationScheduler(nowProvider: { now }).applyAndWait(
             settings: settings,
             eventReader: eventReader
         )

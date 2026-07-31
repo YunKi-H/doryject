@@ -10,6 +10,7 @@ import SwiftUI
 struct CalendarView: View {
     let month: MonthInfo
     let selectedDate: Date
+    let referenceToday: Date
     let onSelectDate: (Date) -> Void
     
     private let columns = 7
@@ -42,7 +43,8 @@ struct CalendarView: View {
                                         day: day,
                                         isSelected: selectedDate.isSameDay(as: day.date),
                                         isPredictedPeriodDay: month.predictedPeriodDates.contains(day.date.startOfDay),
-                                        monthDate: month.monthDate
+                                        monthDate: month.monthDate,
+                                        referenceToday: referenceToday
                                     ) { date in
                                         onSelectDate(date)
                                     }
@@ -70,22 +72,23 @@ struct CalendarView: View {
 }
 
 #Preview {
+    let calendar = Calendar.autoupdatingCurrent
     let baseDate = Date().startOfCalendarGrid()
     let days = (0..<42).map { offset in
-        let date = Calendar.current.date(byAdding: .day, value: offset, to: baseDate)!
+        let date = calendar.date(byAdding: .day, value: offset, to: baseDate)!
         let event: [DayEvent] = offset == 10 ? [.init(type: .pill), .init(type: .love)] : []
         return DayInfo(date: date, events: event)
     }
     
     CalendarView(
         month: .init(
-            monthDate: .now,
+            monthDate: Date(),
             days: days,
             periodRanges: [
                 CalendarRangeInfo(
                     range: DateInterval(
-                        start: Calendar.current.date(byAdding: .day, value: 3, to: baseDate)!,
-                        end: Calendar.current.date(byAdding: .day, value: 5, to: baseDate)!
+                        start: calendar.date(byAdding: .day, value: 3, to: baseDate)!,
+                        end: calendar.date(byAdding: .day, value: 5, to: baseDate)!
                     ),
                     opacity: 1
                 )
@@ -95,8 +98,8 @@ struct CalendarView: View {
             delayedRanges: [
                 CalendarRangeInfo(
                     range: DateInterval(
-                        start: Calendar.current.date(byAdding: .day, value: 3, to: baseDate)!,
-                        end: Calendar.current.date(byAdding: .day, value: 5, to: baseDate)!
+                        start: calendar.date(byAdding: .day, value: 3, to: baseDate)!,
+                        end: calendar.date(byAdding: .day, value: 5, to: baseDate)!
                     ),
                     opacity: 1
                 )
@@ -104,8 +107,8 @@ struct CalendarView: View {
             fertileRanges: [
                 CalendarRangeInfo(
                     range: DateInterval(
-                        start: Calendar.current.date(byAdding: .day, value: 14, to: baseDate)!,
-                        end: Calendar.current.date(byAdding: .day, value: 19, to: baseDate)!
+                        start: calendar.date(byAdding: .day, value: 14, to: baseDate)!,
+                        end: calendar.date(byAdding: .day, value: 19, to: baseDate)!
                     ),
                     opacity: 1
                 )
@@ -113,14 +116,15 @@ struct CalendarView: View {
             ovulationRanges: [
                 CalendarRangeInfo(
                     range: DateInterval(
-                        start: Calendar.current.date(byAdding: .day, value: 15, to: baseDate)!,
-                        end: Calendar.current.date(byAdding: .day, value: 18, to: baseDate)!
+                        start: calendar.date(byAdding: .day, value: 15, to: baseDate)!,
+                        end: calendar.date(byAdding: .day, value: 18, to: baseDate)!
                     ),
                     opacity: 1
                 )
             ]
         ),
-        selectedDate: .now,
+        selectedDate: Date(),
+        referenceToday: Date(),
         onSelectDate: { _ in }
     )
 }

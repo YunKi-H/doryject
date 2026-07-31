@@ -24,7 +24,7 @@ enum BuildCalendarMonthComputationContextUseCase {
         pillCycles: [PillCycleInfo] = [],
         settings: UserSettings,
         today: Date,
-        calendar: Calendar = .current
+        calendar: Calendar = .autoupdatingCurrent
     ) -> MonthComputationContext {
         let normalizedToday = calendar.startOfDay(for: today)
         let groupedEvents = Dictionary(grouping: userEvents) {

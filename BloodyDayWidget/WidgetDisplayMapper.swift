@@ -26,7 +26,7 @@ enum WidgetDisplayMapper {
     static func primarySubText(
         from snapshot: DayInfoCardPrimarySnapshot,
         referenceDate: Date,
-        calendar: Calendar = .current
+        calendar: Calendar = .autoupdatingCurrent
     ) -> String? {
         switch snapshot {
         case .countdown(let days):

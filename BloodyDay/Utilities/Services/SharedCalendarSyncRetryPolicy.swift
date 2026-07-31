@@ -106,12 +106,12 @@ struct SharedCalendarSyncRetryStore {
         save(policy.newlyPendingState)
     }
 
-    func recordFailure(now: Date = .now) {
+    func recordFailure(now: Date = Date()) {
         let currentState = state ?? policy.newlyPendingState
         save(policy.stateAfterFailure(currentState, now: now))
     }
 
-    func shouldRetry(now: Date = .now) -> Bool {
+    func shouldRetry(now: Date = Date()) -> Bool {
         guard let state else { return false }
         return policy.shouldRetry(state, now: now)
     }

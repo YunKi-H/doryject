@@ -32,6 +32,7 @@ struct CalendarMainView: View {
         VStack(spacing: 0) {
             CalendarHeaderView(
                 month: viewModel.months[viewModel.currentIndex].monthDate,
+                referenceToday: viewModel.referenceToday,
                 onSelectDate: { date in
                     viewModel.selectDate(date)
                     withAnimation {
@@ -52,6 +53,7 @@ struct CalendarMainView: View {
                         CalendarView(
                             month: month,
                             selectedDate: viewModel.selectedDate,
+                            referenceToday: viewModel.referenceToday,
                             onSelectDate: {
                                 if viewModel.canEditEvents,
                                    viewModel.selectedDate.isSameDay(as: $0) {

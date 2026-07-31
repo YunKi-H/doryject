@@ -88,7 +88,7 @@ final class SharedCalendarSyncScheduler: SharedCalendarSyncScheduling {
     }
 
     private func scheduleAutomaticRetryIfNeeded(
-        now: Date = .now
+        now: Date = Date()
     ) {
         guard let nextRetryDate = retryStore.nextRetryDate else {
             return

@@ -66,7 +66,7 @@ final class PreviewCalendarConnectionRepository: CalendarConnectionRepository {
                 ? request.senderDisplayName
                 : recipient.displayName,
             sharedEventTypes: SharedEventTypeSelection(),
-            createdAt: .now
+            createdAt: Date()
         )
         connection = acceptedConnection
         return acceptedConnection

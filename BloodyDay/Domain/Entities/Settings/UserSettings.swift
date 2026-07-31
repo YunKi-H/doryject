@@ -7,6 +7,16 @@
 
 import Foundation
 
+extension KeyedDecodingContainer {
+    func decode<T: Decodable>(
+        _ type: T.Type,
+        forKey key: Key,
+        default defaultValue: @autoclosure () -> T
+    ) throws -> T {
+        try decodeIfPresent(type, forKey: key) ?? defaultValue()
+    }
+}
+
 struct UserSettings: Codable {
     var period: PeriodSettings = .init()
     var pill: PillSettings = .init()
@@ -38,10 +48,10 @@ struct UserSettings: Codable {
     
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        period = try container.decodeIfPresent(PeriodSettings.self, forKey: .period) ?? .init()
-        pill = try container.decodeIfPresent(PillSettings.self, forKey: .pill) ?? .init()
-        notifications = try container.decodeIfPresent(NotificationSettings.self, forKey: .notifications) ?? .init()
-        appleCalendar = try container.decodeIfPresent(AppleCalendarSettings.self, forKey: .appleCalendar) ?? .init()
-        appearance = try container.decodeIfPresent(AppearanceSettings.self, forKey: .appearance) ?? .init()
+        period = try container.decode(PeriodSettings.self, forKey: .period, default: .init())
+        pill = try container.decode(PillSettings.self, forKey: .pill, default: .init())
+        notifications = try container.decode(NotificationSettings.self, forKey: .notifications, default: .init())
+        appleCalendar = try container.decode(AppleCalendarSettings.self, forKey: .appleCalendar, default: .init())
+        appearance = try container.decode(AppearanceSettings.self, forKey: .appearance, default: .init())
     }
 }

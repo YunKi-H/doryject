@@ -176,7 +176,7 @@ final class FirestoreCalendarConnectionStore {
             viewerID: viewerID,
             viewerDisplayName: viewerDisplayName,
             sharedEventTypes: SharedEventTypeSelection(),
-            createdAt: .now
+            createdAt: Date()
         )
 
         let batch = database.batch()

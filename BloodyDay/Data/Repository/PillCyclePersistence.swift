@@ -14,8 +14,8 @@ enum PillCyclePersistence {
     static func migrateIfNeeded(
         in context: ModelContext,
         settings: UserSettings,
-        today: Date = .now,
-        calendar: Calendar = .current
+        today: Date = Date(),
+        calendar: Calendar = .autoupdatingCurrent
     ) {
         do {
             guard try context.fetchCount(FetchDescriptor<PillCycle>()) == 0 else { return }
@@ -59,7 +59,7 @@ enum PillCyclePersistence {
 
     static func cycleInfos(
         in context: ModelContext,
-        calendar: Calendar = .current
+        calendar: Calendar = .autoupdatingCurrent
     ) -> [PillCycleInfo] {
         do {
             let cycles = try context.fetch(
@@ -97,7 +97,7 @@ enum PillCyclePersistence {
         to event: UserEvent,
         in context: ModelContext,
         settings: UserSettings,
-        calendar: Calendar = .current
+        calendar: Calendar = .autoupdatingCurrent
     ) throws {
         guard event.type == .pill, event.pillCycleID == nil else { return }
 
@@ -186,7 +186,7 @@ enum PillCyclePersistence {
     static func cleanupAfterDeletion(
         cycleIDs: Set<UUID>,
         in context: ModelContext,
-        calendar: Calendar = .current
+        calendar: Calendar = .autoupdatingCurrent
     ) throws {
         guard cycleIDs.isEmpty == false else { return }
 

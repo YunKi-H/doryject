@@ -31,7 +31,7 @@ enum WidgetSharedEventStore {
     static func toggle(
         _ type: EventType,
         on date: Date,
-        calendar: Calendar = .current
+        calendar: Calendar = .autoupdatingCurrent
     ) -> Result<Bool, Error> {
         guard CalendarSharingRuntimeStore().load() == nil else {
             return .failure(MutationError.readOnlyCalendar)
@@ -88,7 +88,7 @@ enum WidgetSharedEventStore {
     
     static func allEvents() -> [UserEvent] {
         let context = ModelContext(sharedContainer)
-        let calendar = Calendar.current
+        let calendar = Calendar.autoupdatingCurrent
         PillCyclePersistence.migrateIfNeeded(
             in: context,
             settings: loadSettings(),
@@ -108,7 +108,7 @@ enum WidgetSharedEventStore {
 
     static func pillCycles() -> [PillCycleInfo] {
         let context = ModelContext(sharedContainer)
-        let calendar = Calendar.current
+        let calendar = Calendar.autoupdatingCurrent
         PillCyclePersistence.migrateIfNeeded(
             in: context,
             settings: loadSettings(),

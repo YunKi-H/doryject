@@ -29,7 +29,7 @@ final class PillCycle {
         breakDays: Int?,
         autoRecordEnabled: Bool?,
         status: PillCycleStatus,
-        calendar: Calendar = .current
+        calendar: Calendar = .autoupdatingCurrent
     ) {
         self.id = id
         self.startDate = calendar.startOfDay(for: startDate)

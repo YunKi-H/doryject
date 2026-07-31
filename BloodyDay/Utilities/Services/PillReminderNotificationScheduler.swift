@@ -11,38 +11,7 @@ import UserNotifications
 enum PillReminderNotificationScheduler {
     static let identifiers = (0..<3).map { "notification.pill.reminder.\($0)" }
 
-    static func apply(
-        settings: UserSettings,
-        pillDates: Set<Date>,
-        pillCycles: [PillCycleInfo] = [],
-        now: Date = .now,
-        calendar: Calendar = .current,
-        center: UNUserNotificationCenter = .current()
-    ) {
-        let requests = notificationRequests(
-            settings: settings,
-            pillDates: pillDates,
-            pillCycles: pillCycles,
-            now: now,
-            calendar: calendar
-        )
-        removeUnusedRequests(from: requests, center: center)
-
-        for request in requests {
-            center.add(request)
-        }
-    }
-
-    private static func removeUnusedRequests(
-        from requests: [UNNotificationRequest],
-        center: UNUserNotificationCenter
-    ) {
-        let activeIdentifiers = Set(requests.map(\.identifier))
-        let unusedIdentifiers = identifiers.filter { !activeIdentifiers.contains($0) }
-        center.removePendingNotificationRequests(withIdentifiers: unusedIdentifiers)
-    }
-
-    private static func notificationRequests(
+    static func notificationRequests(
         settings: UserSettings,
         pillDates: Set<Date>,
         pillCycles: [PillCycleInfo],

@@ -10,7 +10,7 @@ import SwiftUI
 struct PeriodListView: View {
     @State private var editSheetIsPresented: Bool = false
     @State private var settingSheetIsPresented: Bool = false
-    @State private var editSheetAnchorDate: Date = .now
+    @State private var editSheetAnchorDate = Date()
     @Bindable var viewModel: PeriodListViewModel
     @Bindable var periodSettingViewModel: PeriodSettingViewModel
     
@@ -138,7 +138,7 @@ struct PeriodListView: View {
             
             HStack(spacing: 0) {
                 Button {
-                    editSheetAnchorDate = .now
+                    editSheetAnchorDate = Date()
                     editSheetIsPresented = true
                 } label: {
                     Image(systemName: "calendar.badge.plus")

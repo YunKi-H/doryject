@@ -12,7 +12,7 @@ enum Weekday: Int {
 }
 
 extension Date {
-    private var calendar: Calendar { Calendar.current }
+    private var calendar: Calendar { .autoupdatingCurrent }
 
     func component(_ component: Calendar.Component, calendar: Calendar) -> Int {
         calendar.component(component, from: self)
@@ -143,7 +143,7 @@ extension Date {
         from start: Date,
         to end: Date,
         step component: Calendar.Component = .day,
-        calendar: Calendar = .current
+        calendar: Calendar = .autoupdatingCurrent
     ) -> [Date] {
         var result: [Date] = []
         var current = start
@@ -159,7 +159,7 @@ extension Date {
         from start: Date,
         toExclusive endExclusive: Date,
         step component: Calendar.Component = .day,
-        calendar: Calendar = .current
+        calendar: Calendar = .autoupdatingCurrent
     ) -> [Date] {
         var result: [Date] = []
         var current = start
@@ -172,6 +172,6 @@ extension Date {
     
     // MARK: - Controls
     func addingMonths(_ month: Int) -> Date {
-        Calendar.current.date(byAdding: .month, value: month, to: self)!
+        Calendar.autoupdatingCurrent.date(byAdding: .month, value: month, to: self)!
     }
 }

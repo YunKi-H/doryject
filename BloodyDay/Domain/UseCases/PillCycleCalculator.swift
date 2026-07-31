@@ -12,7 +12,7 @@ enum PillCycleCalculator {
         pillDates: Set<Date>,
         pillCount: Int,
         breakDays: Int,
-        calendar: Calendar = .current
+        calendar: Calendar = .autoupdatingCurrent
     ) -> [[Date]] {
         let sorted = pillDates.map { calendar.startOfDay(for: $0) }.sorted()
         guard sorted.isEmpty == false else { return [] }
@@ -46,7 +46,7 @@ enum PillCycleCalculator {
         pillCount: Int,
         breakDays: Int,
         pillCycles: [PillCycleInfo] = [],
-        calendar: Calendar = .current
+        calendar: Calendar = .autoupdatingCurrent
     ) -> [Date: Int] {
         guard pillDates.isEmpty == false else { return [:] }
 
@@ -96,7 +96,7 @@ enum PillCycleCalculator {
     static func cycleInfo(
         containing target: Date,
         pillCycles: [PillCycleInfo],
-        calendar: Calendar = .current
+        calendar: Calendar = .autoupdatingCurrent
     ) -> PillCycleInfo? {
         let normalizedTarget = calendar.startOfDay(for: target)
         return pillCycles.first {
@@ -110,7 +110,7 @@ enum PillCycleCalculator {
         pillDates: Set<Date>,
         pillCount: Int,
         breakDays: Int,
-        calendar: Calendar = .current
+        calendar: Calendar = .autoupdatingCurrent
     ) -> [Date]? {
         groupedCycles(
             pillDates: pillDates,
@@ -125,7 +125,7 @@ enum PillCycleCalculator {
         pillDates: Set<Date>,
         pillCount: Int,
         breakDays: Int,
-        calendar: Calendar = .current
+        calendar: Calendar = .autoupdatingCurrent
     ) -> [Date]? {
         let normalizedTarget = calendar.startOfDay(for: target)
         return groupedCycles(
@@ -140,7 +140,7 @@ enum PillCycleCalculator {
         projectedLastIntakeDate: Date,
         breakDays: Int,
         on date: Date,
-        calendar: Calendar = .current
+        calendar: Calendar = .autoupdatingCurrent
     ) -> Bool {
         let normalizedDate = calendar.startOfDay(for: date)
         let normalizedLastIntake = calendar.startOfDay(for: projectedLastIntakeDate)
