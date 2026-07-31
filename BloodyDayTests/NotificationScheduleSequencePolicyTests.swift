@@ -13,10 +13,15 @@ struct NotificationScheduleSequencePolicyTests {
     func onlyAppliesSubmissionsNewerThanTheLatestAppliedSequence() {
         var policy = NotificationScheduleSequencePolicy()
 
-        #expect(policy.shouldApply(1))
-        #expect(policy.shouldApply(3))
-        #expect(policy.shouldApply(2) == false)
-        #expect(policy.shouldApply(3) == false)
+        let appliesFirstSequence = policy.shouldApply(1)
+        let appliesNewestSequence = policy.shouldApply(3)
+        let appliesOlderSequence = policy.shouldApply(2)
+        let reappliesLatestSequence = policy.shouldApply(3)
+
+        #expect(appliesFirstSequence)
+        #expect(appliesNewestSequence)
+        #expect(appliesOlderSequence == false)
+        #expect(reappliesLatestSequence == false)
         #expect(policy.latestAppliedSequence == 3)
     }
 }
