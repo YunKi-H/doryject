@@ -40,6 +40,12 @@ struct CalendarSharingSettingView: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            viewModel.setCalendarSharingPageVisible(true)
+        }
+        .onDisappear {
+            viewModel.setCalendarSharingPageVisible(false)
+        }
         .task(id: viewModel.user?.id) {
             await viewModel.refreshSharingState()
         }

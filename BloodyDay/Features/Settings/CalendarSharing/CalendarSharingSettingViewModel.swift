@@ -33,6 +33,7 @@ final class CalendarSharingSettingViewModel {
     private(set) var isSendingRequest = false
     private(set) var isDisconnecting = false
     private(set) var isDisconnectRecoveryPending = false
+    private(set) var isCalendarSharingPageVisible = false
     private(set) var statusMessage: String?
     var partnerConnectionCode = ""
     var errorMessage: String?
@@ -96,6 +97,10 @@ final class CalendarSharingSettingViewModel {
 
     func dismissError() {
         errorMessage = nil
+    }
+
+    func setCalendarSharingPageVisible(_ isVisible: Bool) {
+        isCalendarSharingPageVisible = isVisible
     }
 
     func refreshSharingState() async {
