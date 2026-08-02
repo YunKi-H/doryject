@@ -184,7 +184,7 @@ struct CalendarSharingSettingView: View {
             }
 
             Button("로그아웃", role: .destructive) {
-                viewModel.signOut()
+                Task { await viewModel.signOut() }
             }
             .font(.regular_18)
             .foregroundStyle(.mainRed)

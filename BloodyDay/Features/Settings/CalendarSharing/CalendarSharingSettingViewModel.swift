@@ -17,6 +17,7 @@ final class CalendarSharingSettingViewModel {
     private let sharedCalendarSyncScheduler: SharedCalendarSyncScheduling?
     private let sharedEventRepository: SharedCalendarEventRepository?
     private let calendarDisplayUpdater: CalendarDisplayEventUpdating?
+    private let pushDeviceRegistration: PushDeviceRegistering?
     private let widgetSharingStateStore: WidgetCalendarSharingStateStore
     private var currentNonce: String?
     private var connectionObservation: CalendarConnectionObservation?
@@ -44,6 +45,7 @@ final class CalendarSharingSettingViewModel {
         sharedCalendarSyncScheduler: SharedCalendarSyncScheduling? = nil,
         sharedEventRepository: SharedCalendarEventRepository? = nil,
         calendarDisplayUpdater: CalendarDisplayEventUpdating? = nil,
+        pushDeviceRegistration: PushDeviceRegistering? = nil,
         widgetSharingStateStore: WidgetCalendarSharingStateStore = .init()
     ) {
         self.authenticationService = authenticationService
@@ -51,6 +53,7 @@ final class CalendarSharingSettingViewModel {
         self.sharedCalendarSyncScheduler = sharedCalendarSyncScheduler
         self.sharedEventRepository = sharedEventRepository
         self.calendarDisplayUpdater = calendarDisplayUpdater
+        self.pushDeviceRegistration = pushDeviceRegistration
         self.widgetSharingStateStore = widgetSharingStateStore
         self.user = authenticationService.currentUser
     }
@@ -84,8 +87,9 @@ final class CalendarSharingSettingViewModel {
         }
     }
 
-    func signOut() {
+    func signOut() async {
         do {
+            try await pushDeviceRegistration?.unregisterCurrentDevice()
             try authenticationService.signOut()
             stopObservingSharingState()
             user = nil
@@ -309,6 +313,7 @@ final class CalendarSharingSettingViewModel {
                 fullName: appleCredential.fullName
             )
             user = try await authenticationService.signIn(with: credential)
+            await pushDeviceRegistration?.refreshRegistration()
             await refreshSharingState()
         } catch {
             errorMessage = error.localizedDescription

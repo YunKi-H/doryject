@@ -213,7 +213,9 @@ struct BloodyDayRootView: View {
                         connectionRepository: connectionRepository,
                         sharedCalendarSyncScheduler: sharingSyncScheduler,
                         sharedEventRepository: remoteEventRepository,
-                        calendarDisplayUpdater: displayEventRepository
+                        calendarDisplayUpdater: displayEventRepository,
+                        pushDeviceRegistration:
+                            PushDeviceRegistrationService.shared
                     )
                     calendarSharingSettingViewModel = sharingViewModel
                     Task {

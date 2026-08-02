@@ -16,6 +16,26 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys()
           .hasOnly(["displayName"]);
       allow list, delete: if false;
+
+      match /devices/{installationID} {
+        allow get, list, delete: if signedIn()
+          && request.auth.uid == userID;
+        allow create, update: if signedIn()
+          && request.auth.uid == userID
+          && request.resource.data.keys().hasOnly([
+            "installationID",
+            "fcmToken",
+            "platform",
+            "appVersion",
+            "updatedAt"
+          ])
+          && request.resource.data.installationID == installationID
+          && request.resource.data.fcmToken is string
+          && request.resource.data.fcmToken.size() > 0
+          && request.resource.data.platform == "ios"
+          && request.resource.data.appVersion is string
+          && request.resource.data.updatedAt is timestamp;
+      }
     }
 
     match /connectionCodes/{code} {

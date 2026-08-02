@@ -97,6 +97,10 @@ function membershipReference(database, userID) {
   return doc(database, "connectionMemberships", userID);
 }
 
+function deviceReference(database, userID, installationID = "test-fid") {
+  return doc(database, "users", userID, "devices", installationID);
+}
+
 async function seedActiveConnection() {
   await testEnvironment.withSecurityRulesDisabled(async context => {
     const database = context.firestore();
@@ -159,6 +163,59 @@ async function markTerminating(database, requestedBy) {
     terminationStartedAt: serverTimestamp()
   });
 }
+
+describe("push device registration access", () => {
+  test("a signed-in user can manage only their own valid device", async () => {
+    const ownerDatabase = databaseFor(ownerID);
+    const outsiderDatabase = databaseFor(outsiderID);
+    const deviceData = {
+      installationID: "test-fid",
+      fcmToken: "test-fcm-token",
+      platform: "ios",
+      appVersion: "1.3.0",
+      updatedAt: serverTimestamp()
+    };
+
+    await assertSucceeds(
+      setDoc(deviceReference(ownerDatabase, ownerID), deviceData)
+    );
+    await assertSucceeds(
+      getDoc(deviceReference(ownerDatabase, ownerID))
+    );
+    await assertFails(
+      getDoc(deviceReference(outsiderDatabase, ownerID))
+    );
+    await assertFails(
+      setDoc(deviceReference(outsiderDatabase, ownerID), deviceData)
+    );
+    await assertSucceeds(
+      deleteDoc(deviceReference(ownerDatabase, ownerID))
+    );
+  });
+
+  test("device registration rejects mismatched or malformed payloads", async () => {
+    const ownerDatabase = databaseFor(ownerID);
+
+    await assertFails(
+      setDoc(deviceReference(ownerDatabase, ownerID), {
+        installationID: "another-fid",
+        fcmToken: "test-fcm-token",
+        platform: "ios",
+        appVersion: "1.3.0",
+        updatedAt: serverTimestamp()
+      })
+    );
+    await assertFails(
+      setDoc(deviceReference(ownerDatabase, ownerID), {
+        installationID: "test-fid",
+        fcmToken: "",
+        platform: "ios",
+        appVersion: "1.3.0",
+        updatedAt: serverTimestamp()
+      })
+    );
+  });
+});
 
 describe("calendar connection access", () => {
   test("only participants can read a connection and its events", async () => {
