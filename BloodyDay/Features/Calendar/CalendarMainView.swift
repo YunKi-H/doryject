@@ -26,7 +26,7 @@ struct CalendarMainView: View {
     @State private var pillDisablePlan: PillDisableConfirmationPlan?
     @State private var incomingConnectionRequest: CalendarConnectionRequest?
     @State private var connectionRequestToAccept: CalendarConnectionRequest?
-    @State private var lastNotifiedRequestVersion: String?
+    @State private var notifiedRequestVersions: Set<String> = []
     
     var body: some View {
         VStack(spacing: 0) {
@@ -259,6 +259,21 @@ struct CalendarMainView: View {
             _, requests in
             presentNewestConnectionRequestIfNeeded(requests)
         }
+        .onChange(
+            of: calendarSharingViewModel.isCalendarSharingPageVisible
+        ) { _, isVisible in
+            guard isVisible else { return }
+            markRequestsAsNotified(
+                calendarSharingViewModel.incomingRequests
+            )
+            clearConnectionRequestPresentation()
+        }
+        .onChange(of: calendarSharingViewModel.activeConnection?.id) {
+            _, _ in
+            presentNewestConnectionRequestIfNeeded(
+                calendarSharingViewModel.incomingRequests
+            )
+        }
         .onChange(of: viewModel.canEditEvents) { _, canEditEvents in
             if canEditEvents == false {
                 isPresentedEventSheet = false
@@ -298,14 +313,56 @@ struct CalendarMainView: View {
     private func presentNewestConnectionRequestIfNeeded(
         _ requests: [CalendarConnectionRequest]
     ) {
-        guard calendarSharingViewModel.activeConnection == nil,
-              let request = requests.first else {
+        guard calendarSharingViewModel.activeConnection == nil else {
+            clearConnectionRequestPresentation()
             return
         }
-        let version = "\(request.id)|\(request.createdAt.timeIntervalSince1970)"
-        guard version != lastNotifiedRequestVersion else { return }
-        lastNotifiedRequestVersion = version
+
+        guard requests.isEmpty == false else {
+            clearConnectionRequestPresentation()
+            return
+        }
+
+        if calendarSharingViewModel.isCalendarSharingPageVisible {
+            markRequestsAsNotified(requests)
+            clearConnectionRequestPresentation()
+            return
+        }
+
+        if let presentedRequest = incomingConnectionRequest,
+           requests.contains(where: { $0.id == presentedRequest.id }) {
+            return
+        }
+
+        guard let request = requests.first(where: {
+            notifiedRequestVersions.contains(requestVersion($0)) == false
+        }) else {
+            clearConnectionRequestPresentation()
+            return
+        }
+        notifiedRequestVersions = notifiedRequestVersions.union([
+            requestVersion(request)
+        ])
         incomingConnectionRequest = request
+    }
+
+    private func markRequestsAsNotified(
+        _ requests: [CalendarConnectionRequest]
+    ) {
+        notifiedRequestVersions = notifiedRequestVersions.union(
+            requests.map(requestVersion)
+        )
+    }
+
+    private func requestVersion(
+        _ request: CalendarConnectionRequest
+    ) -> String {
+        "\(request.id)|\(request.createdAt.timeIntervalSince1970)"
+    }
+
+    private func clearConnectionRequestPresentation() {
+        incomingConnectionRequest = nil
+        connectionRequestToAccept = nil
     }
 
     private func acceptConnectionRequest(
