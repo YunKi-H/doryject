@@ -24,11 +24,14 @@ final class PushDeviceRegistrationService: PushDeviceRegistering {
     private enum Key {
         static let installationID = "pushDevice.installationID"
         static let fcmToken = "pushDevice.fcmToken"
+        static let synchronizedFingerprint =
+            "pushDevice.synchronizedFingerprint"
     }
 
     private let auth: Auth
     private let firestore: Firestore
     private let defaults: UserDefaults
+    private var synchronizingFingerprints: Set<String> = []
 
     init(
         auth: Auth = .auth(),
@@ -78,6 +81,19 @@ final class PushDeviceRegistrationService: PushDeviceRegistering {
             return
         }
 
+        let fingerprint = registrationFingerprint(
+            userID: userID,
+            installationID: installationID,
+            fcmToken: fcmToken
+        )
+        guard defaults.string(forKey: Key.synchronizedFingerprint)
+                != fingerprint,
+              synchronizingFingerprints.contains(fingerprint) == false else {
+            return
+        }
+        synchronizingFingerprints.insert(fingerprint)
+        defer { synchronizingFingerprints.remove(fingerprint) }
+
         do {
             try await deviceDocument(
                 userID: userID,
@@ -92,6 +108,7 @@ final class PushDeviceRegistrationService: PushDeviceRegistering {
                 ],
                 merge: true
             )
+            defaults.set(fingerprint, forKey: Key.synchronizedFingerprint)
             #if DEBUG
             print("[PushDeviceRegistration] device document saved")
             #endif
@@ -116,6 +133,7 @@ final class PushDeviceRegistrationService: PushDeviceRegistering {
             userID: userID,
             installationID: installationID
         ).delete()
+        defaults.removeObject(forKey: Key.synchronizedFingerprint)
     }
 
     private var storedInstallationID: String? {
@@ -130,6 +148,15 @@ final class PushDeviceRegistrationService: PushDeviceRegistering {
         Bundle.main.object(
             forInfoDictionaryKey: "CFBundleShortVersionString"
         ) as? String ?? "unknown"
+    }
+
+    private func registrationFingerprint(
+        userID: String,
+        installationID: String,
+        fcmToken: String
+    ) -> String {
+        [userID, installationID, fcmToken, appVersion]
+            .joined(separator: "|")
     }
 
     private func refreshInstallationIDAndSynchronize() async {
