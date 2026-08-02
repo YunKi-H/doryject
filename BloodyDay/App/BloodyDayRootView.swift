@@ -29,13 +29,16 @@ struct BloodyDayRootView: View {
     @State private var sharedCalendarSyncScheduler: SharedCalendarSyncScheduler?
     @State private var calendarDisplayEventRepository: CalendarDisplayEventRepository?
     @State private var sharedCalendarEventRepository: FirestoreSharedCalendarEventRepository?
+    @State private var pushNotificationRouter =
+        AppPushNotificationRouter.shared
     
     @State private var activeTab: BloodyDayTab = .calendar
     @State private var isPresentedCalendarSheet: Bool = false
     @State private var pendingDeepLink: AppDeepLink?
+    @State private var navigationPath = NavigationPath()
     
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $navigationPath) {
             TabView(selection: $activeTab) {
                 Tab.init(value: .calendar) {
                     if let viewModel = calendarViewModel,
@@ -213,7 +216,9 @@ struct BloodyDayRootView: View {
                         connectionRepository: connectionRepository,
                         sharedCalendarSyncScheduler: sharingSyncScheduler,
                         sharedEventRepository: remoteEventRepository,
-                        calendarDisplayUpdater: displayEventRepository
+                        calendarDisplayUpdater: displayEventRepository,
+                        pushDeviceRegistration:
+                            PushDeviceRegistrationService.shared
                     )
                     calendarSharingSettingViewModel = sharingViewModel
                     Task {
@@ -222,6 +227,7 @@ struct BloodyDayRootView: View {
                 }
                 refreshAppStateForSystemCalendarChange()
                 consumePendingDeepLinkIfNeeded()
+                consumePendingPushNotificationRouteIfNeeded()
             }
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
                 refreshAppStateForSystemCalendarChange()
@@ -234,6 +240,16 @@ struct BloodyDayRootView: View {
             }
             .onReceive(NotificationCenter.default.publisher(for: .NSSystemTimeZoneDidChange)) { _ in
                 refreshAppStateForSystemCalendarChange()
+            }
+            .onChange(
+                of: pushNotificationRouter.pendingRoute,
+                initial: true
+            ) { _, _ in
+                consumePendingPushNotificationRouteIfNeeded()
+            }
+            .navigationDestination(for: AppPushNotificationRoute.self) {
+                route in
+                pushNotificationDestination(for: route)
             }
         }
         .preferredColorScheme(preferredColorScheme)
@@ -302,6 +318,44 @@ struct BloodyDayRootView: View {
         calendarViewModel?.selectDate(
             date.startOfDay(in: .autoupdatingCurrent)
         )
+    }
+
+    private func consumePendingPushNotificationRouteIfNeeded() {
+        guard let route = pushNotificationRouter.pendingRoute else { return }
+
+        switch route {
+        case .calendarSharing:
+            guard let sharingViewModel = calendarSharingSettingViewModel else {
+                return
+            }
+            activeTab = .calendar
+            isPresentedCalendarSheet = false
+
+            if sharingViewModel.isCalendarSharingPageVisible {
+                pushNotificationRouter.consume(route)
+                return
+            }
+
+            sharingViewModel.setCalendarSharingPageVisible(true)
+            var destinationPath = NavigationPath()
+            destinationPath.append(route)
+            navigationPath = destinationPath
+            pushNotificationRouter.consume(route)
+        }
+    }
+
+    @ViewBuilder
+    private func pushNotificationDestination(
+        for route: AppPushNotificationRoute
+    ) -> some View {
+        switch route {
+        case .calendarSharing:
+            if let viewModel = calendarSharingSettingViewModel {
+                CalendarSharingSettingView(viewModel: viewModel)
+            } else {
+                EmptyView()
+            }
+        }
     }
     
     @ViewBuilder

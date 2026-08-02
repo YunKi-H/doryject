@@ -10,6 +10,8 @@
 		2B3914473014B7DD00910BBF /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 2B3914463014B7DD00910BBF /* FirebaseAuth */; };
 		2B3914493014B7DD00910BBF /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = 2B3914483014B7DD00910BBF /* FirebaseCore */; };
 		2B39144B3014B7DD00910BBF /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 2B39144A3014B7DD00910BBF /* FirebaseFirestore */; };
+		2B6FAE58301F056E006D9182 /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = 2B6FAE57301F056E006D9182 /* FirebaseMessaging */; };
+		2B6FAE59301F056E006D9182 /* FirebaseInstallations in Frameworks */ = {isa = PBXBuildFile; productRef = 2B6FAE5A301F056E006D9182 /* FirebaseInstallations */; };
 		2BE0DABE2F6DA547008394E3 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2BE0DABD2F6DA546008394E3 /* WidgetKit.framework */; };
 		2BE0DAC02F6DA547008394E3 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2BE0DABF2F6DA547008394E3 /* SwiftUI.framework */; };
 		2BE0DACF2F6DA547008394E3 /* BloodyDayWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 2BE0DABB2F6DA546008394E3 /* BloodyDayWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -179,6 +181,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2B6FAE59301F056E006D9182 /* FirebaseInstallations in Frameworks */,
+				2B6FAE58301F056E006D9182 /* FirebaseMessaging in Frameworks */,
 				2B3914493014B7DD00910BBF /* FirebaseCore in Frameworks */,
 				2B3914473014B7DD00910BBF /* FirebaseAuth in Frameworks */,
 				2B39144B3014B7DD00910BBF /* FirebaseFirestore in Frameworks */,
@@ -278,6 +282,8 @@
 				2B3914463014B7DD00910BBF /* FirebaseAuth */,
 				2B3914483014B7DD00910BBF /* FirebaseCore */,
 				2B39144A3014B7DD00910BBF /* FirebaseFirestore */,
+				2B6FAE5A301F056E006D9182 /* FirebaseInstallations */,
+				2B6FAE57301F056E006D9182 /* FirebaseMessaging */,
 			);
 			productName = BloodyDay;
 			productReference = 2BF454542E97DB6900C1190F /* BloodyDay.app */;
@@ -791,6 +797,16 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 2B3914453014B7DD00910BBF /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseFirestore;
+		};
+		2B6FAE57301F056E006D9182 /* FirebaseMessaging */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 2B3914453014B7DD00910BBF /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseMessaging;
+		};
+		2B6FAE5A301F056E006D9182 /* FirebaseInstallations */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 2B3914453014B7DD00910BBF /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseInstallations;
 		};
 		C0D000013026072600000011 /* FirebaseAuth */ = {
 			isa = XCSwiftPackageProductDependency;

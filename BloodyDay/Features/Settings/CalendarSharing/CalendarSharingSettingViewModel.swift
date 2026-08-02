@@ -17,12 +17,14 @@ final class CalendarSharingSettingViewModel {
     private let sharedCalendarSyncScheduler: SharedCalendarSyncScheduling?
     private let sharedEventRepository: SharedCalendarEventRepository?
     private let calendarDisplayUpdater: CalendarDisplayEventUpdating?
+    private let pushDeviceRegistration: PushDeviceRegistering?
     private let widgetSharingStateStore: WidgetCalendarSharingStateStore
     private var currentNonce: String?
     private var connectionObservation: CalendarConnectionObservation?
     private var requestObservation: CalendarConnectionObservation?
     private var sharedEventObservation: CalendarConnectionObservation?
     private var observedSharedConnectionID: String?
+    private var sharingStateRefreshTask: Task<Void, Never>?
 
     private(set) var user: AuthenticatedUser?
     private(set) var profile: CalendarSharingProfile?
@@ -44,6 +46,7 @@ final class CalendarSharingSettingViewModel {
         sharedCalendarSyncScheduler: SharedCalendarSyncScheduling? = nil,
         sharedEventRepository: SharedCalendarEventRepository? = nil,
         calendarDisplayUpdater: CalendarDisplayEventUpdating? = nil,
+        pushDeviceRegistration: PushDeviceRegistering? = nil,
         widgetSharingStateStore: WidgetCalendarSharingStateStore = .init()
     ) {
         self.authenticationService = authenticationService
@@ -51,6 +54,7 @@ final class CalendarSharingSettingViewModel {
         self.sharedCalendarSyncScheduler = sharedCalendarSyncScheduler
         self.sharedEventRepository = sharedEventRepository
         self.calendarDisplayUpdater = calendarDisplayUpdater
+        self.pushDeviceRegistration = pushDeviceRegistration
         self.widgetSharingStateStore = widgetSharingStateStore
         self.user = authenticationService.currentUser
     }
@@ -84,8 +88,9 @@ final class CalendarSharingSettingViewModel {
         }
     }
 
-    func signOut() {
+    func signOut() async {
         do {
+            try await pushDeviceRegistration?.unregisterCurrentDevice()
             try authenticationService.signOut()
             stopObservingSharingState()
             user = nil
@@ -104,6 +109,21 @@ final class CalendarSharingSettingViewModel {
     }
 
     func refreshSharingState() async {
+        if let sharingStateRefreshTask {
+            await sharingStateRefreshTask.value
+            return
+        }
+
+        let refreshTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            await self.performSharingStateRefresh()
+        }
+        sharingStateRefreshTask = refreshTask
+        await refreshTask.value
+        sharingStateRefreshTask = nil
+    }
+
+    private func performSharingStateRefresh() async {
         user = await authenticationService.resolvedCurrentUser()
         guard let user else {
             clearSharingState(clearDisplayedCalendar: true)
@@ -309,6 +329,7 @@ final class CalendarSharingSettingViewModel {
                 fullName: appleCredential.fullName
             )
             user = try await authenticationService.signIn(with: credential)
+            await pushDeviceRegistration?.refreshRegistration()
             await refreshSharingState()
         } catch {
             errorMessage = error.localizedDescription
