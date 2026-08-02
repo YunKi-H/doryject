@@ -24,6 +24,7 @@ final class CalendarSharingSettingViewModel {
     private var requestObservation: CalendarConnectionObservation?
     private var sharedEventObservation: CalendarConnectionObservation?
     private var observedSharedConnectionID: String?
+    private var sharingStateRefreshTask: Task<Void, Never>?
 
     private(set) var user: AuthenticatedUser?
     private(set) var profile: CalendarSharingProfile?
@@ -108,6 +109,21 @@ final class CalendarSharingSettingViewModel {
     }
 
     func refreshSharingState() async {
+        if let sharingStateRefreshTask {
+            await sharingStateRefreshTask.value
+            return
+        }
+
+        let refreshTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            await self.performSharingStateRefresh()
+        }
+        sharingStateRefreshTask = refreshTask
+        await refreshTask.value
+        sharingStateRefreshTask = nil
+    }
+
+    private func performSharingStateRefresh() async {
         user = await authenticationService.resolvedCurrentUser()
         guard let user else {
             clearSharingState(clearDisplayedCalendar: true)

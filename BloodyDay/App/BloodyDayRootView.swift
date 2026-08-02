@@ -325,11 +325,21 @@ struct BloodyDayRootView: View {
 
         switch route {
         case .calendarSharing:
-            guard calendarSharingSettingViewModel != nil else { return }
+            guard let sharingViewModel = calendarSharingSettingViewModel else {
+                return
+            }
             activeTab = .calendar
             isPresentedCalendarSheet = false
-            navigationPath = NavigationPath()
-            navigationPath.append(route)
+
+            if sharingViewModel.isCalendarSharingPageVisible {
+                pushNotificationRouter.consume(route)
+                return
+            }
+
+            sharingViewModel.setCalendarSharingPageVisible(true)
+            var destinationPath = NavigationPath()
+            destinationPath.append(route)
+            navigationPath = destinationPath
             pushNotificationRouter.consume(route)
         }
     }
