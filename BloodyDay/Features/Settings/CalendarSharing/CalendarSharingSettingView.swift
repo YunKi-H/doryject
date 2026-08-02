@@ -14,6 +14,8 @@ struct CalendarSharingSettingView: View {
     @Bindable var viewModel: CalendarSharingSettingViewModel
     @State private var requestToAccept: CalendarConnectionRequest?
     @State private var connectionToDisconnect: CalendarConnection?
+    @State private var isCopyToastPresented = false
+    @State private var copyToastRequestID = 0
 
     var body: some View {
         List {
@@ -34,6 +36,15 @@ struct CalendarSharingSettingView: View {
                 .ignoresSafeArea()
         }
         .appGradientOverlay()
+        .overlay(alignment: .bottom) {
+            if isCopyToastPresented {
+                copyToast
+                    .padding(.bottom, 24)
+                    .transition(
+                        .opacity.combined(with: .move(edge: .bottom))
+                    )
+            }
+        }
         .toolbar {
             ToolbarItem(placement: .title) {
                 Text("캘린더 연결")
@@ -48,6 +59,14 @@ struct CalendarSharingSettingView: View {
         }
         .task(id: viewModel.user?.id) {
             await viewModel.refreshSharingState()
+        }
+        .task(id: copyToastRequestID) {
+            guard isCopyToastPresented else { return }
+            try? await Task.sleep(for: .seconds(2))
+            guard Task.isCancelled == false else { return }
+            withAnimation(.easeInOut(duration: 0.2)) {
+                isCopyToastPresented = false
+            }
         }
         .confirmationDialog(
             "사용할 캘린더를 선택해주세요",
@@ -364,6 +383,10 @@ struct CalendarSharingSettingView: View {
                 Spacer()
                 Button {
                     UIPasteboard.general.string = profile.connectionCode
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        isCopyToastPresented = true
+                    }
+                    copyToastRequestID += 1
                 } label: {
                     Image(systemName: "doc.on.doc")
                         .foregroundStyle(.icon)
@@ -377,6 +400,16 @@ struct CalendarSharingSettingView: View {
                 .font(.regular_14)
         }
         .listRowBackground(Color.bgSecondary)
+    }
+
+    private var copyToast: some View {
+        Text("클립보드에 복사되었습니다")
+            .font(.regular_14)
+            .foregroundStyle(.bgPrimary)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(.textPrimary, in: Capsule())
+            .allowsHitTesting(false)
     }
 
     @ViewBuilder
