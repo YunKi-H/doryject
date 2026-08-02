@@ -6,7 +6,7 @@
 //
 
 import {initializeApp} from "firebase-admin/app";
-import {getFirestore, Timestamp} from "firebase-admin/firestore";
+import {getFirestore} from "firebase-admin/firestore";
 import {getMessaging} from "firebase-admin/messaging";
 import * as logger from "firebase-functions/logger";
 import {setGlobalOptions} from "firebase-functions/v2/options";
@@ -24,7 +24,6 @@ interface ConnectionRequestData {
   senderDisplayName?: string;
   recipientID?: string;
   status?: string;
-  createdAt?: Timestamp;
 }
 
 interface DeviceRegistration {
@@ -136,10 +135,7 @@ function shouldNotify(
   if (!after || after.status !== "pending") {
     return false;
   }
-  if (!before || before.status !== "pending") {
-    return true;
-  }
-  return before.createdAt?.toMillis() !== after.createdAt?.toMillis();
+  return before?.status !== "pending";
 }
 
 /**
