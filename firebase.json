@@ -15,6 +15,7 @@
     {
       "source": "functions",
       "codebase": "default",
+      "runtime": "nodejs22",
       "disallowLegacyRuntimeConfig": true,
       "ignore": [
         "node_modules",

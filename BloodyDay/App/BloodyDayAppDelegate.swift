@@ -9,10 +9,12 @@ import FirebaseAuth
 import FirebaseCore
 import FirebaseMessaging
 import UIKit
+import UserNotifications
 
 final class BloodyDayAppDelegate: NSObject,
                                   UIApplicationDelegate,
-                                  MessagingDelegate {
+                                  MessagingDelegate,
+                                  UNUserNotificationCenterDelegate {
     func application(
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
@@ -22,6 +24,7 @@ final class BloodyDayAppDelegate: NSObject,
         }
         FirebaseAuthSharedAccess.configureAndMigrateCurrentUser()
         Messaging.messaging().delegate = self
+        UNUserNotificationCenter.current().delegate = self
         application.registerForRemoteNotifications()
         Task { @MainActor in
             await PushDeviceRegistrationService.shared
@@ -50,6 +53,31 @@ final class BloodyDayAppDelegate: NSObject,
                 + error.localizedDescription
         )
         #endif
+    }
+
+    func applicationDidBecomeActive(_ application: UIApplication) {
+        Task {
+            try? await UNUserNotificationCenter.current().setBadgeCount(0)
+        }
+    }
+
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification
+    ) async -> UNNotificationPresentationOptions {
+        [.banner, .sound, .badge]
+    }
+
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse
+    ) async {
+        guard let route = AppPushNotificationRoute(
+            userInfo: response.notification.request.content.userInfo
+        ) else {
+            return
+        }
+        await AppPushNotificationRouter.shared.receive(route)
     }
 
     nonisolated func messaging(
