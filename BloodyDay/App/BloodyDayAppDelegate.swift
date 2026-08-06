@@ -64,30 +64,35 @@ final class BloodyDayAppDelegate: NSObject,
 
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
-        willPresent notification: UNNotification
-    ) async -> UNNotificationPresentationOptions {
-        await clearApplicationBadge(
-            using: center,
-            source: "willPresentNotification"
-        )
-        return [.banner, .sound]
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (
+            UNNotificationPresentationOptions
+        ) -> Void
+    ) {
+        completionHandler([.banner, .sound])
+        Task { @MainActor in
+            await clearApplicationBadge(
+                using: center,
+                source: "willPresentNotification"
+            )
+        }
     }
 
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
-        didReceive response: UNNotificationResponse
-    ) async {
-        await clearApplicationBadge(
-            using: center,
-            source: "didReceiveNotificationResponse"
-        )
-
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
         guard let route = AppPushNotificationRoute(
             userInfo: response.notification.request.content.userInfo
         ) else {
+            completionHandler()
             return
         }
-        await AppPushNotificationRouter.shared.receive(route)
+        completionHandler()
+        Task { @MainActor in
+            AppPushNotificationRouter.shared.receive(route)
+        }
     }
 
     nonisolated func messaging(
