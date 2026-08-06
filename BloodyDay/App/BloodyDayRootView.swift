@@ -35,10 +35,10 @@ struct BloodyDayRootView: View {
     @State private var activeTab: BloodyDayTab = .calendar
     @State private var isPresentedCalendarSheet: Bool = false
     @State private var pendingDeepLink: AppDeepLink?
-    @State private var navigationPath = NavigationPath()
+    @State private var isPushCalendarSharingPresented = false
     
     var body: some View {
-        NavigationStack(path: $navigationPath) {
+        NavigationStack {
             TabView(selection: $activeTab) {
                 Tab.init(value: .calendar) {
                     if let viewModel = calendarViewModel,
@@ -247,9 +247,10 @@ struct BloodyDayRootView: View {
             ) { _, _ in
                 consumePendingPushNotificationRouteIfNeeded()
             }
-            .navigationDestination(for: AppPushNotificationRoute.self) {
-                route in
-                pushNotificationDestination(for: route)
+            .navigationDestination(
+                isPresented: $isPushCalendarSharingPresented
+            ) {
+                pushCalendarSharingDestination
             }
         }
         .preferredColorScheme(preferredColorScheme)
@@ -337,24 +338,20 @@ struct BloodyDayRootView: View {
             }
 
             sharingViewModel.setCalendarSharingPageVisible(true)
-            var destinationPath = NavigationPath()
-            destinationPath.append(route)
-            navigationPath = destinationPath
             pushNotificationRouter.consume(route)
+            Task { @MainActor in
+                await Task.yield()
+                isPushCalendarSharingPresented = true
+            }
         }
     }
 
     @ViewBuilder
-    private func pushNotificationDestination(
-        for route: AppPushNotificationRoute
-    ) -> some View {
-        switch route {
-        case .calendarSharing:
-            if let viewModel = calendarSharingSettingViewModel {
-                CalendarSharingSettingView(viewModel: viewModel)
-            } else {
-                EmptyView()
-            }
+    private var pushCalendarSharingDestination: some View {
+        if let viewModel = calendarSharingSettingViewModel {
+            CalendarSharingSettingView(viewModel: viewModel)
+        } else {
+            EmptyView()
         }
     }
     
