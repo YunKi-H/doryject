@@ -65,4 +65,13 @@ struct NotificationSettings: Codable {
         pillPurchaseReminderDaysBefore = try container.decode(Int.self, forKey: .pillPurchaseReminderDaysBefore, default: defaults.pillPurchaseReminderDaysBefore)
         pillPurchaseReminderTime = try container.decode(DateComponents.self, forKey: .pillPurchaseReminderTime, default: defaults.pillPurchaseReminderTime)
     }
+
+    func disablingAll() -> Self {
+        var settings = self
+        settings.periodReminderEnabled = false
+        settings.periodDelayedEnabled = false
+        settings.pillReminderEnabled = false
+        settings.pillPurchaseReminderEnabled = false
+        return settings
+    }
 }

@@ -15,7 +15,7 @@ struct NotificationSettingView: View {
     @State private var isSystemNotificationOff: Bool = false
     
     var body: some View {
-        let notifications = viewModel.settings.notifications
+        let notifications = viewModel.displayedNotifications
         VStack {
             List {
                 Section {
@@ -105,7 +105,10 @@ struct NotificationSettingView: View {
             .contentMargins(.top, 14)
             .scrollContentBackground(.hidden)
             .animation(.easeInOut(duration: 0.2), value: notifications.periodReminderEnabled)
-            .disabled(isSystemNotificationOff)
+            .disabled(
+                isSystemNotificationOff
+                    || viewModel.isSharedCalendarActive
+            )
         }
         .background {
             Color.bgPrimary
@@ -124,6 +127,11 @@ struct NotificationSettingView: View {
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
             refreshSystemNotificationState()
         }
+        .onChange(of: viewModel.isSharedCalendarActive) { _, isActive in
+            if isActive {
+                activeSheet = nil
+            }
+        }
         .sheet(item: $activeSheet) { sheet in
             NavigationStack {
                 switch sheet {
@@ -141,7 +149,15 @@ struct NotificationSettingView: View {
     
     @ViewBuilder
     private var footerMessage: some View {
-        if isSystemNotificationOff {
+        if viewModel.isSharedCalendarActive {
+            Text("공유받은 캘린더에서는 알림을 사용할 수 없어요.")
+                .font(.regular_14)
+                .foregroundStyle(.textSecondary40)
+                .padding(.top, 14)
+                .listRowInsets(
+                    .init(top: 0, leading: 0, bottom: 0, trailing: 0)
+                )
+        } else if isSystemNotificationOff {
             ZStack(alignment: .leading) {
                 RoundedRectangle(cornerRadius: 100)
                     .fill(.mainRed10)
@@ -167,7 +183,7 @@ struct NotificationSettingView: View {
         sheet: NotificationSheet?
     ) -> Binding<Bool> {
         Binding(
-            get: { viewModel.settings.notifications[keyPath: keyPath] },
+            get: { viewModel.displayedNotifications[keyPath: keyPath] },
             set: { value in
                 viewModel.updateNotifications { $0[keyPath: keyPath] = value }
                 if value, let sheet {

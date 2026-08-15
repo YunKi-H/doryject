@@ -22,7 +22,8 @@ struct BloodyDayRootView: View {
     @State private var calendarSharingSettingViewModel: CalendarSharingSettingViewModel?
     @State private var appleCalendarClient: EventKitAppleCalendarClient?
     @State private var appleCalendarSyncService: AppleCalendarSyncService?
-    @State private var notificationScheduler: UserNotificationScheduler?
+    @State private var notificationScheduler:
+        CalendarScopeNotificationScheduler?
     @State private var widgetReloadService: WidgetReloadService?
     @State private var firebaseAuthenticationService: FirebaseAuthenticationService?
     @State private var calendarConnectionRepository: FirestoreCalendarConnectionRepository?
@@ -94,7 +95,10 @@ struct BloodyDayRootView: View {
                 let settingsRepository = UserDefaultsSettingsRepository()
                 let syncStore = UserDefaultsAppleCalendarSyncStore()
                 let calendarClient = appleCalendarClient ?? EventKitAppleCalendarClient()
-                let scheduler = notificationScheduler ?? UserNotificationScheduler()
+                let scheduler = notificationScheduler
+                    ?? CalendarScopeNotificationScheduler(
+                        base: UserNotificationScheduler()
+                    )
                 let widgetReloader = widgetReloadService ?? WidgetReloadService()
                 let authenticationService = firebaseAuthenticationService
                     ?? FirebaseAuthenticationService()
@@ -156,12 +160,21 @@ struct BloodyDayRootView: View {
                     activeCalendarViewModel = createdViewModel
                 }
                 displayEventRepository.onDisplayEventsChanged = {
-                    activeCalendarViewModel.refreshDisplayMode(
-                        canEditEvents: displayEventRepository
-                            .isDisplayingSharedCalendar == false
+                    let isSharedCalendarActive = displayEventRepository
+                        .isDisplayingSharedCalendar
+                    scheduler.setSharedCalendarActive(
+                        isSharedCalendarActive
                     )
+                    activeCalendarViewModel.refreshDisplayMode(
+                        canEditEvents: isSharedCalendarActive == false
+                    )
+                    notificationSettingsViewModel?
+                        .setSharedCalendarActive(isSharedCalendarActive)
                     widgetReloader.reloadAll()
                 }
+                scheduler.setSharedCalendarActive(
+                    displayEventRepository.isDisplayingSharedCalendar
+                )
                 if displayEventRepository.isDisplayingSharedCalendar {
                     activeCalendarViewModel.refreshDisplayMode(
                         canEditEvents: false
@@ -194,6 +207,9 @@ struct BloodyDayRootView: View {
                         eventRepository: syncingRepository
                     )
                 }
+                notificationSettingsViewModel?.setSharedCalendarActive(
+                    displayEventRepository.isDisplayingSharedCalendar
+                )
                 if pillSettingsViewModel == nil {
                     pillSettingsViewModel = PillSettingsViewModel(
                         repo: settingsRepository,
